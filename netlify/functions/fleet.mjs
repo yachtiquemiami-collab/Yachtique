@@ -95,6 +95,12 @@ function toYacht(p) {
     type: p.product_type,
     guests,
     summary: (text.find((s) => s.length > 80) || "").replace(/\bYCN( Miami)?\b/gi, "Yachtique"),
+    // Full description for the yacht page: short lines without a full stop are subheadings
+    about: text
+      .map((t) => t.replace(/\bYCN( Miami)?\b/gi, "Yachtique"))
+      .filter((t) => !/^(rates?|price|book|reserve)\b/i.test(t))
+      .slice(0, 24)
+      .map((t) => (t.length < 70 && !/[.!?]$/.test(t) ? { h: t } : { p: t })),
     images: (p.images || []).slice(0, 14).map((i) => i.src),
     durations,
     from: durations.length ? Math.min(...durations.map((d) => d.price)) : 0,
