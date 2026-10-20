@@ -148,7 +148,7 @@ function yachtBody(y, others) {
 </div>
 
 <script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null }).replace(/</g, "\\u003c")}</script>
-<script src="/assets/js/yacht.js" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261020b" defer></script>`;
 }
 
 function simCard(y) {
@@ -243,7 +243,7 @@ function page({ title, description = "", image = `${SITE}/assets/img/og-image.pn
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261020b">
   ${jsonld ? `<script type="application/ld+json">${json(jsonld).replace(/</g, "\\u003c")}</script>` : ""}
 </head>
 <body class="is-subpage">
