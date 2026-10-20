@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -18,4 +21,17 @@
   from = "https://www.yachtique.co/*"
   to = "https://yachtique.co/:splat"
   status = 301
+  force = true
+
+# Keep backend code and pricing settings private (the site publishes from the repo root)
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/README.md"
+  to = "/404"
+  status = 404
   force = true
