@@ -1,6 +1,5 @@
 // WhatsApp number in international format, digits only (e.g. 13055551234).
-// Leave empty until Nektarios confirms it; the links then fall back to the contact form.
-var WHATSAPP_NUMBER = "";
+var WHATSAPP_NUMBER = "13058124721";
 
 (function () {
   // Fleet: live from YCN via /api/fleet (see netlify/functions/fleet.mjs)
@@ -8,9 +7,15 @@ var WHATSAPP_NUMBER = "";
   var select = document.getElementById("yachtSelect");
   var dialog = document.getElementById("yachtDialog");
   var filters = document.getElementById("fleetFilters");
-  var dateInput = document.querySelector('.form input[name="date"]');
+  var finder = document.getElementById("finder");
+  var searchBar = document.getElementById("fleetSearch");
+  var searchText = document.getElementById("fleetSearchText");
+  var formDate = document.querySelector('.form input[name="date"]');
+  var formGuests = document.querySelector('.form input[name="guests"]');
   var dateNote = document.getElementById("dateNote");
   var fleet = [];
+  // What the visitor is looking for (from the hero finder and the size buttons)
+  var want = { date: "", guests: 0, min: 0, max: 999 };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -23,38 +28,79 @@ var WHATSAPP_NUMBER = "";
   function shortDur(d) { return d.replace(/ hours?$/, "h"); }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function niceDate(s) {
+    var p = s.split("-");
+    return new Date(+p[0], p[1] - 1, +p[2]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  }
+  function waLink(text) {
+    return WHATSAPP_NUMBER ? "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(text) : "#contact";
+  }
+  function cabins(n) { return n + (n === 1 ? " cabin" : " cabins"); }
+  function stateOn(y, date) { return date && y.busy ? y.busy[date] || "free" : null; }
 
   function card(y, i) {
     var photo = y.images[0]
-      ? '<img src="' + esc(sized(y.images[0], 800)) + '" alt="' + esc(label(y)) + '" loading="lazy">'
+      ? '<img src="' + esc(sized(y.images[0], 900)) + '" alt="' + esc(label(y)) + '" loading="lazy">'
       : '<img src="/assets/img/logo-icon.png" alt="" loading="lazy">';
-    var people = y.guests ? { v: y.guests, l: "Guests" } : { v: y.cabins || "—", l: "Cabins" };
     var first = y.durations[0];
+    var bits = [y.builder + " · " + y.feet + " ft"];
+    if (y.guests) bits.push("up to " + y.guests + " guests");
+    else if (y.cabins) bits.push(cabins(y.cabins));
     return (
-      '<article class="yacht reveal" data-feet="' + y.feet + '">' +
+      '<article class="yacht reveal" data-i="' + i + '">' +
         '<button type="button" class="yacht__media js-open" data-i="' + i + '" aria-label="View ' + esc(y.name) + '">' + photo +
-          '<span class="yacht__tag">' + esc(y.type) + "</span></button>" +
+          '<span class="yacht__tag">' + esc(y.type) + "</span>" +
+          '<span class="yacht__avail" hidden></span>' +
+          '<span class="yacht__price"><b>' + money(first.price) + "</b>/ " + esc(shortDur(first.label)) + "</span>" +
+        "</button>" +
         '<div class="yacht__body">' +
-          "<h3>" + esc(y.name) + "</h3>" +
-          '<p class="yacht__model">' + esc(y.builder) + " · " + y.feet + " ft</p>" +
-          '<ul class="yacht__specs">' +
-            "<li><b>" + y.feet + "</b>Feet</li>" +
-            "<li><b>" + esc(people.v) + "</b>" + people.l + "</li>" +
-            "<li><b>" + ((y.crew && y.crew.length) || "—") + "</b>Crew</li>" +
-          "</ul>" +
-          '<div class="yacht__foot">' +
-            '<span class="yacht__price">From <b>' + money(first.price) + "</b> / " + esc(shortDur(first.label)) + "</span>" +
-            '<button type="button" class="btn btn--ghost btn--sm js-open" data-i="' + i + '">Details</button>' +
-          "</div>" +
+          "<div><h3>" + esc(y.name) + "</h3>" +
+          '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p></div>" +
+          '<button type="button" class="yacht__more js-open" data-i="' + i + '" aria-label="Details for ' + esc(y.name) + '">→</button>' +
         "</div>" +
       "</article>"
     );
+  }
+
+  // Show, hide, badge and order the cards for the current search
+  function applyWant() {
+    if (!fleet.length) return;
+    var cards = [].slice.call(grid.querySelectorAll(".yacht"));
+    var shown = 0, free = 0;
+    cards.forEach(function (el) {
+      var y = fleet[+el.getAttribute("data-i")];
+      var fits = y.feet >= want.min && y.feet <= want.max && !(want.guests && y.guests && y.guests < want.guests);
+      el.hidden = !fits;
+      var st = stateOn(y, want.date);
+      var badge = el.querySelector(".yacht__avail");
+      badge.hidden = !st;
+      if (st) {
+        badge.className = "yacht__avail yacht__avail--" + st;
+        badge.textContent = st === "free" ? "Available" : st === "partial" ? "Partly booked" : "Booked";
+      }
+      el.classList.toggle("is-booked", st === "full");
+      el.style.order = st === "full" ? 2 : st === "partial" ? 1 : 0;
+      if (fits) { shown++; if (st !== "full") free++; }
+    });
+    if (filters) {
+      filters.querySelectorAll("button").forEach(function (b) {
+        b.classList.toggle("is-active", +b.getAttribute("data-min") === want.min && +b.getAttribute("data-max") === want.max);
+      });
+    }
+    if (searchBar) {
+      var parts = [];
+      if (want.date) parts.push(free + " of " + shown + " yachts available on " + niceDate(want.date));
+      if (want.guests) parts.push("for " + want.guests + " guests");
+      searchBar.hidden = !parts.length;
+      searchText.textContent = parts.join(" ");
+    }
   }
 
   function renderFleet() {
     grid.innerHTML = fleet.map(card).join("");
     observe(grid.querySelectorAll(".reveal"));
     if (filters) filters.hidden = false;
+    applyWant();
   }
 
   function fillSelect() {
@@ -67,6 +113,20 @@ var WHATSAPP_NUMBER = "";
     });
   }
 
+  function fillStats() {
+    var set = function (k, v) { var el = document.querySelector('[data-stat="' + k + '"]'); if (el) el.textContent = v; };
+    var feet = fleet.map(function (y) { return y.feet; });
+    var marinas = {};
+    fleet.forEach(function (y) {
+      (y.locations || []).forEach(function (l) {
+        if (!/private house/i.test(l)) marinas[l.replace(/\s*\(.*\)/, "").replace(/bay ?street/i, "Bay Street").toLowerCase()] = 1;
+      });
+    });
+    set("count", fleet.length);
+    set("range", Math.min.apply(null, feet) + "–" + Math.max.apply(null, feet) + " ft");
+    set("marinas", Object.keys(marinas).length);
+  }
+
   if (grid) {
     grid.innerHTML = '<p class="fleet__status">Loading the fleet…</p>';
     fetch("/api/fleet")
@@ -76,23 +136,46 @@ var WHATSAPP_NUMBER = "";
         if (!fleet.length) throw new Error("empty");
         renderFleet();
         fillSelect();
+        fillStats();
       })
       .catch(function () {
         grid.innerHTML = '<p class="fleet__status">Our fleet list is being updated. <a href="#contact">Tell us your plans</a> and we\'ll send you the best options for your date.</p>';
       });
   }
 
-  // Size filter
+  // Hero finder: date, guests, size
+  if (finder) {
+    var finderDate = document.getElementById("finderDate");
+    finderDate.min = ymd(new Date());
+    finder.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var size = document.getElementById("finderSize").value.split("-");
+      want.date = finderDate.value;
+      want.guests = +document.getElementById("finderGuests").value || 0;
+      want.min = +size[0]; want.max = +size[1];
+      if (formDate && want.date) formDate.value = want.date;
+      if (formGuests && want.guests) formGuests.value = want.guests;
+      applyWant();
+      document.getElementById("fleet").scrollIntoView({ behavior: "smooth" });
+    });
+  }
+  var clearBtn = document.getElementById("fleetSearchClear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      want = { date: "", guests: 0, min: 0, max: 999 };
+      if (finder) finder.reset();
+      applyWant();
+    });
+  }
+
+  // Size buttons above the fleet
   if (filters) {
     filters.addEventListener("click", function (e) {
       var b = e.target.closest("button[data-min]");
       if (!b) return;
-      filters.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-active", x === b); });
-      var min = +b.getAttribute("data-min"), max = +b.getAttribute("data-max");
-      grid.querySelectorAll(".yacht").forEach(function (el) {
-        var f = +el.getAttribute("data-feet");
-        el.hidden = f < min || f > max;
-      });
+      want.min = +b.getAttribute("data-min");
+      want.max = +b.getAttribute("data-max");
+      applyWant();
     });
   }
 
@@ -110,7 +193,7 @@ var WHATSAPP_NUMBER = "";
     for (var d = 1; d <= days; d++) {
       var key = ymd(new Date(month.getFullYear(), month.getMonth(), d));
       var state = key < today ? "past" : y.busy[key] || "free";
-      cells += '<span class="cal__d cal__d--' + state + '" title="' + key + '">' + d + "</span>";
+      cells += '<span class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + '" title="' + key + '">' + d + "</span>";
     }
     var name = month.toLocaleString("en-US", { month: "long", year: "numeric" });
     var now = new Date();
@@ -132,13 +215,15 @@ var WHATSAPP_NUMBER = "";
     var y = fleet[i];
     if (!y || !dialog) return;
     current = y;
-    month = new Date(); month.setDate(1);
+    if (want.date) { var p = want.date.split("-"); month = new Date(+p[0], p[1] - 1, 1); }
+    else { month = new Date(); month.setDate(1); }
     var thumbs = y.images.map(function (src, n) {
       return '<button type="button" class="ydlg__thumb js-thumb' + (n ? "" : " is-active") + '" data-src="' + esc(src) + '"><img src="' + esc(sized(src, 200)) + '" alt="" loading="lazy"></button>';
     }).join("");
     var prices = y.durations.map(function (d) {
       return "<li><span>" + esc(d.label) + "</span><b>" + money(d.price) + "</b></li>";
     }).join("");
+    var waText = "Hi Yachtique, I'm interested in " + label(y) + (want.date ? " on " + niceDate(want.date) : "") + (want.guests ? " for " + want.guests + " guests" : "") + ".";
     dialog.querySelector(".ydlg__body").innerHTML =
       '<div class="ydlg__gallery">' +
         '<img class="ydlg__main" src="' + esc(sized(y.images[0] || "", 1400)) + '" alt="' + esc(label(y)) + '">' +
@@ -147,7 +232,7 @@ var WHATSAPP_NUMBER = "";
       '<div class="ydlg__info">' +
         '<p class="eyebrow">' + esc(y.type) + "</p>" +
         "<h3>" + esc(y.name) + "</h3>" +
-        '<p class="yacht__model">' + esc(y.builder) + " · " + y.feet + " ft" + (y.guests ? " · up to " + y.guests + " guests" : "") + (y.cabins ? " · " + y.cabins + " cabins" : "") + "</p>" +
+        '<p class="yacht__model">' + esc(y.builder) + " · " + y.feet + " ft" + (y.guests ? " · up to " + y.guests + " guests" : "") + (y.cabins ? " · " + cabins(y.cabins) : "") + "</p>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
         '<h4>Rates</h4><ul class="ydlg__prices">' + prices + "</ul>" +
         '<p class="muted ydlg__small">Starting rates. Sales tax' + (y.gratuityIncluded ? "" : " and crew gratuity") + " may apply. Your final quote is confirmed on enquiry.</p>" +
@@ -157,7 +242,10 @@ var WHATSAPP_NUMBER = "";
           "<dt>Toys</dt><dd>" + list(y.toys) + "</dd>" +
         "</dl>" +
         "<h4>Availability</h4><div class=\"ydlg__cal\">" + calendarHtml(y) + "</div>" +
-        '<a href="#contact" class="btn btn--gold btn--block js-enquire">Enquire about ' + esc(y.name) + "</a>" +
+        '<div class="ydlg__ctas">' +
+          '<a href="#contact" class="btn btn--gold btn--block js-enquire">Enquire about ' + esc(y.name) + "</a>" +
+          (WHATSAPP_NUMBER ? '<a href="' + esc(waLink(waText)) + '" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Ask on WhatsApp</a>' : "") +
+        "</div>" +
       "</div>";
     dialog.showModal();
     dialog.querySelector(".ydlg__body").scrollTop = 0;
@@ -189,11 +277,11 @@ var WHATSAPP_NUMBER = "";
 
   // Warn in the form when the chosen yacht is booked on the chosen date
   function checkDate() {
-    if (!dateNote || !select || !dateInput) return;
+    if (!dateNote || !select || !formDate) return;
     var opt = select.options[select.selectedIndex];
     var handle = opt && opt.getAttribute("data-handle");
     var y = fleet.filter(function (x) { return x.handle === handle; })[0];
-    var state = y && y.busy && dateInput.value ? y.busy[dateInput.value] : null;
+    var state = y && y.busy && formDate.value ? y.busy[formDate.value] : null;
     dateNote.textContent = state === "full"
       ? y.name + " is booked on this date. Send your enquiry anyway and we'll suggest similar yachts."
       : state === "partial"
@@ -202,16 +290,15 @@ var WHATSAPP_NUMBER = "";
     dateNote.hidden = !dateNote.textContent;
   }
   if (select) select.addEventListener("change", checkDate);
-  if (dateInput) dateInput.addEventListener("change", checkDate);
+  if (formDate) formDate.addEventListener("change", checkDate);
 
   // WhatsApp links
   document.querySelectorAll(".js-wa").forEach(function (a) {
     if (WHATSAPP_NUMBER) {
-      a.href = "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent("Hi Yachtique, I'd like to plan a charter.");
+      a.href = waLink("Hi Yachtique, I'd like to plan a charter.");
     } else {
       a.href = "#contact";
       a.removeAttribute("target");
-      if (!a.classList.contains("wa-float")) a.textContent = "Coming soon";
     }
   });
 
