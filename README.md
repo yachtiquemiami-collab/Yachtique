@@ -30,3 +30,34 @@ It adds the markup from `netlify/fleet-config.mjs` (+20% by default) and Netlify
     python3 -m http.server 8000
 
 Then open http://localhost:8000
+
+## Enquiries backend (Netlify + Google Sheet)
+
+Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → Google Apps Script → "Yachtique" Google Sheet (Enquiries tab) + branded emails (alert to yachtiquemiami@gmail.com, confirmation to the client).
+
+| Piece | Where |
+|---|---|
+| Netlify function | `netlify/functions/enquiry-to-sheet.mts` |
+| Apps Script code | `apps-script/Code.gs` (linked to the live script by `apps-script/.clasp.json`) |
+| Web app URL | Netlify env var `SHEETS_WEBHOOK_URL` (Functions scope) |
+| Shared secret | Netlify env var `SHEETS_SECRET` **and** Apps Script → Project Settings → Script Properties `SHEETS_SECRET`. Never in this repo. |
+
+`/netlify/*`, `/apps-script/*` and `/README.md` are blocked from the public site in `netlify.toml`.
+
+## Working from another laptop
+
+1. `git pull` before you start, push when you finish.
+2. Website and Netlify function: edit, commit, push to `main`. Netlify deploys automatically.
+3. Apps Script (needs Node.js and access to the Google Sheet):
+   ```
+   npm install -g @google/clasp
+   clasp login
+   cd apps-script
+   clasp pull     # get the live version first
+   # edit Code.gs
+   clasp push     # upload to Apps Script
+   ```
+   Then in the Apps Script editor: **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**.
+   Never "New deployment" (it creates a new URL and breaks Netlify). Commit `Code.gs` to GitHub too.
+4. Changed the secret? Update it in both places at the same time (Script Properties and Netlify), then trigger a Netlify deploy.
+5. Test: send an enquiry on yachtique.co. You should get a new row in the Sheet and both emails within seconds.
