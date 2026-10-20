@@ -118,6 +118,9 @@
         <button type="button" class="link-btn" id="fleetSearchClear">Clear</button>
       </div>
       <div class="fleet__grid" id="fleetGrid"><!-- rendered from /api/fleet by /assets/js/main.js --></div>
+      <div class="fleet__more" id="fleetMore" hidden>
+        <button type="button" class="btn btn--ghost" id="fleetMoreBtn">View all yachts</button>
+      </div>
       <p class="fleet__note muted">Starting rates for the shortest charter. Sales tax and crew gratuity may apply; your final quote is confirmed on enquiry.</p>
     </div>
   </section>
@@ -182,6 +185,17 @@
         <li class="reveal"><h3>Receive your options</h3><p>A short list of yachts and extras that match, with clear pricing.</p></li>
         <li class="reveal"><h3>Step aboard</h3><p>Confirm with a deposit. We handle the rest, down to the last detail.</p></li>
       </ol>
+    </div>
+  </section>
+
+  <!-- REVIEWS: filled from REVIEWS in /assets/js/main.js; stays hidden while that list is empty -->
+  <section class="reviews section" id="reviews" hidden>
+    <div class="container">
+      <div class="section__head reveal">
+        <p class="eyebrow">Kind words</p>
+        <h2 class="title">From our guests</h2>
+      </div>
+      <div class="reviews__grid" id="reviewsGrid"></div>
     </div>
   </section>
 
@@ -256,16 +270,69 @@
     </div>
   </section>
 
+  <!-- INSTAGRAM -->
+  <section class="insta" aria-label="Instagram">
+    <div class="container insta__head">
+      <div>
+        <p class="eyebrow">On Instagram</p>
+        <h2 class="title">Follow the fleet</h2>
+      </div>
+      <a href="https://www.instagram.com/yachtiquemiami/" class="btn btn--ghost" target="_blank" rel="noopener">@yachtiquemiami</a>
+    </div>
+    <div class="insta__strip">
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig1.jpg" alt="Motor yacht from above on blue water" loading="lazy" width="600" height="600"></a>
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig2.jpg" alt="Catamaran at anchor in a turquoise bay" loading="lazy" width="600" height="600"></a>
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig3.jpg" alt="Superyacht cruising off Miami" loading="lazy" width="600" height="600"></a>
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig4.jpg" alt="Yacht at anchor" loading="lazy" width="600" height="600"></a>
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig5.jpg" alt="Motor yacht underway" loading="lazy" width="600" height="600"></a>
+      <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener"><img src="/assets/img/ig/ig6.jpg" alt="Aft deck of a superyacht" loading="lazy" width="600" height="600"></a>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer">
-  <div class="container footer__inner">
-    <img src="/assets/img/logo-stacked-notag.png" alt="Yachtique" class="footer__logo" width="220" height="74">
-    <nav class="footer__links" aria-label="Footer">
-      <a href="#fleet">Fleet</a><a href="#services">Concierge</a><a href="#experiences">Experiences</a><a href="#about">About</a><a href="#contact">Contact</a><a href="/faq.html">FAQ</a><a href="/terms.html">Booking terms</a><a href="/privacy.html">Privacy</a>
-    </nav>
-    <p class="footer__contact"><a href="tel:+13058124721">+1 (305) 812-4721</a> &middot; <a href="mailto:yachtiquemiami@gmail.com">yachtiquemiami@gmail.com</a> &middot; <a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener">@yachtiquemiami</a></p>
-    <p class="footer__copy">&copy; <span id="year">2026</span> Yachtique. Miami, Florida.</p>
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <img src="/assets/img/logo-stacked-notag.png" alt="Yachtique" class="footer__logo" width="220" height="74">
+        <p>Private yacht charters and concierge in Miami, arranged by one broker from the first message to the dock.</p>
+      </div>
+      <div>
+        <h3 class="footer__title">Explore</h3>
+        <ul class="footer__list">
+          <li><a href="#fleet">The Fleet</a></li>
+          <li><a href="#services">Concierge</a></li>
+          <li><a href="#experiences">Experiences</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="/faq.html">FAQ</a></li>
+          <li><a href="/terms.html">Booking terms</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="footer__title">Where we charter</h3>
+        <ul class="footer__list footer__list--muted">
+          <li>Miami Beach &amp; Downtown Miami</li>
+          <li>Coconut Grove &amp; Key Biscayne</li>
+          <li>Fort Lauderdale &amp; Palm Beach</li>
+          <li>Key West</li>
+          <li>Bimini &amp; Nassau, Bahamas</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="footer__title">Contact</h3>
+        <ul class="footer__list">
+          <li><a href="#contact" class="js-wa" target="_blank" rel="noopener">WhatsApp</a></li>
+          <li><a href="tel:+13058124721">+1 (305) 812-4721</a></li>
+          <li><a href="mailto:yachtiquemiami@gmail.com">yachtiquemiami@gmail.com</a></li>
+          <li><a href="https://www.instagram.com/yachtiquemiami/" target="_blank" rel="noopener">Instagram</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p>&copy; <span id="year">2026</span> Yachtique. Miami, Florida.</p>
+      <p><a href="/terms.html">Booking terms</a> &middot; <a href="/privacy.html">Privacy Policy</a></p>
+    </div>
   </div>
 </footer>
 

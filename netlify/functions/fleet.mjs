@@ -30,6 +30,8 @@ export default async () => {
     );
 
     yachts.sort((a, b) => a.feet - b.feet || a.from - b.from);
+    const featured = settings.featured || [];
+    yachts.forEach((y) => { y.featured = featured.indexOf(y.handle); });
 
     return json({ updated: new Date().toISOString(), yachts }, 200, {
       "Netlify-CDN-Cache-Control": "public, durable, s-maxage=3600, stale-while-revalidate=86400",
