@@ -7,6 +7,8 @@
   - roundTo:        prices are rounded UP to this step, e.g. 5 → $2,118 becomes $2,120.
   - brokerListedOnly: true = only show yachts that are on YCN's broker page (the ones
                     YCN offers to brokers, with their live calendar).
+  - featured:       the yachts shown first on the home page (up to 6), in this order. The rest
+                    appear when a visitor clicks "View all" or searches by date.
   - hide:           yachts to leave off the site, by their handle (the last part of the
                     ycn.yachts/products/... link), e.g. "bimini-blue".
   - priceOverrides: a fixed price for one yacht and duration, used instead of the markup.
@@ -18,6 +20,7 @@ export default {
   markup: 0.20,
   roundTo: 5,
   brokerListedOnly: true,
+  featured: ["bimini-blue", "sea-suite", "dont-tell-mom", "orca", "makebighappen", "no-curfew"],
   hide: [],
   priceOverrides: {},
   calendars: {
