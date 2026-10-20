@@ -63,9 +63,9 @@ var REVIEWS = [];
           '<span class="yacht__price"><b>' + money(first.price) + "</b>/ " + esc(shortDur(first.label)) + "</span>" +
         "</button>" +
         '<div class="yacht__body">' +
-          "<div><h3>" + esc(y.name) + "</h3>" +
+          '<div><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3>" +
           '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p></div>" +
-          '<button type="button" class="yacht__more js-open" data-i="' + i + '" aria-label="Details for ' + esc(y.name) + '">→</button>' +
+          '<a class="yacht__more" href="/yachts/' + esc(y.handle) + '" aria-label="Full details for ' + esc(y.name) + '">→</a>' +
         "</div>" +
       "</article>"
     );
@@ -267,6 +267,7 @@ var REVIEWS = [];
         "</dl>" +
         "<h4>Availability</h4><div class=\"ydlg__cal\">" + calendarHtml(y) + "</div>" +
         '<div class="ydlg__ctas">' +
+          '<a href="/yachts/' + esc(y.handle) + '" class="btn btn--ghost btn--block">View full details</a>' +
           '<a href="#contact" class="btn btn--gold btn--block js-enquire">Enquire about ' + esc(y.name) + "</a>" +
           (WHATSAPP_NUMBER ? '<a href="' + esc(waLink(waText)) + '" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Ask on WhatsApp</a>' : "") +
         "</div>" +
