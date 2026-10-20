@@ -1,6 +1,11 @@
 // WhatsApp number in international format, digits only (e.g. 13055551234).
 var WHATSAPP_NUMBER = "13058124721";
 
+// Guest reviews shown on the home page. Only add real reviews, with the guest's permission.
+// The section stays hidden while this list is empty. Example:
+//   { quote: "Best day of our trip...", name: "Sarah M.", occasion: "Birthday, 70ft Azimut" },
+var REVIEWS = [];
+
 (function () {
   // Fleet: live from YCN via /api/fleet (see netlify/functions/fleet.mjs)
   var grid = document.getElementById("fleetGrid");
@@ -16,6 +21,10 @@ var WHATSAPP_NUMBER = "13058124721";
   var fleet = [];
   // What the visitor is looking for (from the hero finder and the size buttons)
   var want = { date: "", guests: 0, min: 0, max: 999 };
+  // Home page shows the featured yachts until the visitor asks for more
+  var showAll = false;
+  var moreWrap = document.getElementById("fleetMore");
+  var moreBtn = document.getElementById("fleetMoreBtn");
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -67,10 +76,14 @@ var WHATSAPP_NUMBER = "13058124721";
     if (!fleet.length) return;
     var cards = [].slice.call(grid.querySelectorAll(".yacht"));
     var shown = 0, free = 0;
-    cards.forEach(function (el) {
+    var searching = want.date || want.guests || want.min !== 0 || want.max !== 999;
+    var hasFeatured = fleet.some(function (y) { return y.featured >= 0; });
+    var collapsed = !showAll && !searching;
+    cards.forEach(function (el, n) {
       var y = fleet[+el.getAttribute("data-i")];
+      var rank = hasFeatured ? y.featured : (n < 6 ? n : -1);
       var fits = y.feet >= want.min && y.feet <= want.max && !(want.guests && y.guests && y.guests < want.guests);
-      el.hidden = !fits;
+      el.hidden = !fits || (collapsed && rank < 0);
       var st = stateOn(y, want.date);
       var badge = el.querySelector(".yacht__avail");
       badge.hidden = !st;
@@ -79,9 +92,13 @@ var WHATSAPP_NUMBER = "13058124721";
         badge.textContent = st === "free" ? "Available" : st === "partial" ? "Partly booked" : "Booked";
       }
       el.classList.toggle("is-booked", st === "full");
-      el.style.order = st === "full" ? 2 : st === "partial" ? 1 : 0;
+      el.style.order = collapsed ? rank : st === "full" ? 2 : st === "partial" ? 1 : 0;
       if (fits) { shown++; if (st !== "full") free++; }
     });
+    if (moreWrap) {
+      moreWrap.hidden = !collapsed;
+      if (moreBtn) moreBtn.textContent = "View all " + fleet.length + " yachts";
+    }
     if (filters) {
       filters.querySelectorAll("button").forEach(function (b) {
         b.classList.toggle("is-active", +b.getAttribute("data-min") === want.min && +b.getAttribute("data-max") === want.max);
@@ -175,6 +192,13 @@ var WHATSAPP_NUMBER = "13058124721";
       if (!b) return;
       want.min = +b.getAttribute("data-min");
       want.max = +b.getAttribute("data-max");
+      showAll = true;
+      applyWant();
+    });
+  }
+  if (moreBtn) {
+    moreBtn.addEventListener("click", function () {
+      showAll = true;
       applyWant();
     });
   }
@@ -335,6 +359,17 @@ var WHATSAPP_NUMBER = "13058124721";
     items.forEach(function (el) { io ? io.observe(el) : el.classList.add("is-visible"); });
   }
   observe(document.querySelectorAll(".reveal"));
+
+  // Reviews
+  var reviews = document.getElementById("reviews");
+  if (reviews && REVIEWS.length) {
+    document.getElementById("reviewsGrid").innerHTML = REVIEWS.map(function (r) {
+      return '<figure class="review reveal"><blockquote>“' + esc(r.quote) + '”</blockquote>' +
+        '<figcaption><b>' + esc(r.name) + "</b>" + (r.occasion ? "<span>" + esc(r.occasion) + "</span>" : "") + "</figcaption></figure>";
+    }).join("");
+    reviews.hidden = false;
+    observe(reviews.querySelectorAll(".reveal"));
+  }
 
   var year = document.getElementById("year");
   if (year) year.textContent = new Date().getFullYear();
