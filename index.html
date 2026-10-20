@@ -180,9 +180,9 @@
         </ul>
       </div>
 
-      <form class="form reveal" name="enquiry" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="company">
+      <form class="form reveal" name="enquiry" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
         <input type="hidden" name="form-name" value="enquiry">
-        <p class="hidden"><label>Leave empty <input name="company"></label></p>
+        <p class="hidden" aria-hidden="true"><label>Leave empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
         <div class="form__row">
           <label>Name<input type="text" name="name" required autocomplete="name"></label>
           <label>Phone / WhatsApp<input type="tel" name="phone" required autocomplete="tel"></label>
