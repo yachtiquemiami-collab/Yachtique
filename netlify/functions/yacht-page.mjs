@@ -8,12 +8,18 @@ export default async (req, context) => {
   const handle = (context.params && context.params.handle) || "";
   if (!handle) return Response.redirect(new URL("/#fleet", req.url), 302);
 
-  let fleet = [];
-  try {
-    const res = await fetch(new URL("/api/fleet", req.url));
-    if (res.ok) fleet = (await res.json()).yachts || [];
-  } catch (e) {
-    console.error(e);
+  // The fleet can be slow on a cold start, so try twice before giving up
+  let fleet = null;
+  for (let attempt = 0; attempt < 2 && !fleet; attempt++) {
+    try {
+      const res = await fetch(new URL("/api/fleet", req.url), { signal: AbortSignal.timeout(9000) });
+      if (res.ok) fleet = (await res.json()).yachts || null;
+    } catch (e) {
+      console.error("fleet fetch failed", e);
+    }
+  }
+  if (!fleet || !fleet.length) {
+    return html(page({ title: "Yachtique", body: unavailable(), canonical: `${SITE}/yachts/${handle}` }), 503, "no-store");
   }
 
   const y = fleet.find((x) => x.handle === handle);
@@ -170,6 +176,18 @@ function notFound() {
     <h1 class="ypage__title">This yacht isn't available</h1>
     <p class="lead">It may have left the fleet. Have a look at the yachts we can offer today.</p>
     <a href="/#fleet" class="btn btn--gold">View the fleet</a>
+  </div>
+</main>`;
+}
+
+function unavailable() {
+  return `
+<main class="ypage">
+  <div class="container ypage__empty">
+    <p class="eyebrow">The Fleet</p>
+    <h1 class="ypage__title">One moment</h1>
+    <p class="lead">We're updating the fleet right now. Please refresh this page in a few seconds, or message us on WhatsApp.</p>
+    <a href="" class="btn btn--gold">Refresh</a>
   </div>
 </main>`;
 }
