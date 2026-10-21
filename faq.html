@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021f">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261022a">
   <style>
     .faq { margin-top: 2.5rem; border-top: 1px solid var(--line); }
     .faq__item { border-bottom: 1px solid var(--line); }
@@ -36,71 +36,106 @@
 <body>
 <header class="nav is-scrolled">
   <div class="nav__inner">
-    <a href="/" class="nav__logo" aria-label="Yachtique home"><img src="/assets/img/logo-nav.png" alt="Yachtique" width="180" height="46"></a>
-    <a href="/#contact" class="btn btn--gold btn--sm">Enquire</a>
+    <a href="/" class="nav__logo" aria-label="Yachtique home" data-i18n-attr="aria-label:nav.home"><img src="/assets/img/logo-nav.png" alt="Yachtique" width="180" height="46"></a>
+    <div class="nav__end">
+      <div class="lang" role="group" data-i18n-attr="aria-label:lang.label" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="es">ES</button></div>
+      <a href="/#contact" class="btn btn--gold btn--sm" data-i18n="nav.enquire">Enquire</a>
+    </div>
   </div>
 </header>
 
 <main class="page">
   <div class="container narrow">
-    <p class="eyebrow">Questions</p>
-    <h1>Frequently asked questions</h1>
-    <p class="lead">Everything you need to know before your day on the water. Can't find your answer? Message us and we'll reply, usually within the hour.</p>
+    <p class="eyebrow" data-i18n="faq.eyebrow">Questions</p>
+    <h1 data-i18n="faq.h1">Frequently asked questions</h1>
+    <p class="lead" data-i18n="faq.lead">Everything you need to know before your day on the water. Can't find your answer? Message us and we'll reply, usually within the hour.</p>
 
     <div class="faq">
     <details class="faq__item">
-      <summary>How do I book a yacht?</summary>
-      <p>Send an enquiry through the form on our homepage or message us on WhatsApp with your date, number of guests and the kind of day you have in mind. We reply with a short list of available yachts and clear pricing, usually within the hour. Your charter is confirmed once the deposit is paid.</p>
+      <summary data-i18n="faq.q1">How do I book a yacht?</summary>
+      <p data-i18n="faq.a1">Send an enquiry through the form on our homepage or message us on WhatsApp with your date, number of guests and the kind of day you have in mind. We reply with a short list of available yachts and clear pricing, usually within the hour. Your charter is confirmed once the deposit is paid.</p>
     </details>
     <details class="faq__item">
-      <summary>What is included in the price?</summary>
-      <p>Every charter comes with a captain and crew. What else is included, such as fuel, water toys or refreshments, varies by yacht and is listed in your quote. Florida sales tax and a gratuity for the crew are usually added on top. Your final quote always shows the full amount before you pay anything.</p>
+      <summary data-i18n="faq.q2">What is included in the price?</summary>
+      <p data-i18n="faq.a2">Every charter comes with a captain and crew. What else is included, such as fuel, water toys or refreshments, varies by yacht and is listed in your quote. Florida sales tax and a gratuity for the crew are usually added on top. Your final quote always shows the full amount before you pay anything.</p>
     </details>
     <details class="faq__item">
-      <summary>How many guests can we bring?</summary>
-      <p>Each yacht shows its maximum number of guests. This is a legal and safety limit set for that vessel, and every person on board counts, including children and babies. If your group is larger, we can suggest a bigger yacht or two yachts travelling together.</p>
+      <summary data-i18n="faq.q3">How many guests can we bring?</summary>
+      <p data-i18n="faq.a3">Each yacht shows its maximum number of guests. This is a legal and safety limit set for that vessel, and every person on board counts, including children and babies. If your group is larger, we can suggest a bigger yacht or two yachts travelling together.</p>
     </details>
     <details class="faq__item">
-      <summary>Where do charters depart from?</summary>
-      <p>It depends on the yacht. Our yachts depart from marinas between Palm Beach and Key West, and the departure points for each yacht are listed in its details. We confirm the exact marina and meeting time with your booking.</p>
+      <summary data-i18n="faq.q4">Where do charters depart from?</summary>
+      <p data-i18n="faq.a4">It depends on the yacht. Our yachts depart from marinas between Palm Beach and Key West, and the departure points for each yacht are listed in its details. We confirm the exact marina and meeting time with your booking.</p>
     </details>
     <details class="faq__item">
-      <summary>Can we bring our own food and drinks?</summary>
-      <p>On most yachts you are welcome to bring your own food and drinks. We can also arrange a private chef, catering, a cake or decorations for you. Guests must be 21 or older to drink alcohol, and the captain may limit alcohol for safety.</p>
+      <summary data-i18n="faq.q5">Can we bring our own food and drinks?</summary>
+      <p data-i18n="faq.a5">On most yachts you are welcome to bring your own food and drinks. We can also arrange a private chef, catering, a cake or decorations for you. Guests must be 21 or older to drink alcohol, and the captain may limit alcohol for safety.</p>
     </details>
     <details class="faq__item">
-      <summary>What happens if the weather is bad?</summary>
-      <p>Safety comes first, and the captain has the final say on whether it is safe to go out. If the captain cancels or cuts a charter short because of weather, we work with you to reschedule. Light rain or clouds usually do not stop a charter. See our booking terms for details.</p>
+      <summary data-i18n="faq.q6">What happens if the weather is bad?</summary>
+      <p data-i18n="faq.a6">Safety comes first, and the captain has the final say on whether it is safe to go out. If the captain cancels or cuts a charter short because of weather, we work with you to reschedule. Light rain or clouds usually do not stop a charter. See our booking terms for details.</p>
     </details>
     <details class="faq__item">
-      <summary>Can we swim and use water toys?</summary>
-      <p>Yes, on most yachts. Many include a floating mat or paddleboards, and jet skis, Seabobs and other toys can often be added. Swimming stops, such as the Haulover sandbar, depend on the weather and the captain&#x27;s judgement on the day.</p>
+      <summary data-i18n="faq.q7">Can we swim and use water toys?</summary>
+      <p data-i18n="faq.a7">Yes, on most yachts. Many include a floating mat or paddleboards, and jet skis, Seabobs and other toys can often be added. Swimming stops, such as the Haulover sandbar, depend on the weather and the captain&#x27;s judgement on the day.</p>
     </details>
     <details class="faq__item">
-      <summary>Do you arrange trips to the Bahamas or multi-day charters?</summary>
-      <p>Yes. We arrange multi-day and week-long charters, including trips to the Bahamas. Every guest needs a valid passport for the Bahamas, and the crossing depends on sea conditions. Tell us your dates and we will plan the route with the captain.</p>
+      <summary data-i18n="faq.q8">Do you arrange trips to the Bahamas or multi-day charters?</summary>
+      <p data-i18n="faq.a8">Yes. We arrange multi-day and week-long charters, including trips to the Bahamas. Every guest needs a valid passport for the Bahamas, and the crossing depends on sea conditions. Tell us your dates and we will plan the route with the captain.</p>
     </details>
     <details class="faq__item">
-      <summary>Are children welcome?</summary>
-      <p>Yes, children are welcome on most yachts. They count towards the guest limit, and life jackets in children&#x27;s sizes are available. Let us know ages when you enquire so the crew can prepare.</p>
+      <summary data-i18n="faq.q9">Are children welcome?</summary>
+      <p data-i18n="faq.a9">Yes, children are welcome on most yachts. They count towards the guest limit, and life jackets in children&#x27;s sizes are available. Let us know ages when you enquire so the crew can prepare.</p>
     </details>
     <details class="faq__item">
-      <summary>Can you help with more than the yacht?</summary>
-      <p>Yes. As your concierge we can arrange luxury villas, private security, chauffeured transport, airport pick-ups, chefs, photographers, DJs and decor, so your whole stay is handled by one person.</p>
+      <summary data-i18n="faq.q10">Can you help with more than the yacht?</summary>
+      <p data-i18n="faq.a10">Yes. As your concierge we can arrange luxury villas, private security, chauffeured transport, airport pick-ups, chefs, photographers, DJs and decor, so your whole stay is handled by one person.</p>
     </details>
     </div>
 
-    <p class="faq__more"><a href="/#contact" class="btn btn--gold">Plan your charter</a></p>
+    <p class="faq__more"><a href="/#contact" class="btn btn--gold" data-i18n="faq.cta">Plan your charter</a></p>
   </div>
 </main>
 
 <footer class="footer">
   <div class="container footer__inner">
     <nav class="footer__links" aria-label="Footer">
-      <a href="/">Home</a><a href="/faq.html">FAQ</a><a href="/terms.html">Booking terms</a><a href="/privacy.html">Privacy</a><a href="/#contact">Contact</a>
+      <a href="/" data-i18n="foot.home">Home</a><a href="/faq.html" data-i18n="foot.faq">FAQ</a><a href="/terms.html" data-i18n="foot.terms">Booking terms</a><a href="/privacy.html" data-i18n="foot.privacy">Privacy</a><a href="/#contact" data-i18n="foot.contact">Contact</a>
     </nav>
-    <p class="footer__copy">&copy; 2026 Yachtique. Miami, Florida.</p>
+    <p class="footer__copy">&copy; 2026 <span data-i18n="foot.rights">Yachtique. Miami, Florida.</span></p>
   </div>
 </footer>
+<script type="application/json" id="i18n-es">
+{
+ "_title": "Preguntas frecuentes | Yachtique, alquiler de yates en Miami",
+ "nav.home": "Inicio de Yachtique",
+ "foot.home": "Inicio",
+ "faq.eyebrow": "Preguntas",
+ "faq.h1": "Preguntas frecuentes",
+ "faq.lead": "Todo lo que necesita saber antes de su día en el mar. ¿No encuentra su respuesta? Escríbanos y le responderemos, normalmente en menos de una hora.",
+ "faq.q1": "¿Cómo reservo un yate?",
+ "faq.a1": "Envíe una solicitud desde el formulario de nuestra página de inicio o escríbanos por WhatsApp con la fecha, el número de invitados y el tipo de día que imagina. Le responderemos con una breve selección de yates disponibles y precios claros, normalmente en menos de una hora. Su alquiler queda confirmado una vez pagado el depósito.",
+ "faq.q2": "¿Qué incluye el precio?",
+ "faq.a2": "Todos los alquileres incluyen capitán y tripulación. Lo demás, como el combustible, los juguetes acuáticos o las bebidas, varía según el yate y se detalla en su cotización. Normalmente se suman el impuesto sobre las ventas de Florida y la propina para la tripulación. Su cotización final siempre muestra el importe total antes de que usted pague nada.",
+ "faq.q3": "¿Cuántos invitados podemos llevar?",
+ "faq.a3": "Cada yate indica su número máximo de invitados. Es un límite legal y de seguridad fijado para esa embarcación, y cuenta cada persona a bordo, incluidos niños y bebés. Si su grupo es más numeroso, podemos sugerirle un yate más grande o dos yates que naveguen juntos.",
+ "faq.q4": "¿Desde dónde salen los alquileres?",
+ "faq.a4": "Depende del yate. Nuestros yates salen de marinas entre Palm Beach y Key West, y los puntos de salida de cada yate figuran en su ficha. Confirmamos la marina exacta y la hora de encuentro junto con su reserva.",
+ "faq.q5": "¿Podemos llevar nuestra propia comida y bebida?",
+ "faq.a5": "En la mayoría de los yates puede traer su propia comida y bebida. También podemos organizarle un chef privado, catering, un pastel o decoración. Para consumir alcohol, los invitados deben tener 21 años o más, y el capitán puede limitar el alcohol por razones de seguridad.",
+ "faq.q6": "¿Qué pasa si hace mal tiempo?",
+ "faq.a6": "La seguridad es lo primero, y el capitán tiene la última palabra sobre si es seguro salir. Si el capitán cancela o acorta un alquiler por el mal tiempo, buscamos con usted una nueva fecha. La lluvia ligera o las nubes normalmente no impiden un alquiler. Consulte nuestras condiciones de reserva para más detalles.",
+ "faq.q7": "¿Podemos nadar y usar juguetes acuáticos?",
+ "faq.a7": "Sí, en la mayoría de los yates. Muchos incluyen una colchoneta flotante o tablas de paddle, y a menudo se pueden añadir motos de agua, Seabobs y otros juguetes. Las paradas para nadar, como el banco de arena de Haulover, dependen del tiempo y del criterio del capitán ese día.",
+ "faq.q8": "¿Organizan viajes a las Bahamas o alquileres de varios días?",
+ "faq.a8": "Sí. Organizamos alquileres de varios días y de una semana, incluidos viajes a las Bahamas. Cada invitado necesita un pasaporte vigente para viajar a las Bahamas, y la travesía depende del estado del mar. Indíquenos sus fechas y planificaremos la ruta con el capitán.",
+ "faq.q9": "¿Pueden venir niños?",
+ "faq.a9": "Sí, los niños son bienvenidos en la mayoría de los yates. Cuentan dentro del límite de invitados, y hay chalecos salvavidas en tallas infantiles. Indíquenos sus edades al enviar su solicitud para que la tripulación pueda prepararse.",
+ "faq.q10": "¿Pueden ayudarnos con algo más que el yate?",
+ "faq.a10": "Sí. Como su concierge, podemos organizar villas de lujo, seguridad privada, traslados con chofer, recogidas en el aeropuerto, chefs, fotógrafos, DJ y decoración, para que una sola persona se ocupe de toda su estancia.",
+ "faq.cta": "Planifique su alquiler"
+}
+</script>
+<script src="/assets/js/core.js?v=20261022a" defer></script>
 </body>
 </html>

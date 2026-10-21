@@ -10,20 +10,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021f">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261022a">
 </head>
 <body>
   <main class="hero hero--center">
     <div class="container hero__content">
       <img src="/assets/img/logo-stacked-notag.png" alt="Yachtique" class="hero__logo" width="420" height="140">
-      <p class="eyebrow">Enquiry received</p>
-      <h1 class="hero__title">Thank you.<br><em>We'll be in touch shortly.</em></h1>
-      <p class="hero__sub">Nektarios will reply with your options, usually within the hour. Need us sooner?</p>
+      <p class="eyebrow" data-i18n="ty.eyebrow">Enquiry received</p>
+      <h1 class="hero__title" data-i18n="ty.h1">Thank you.<br><em>We'll be in touch shortly.</em></h1>
+      <p class="hero__sub" data-i18n="ty.sub">Nektarios will reply with your options, usually within the hour. Need us sooner?</p>
       <div class="about__ctas">
-        <a href="https://wa.me/13058124721?text=Hi%20Yachtique%2C%20I%20just%20sent%20an%20enquiry." class="btn btn--wa" target="_blank" rel="noopener">Chat on WhatsApp</a>
-        <a href="/" class="btn btn--ghost">Back to Yachtique</a>
+        <a href="https://wa.me/13058124721?text=Hi%20Yachtique%2C%20I%20just%20sent%20an%20enquiry." class="btn btn--wa" target="_blank" rel="noopener" data-i18n="wa.chat">Chat on WhatsApp</a>
+        <a href="/" class="btn btn--ghost" data-i18n="ty.back">Back to Yachtique</a>
       </div>
     </div>
   </main>
+<script type="application/json" id="i18n-es">
+{
+ "_title": "Gracias | Yachtique",
+ "ty.eyebrow": "Solicitud recibida",
+ "ty.h1": "Gracias.<br><em>Nos pondremos en contacto con usted muy pronto.</em>",
+ "ty.sub": "Nektarios le responderá con sus opciones, normalmente en menos de una hora. ¿Nos necesita antes?",
+ "ty.back": "Volver a Yachtique"
+}
+</script>
+  <script src="/assets/js/core.js?v=20261022a" defer></script>
 </body>
 </html>
