@@ -88,5 +88,5 @@ function body(area, yachts, from, cover) {
   <a href="${esc(wa)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
   <a href="/#contact" class="mobilebar__gold">Enquire</a>
 </div>
-<script src="/assets/js/yacht.js?v=20261021e" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261021f" defer></script>`;
 }
