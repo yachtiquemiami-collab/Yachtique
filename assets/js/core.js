@@ -67,7 +67,10 @@
 
   var params = new URLSearchParams(location.search);
   var asked = params.get("lang");
+  // A page can ask for a default (a proposal written for a Spanish-speaking client): <body data-lang-default="es">
+  var pageDefault = document.body && document.body.getAttribute("data-lang-default");
   var lang = asked === "es" || asked === "en" ? asked
+    : pageDefault === "es" ? "es"
     : store("yq_lang") || (/^es\b/i.test(navigator.language || "") ? "es" : "en");
   if (asked === "es" || asked === "en") store("yq_lang", asked);
 

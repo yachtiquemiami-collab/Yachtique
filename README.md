@@ -85,3 +85,15 @@ Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → 
    Never "New deployment" (it creates a new URL and breaks Netlify). Commit `Code.gs` to GitHub too.
 4. Changed the secret? Update it in both places at the same time (Script Properties and Netlify), then trigger a Netlify deploy.
 5. Test: send an enquiry on yachtique.co. You should get a new row in the Sheet and both emails within seconds.
+
+## Client proposals (yachtique.co/p/ID)
+
+A private page per client request, instead of a PDF. Not in Google, not in the sitemap: only people with the link see it.
+
+1. Open the **Proposals** tab in the Yachtique Google Sheet (it appears after the first proposal is opened; the example row shows the format).
+2. Add **one row per yacht option**, all with the same **ID** (short and hard to guess, e.g. `oct24-k9m4`).
+   - First row: client name (optional), date (YYYY-MM-DD), guests, time, pickup, terms (one per line), valid until, language (`es` opens it in Spanish).
+   - Every row: yacht (`kilauea`, `Kilauea` or its yachtique.co link), label (e.g. "Best value"), a short note, and prices for 4, 6 and 8 hours (blank = website rates).
+3. Send the client **yachtique.co/p/ID**. Photos, specs and live availability come from the fleet automatically; edits show within a minute.
+
+Each "Choose" button opens WhatsApp with the yacht, length and price written. Opens and choices are counted in the Insights tab.
