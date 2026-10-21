@@ -52,20 +52,18 @@ var REVIEWS = [];
       ? '<img src="' + esc(sized(y.images[0], 900)) + '" alt="' + esc(label(y)) + '" loading="lazy">'
       : '<img src="/assets/img/logo-icon.png" alt="" loading="lazy">';
     var first = y.durations[0];
-    var bits = [y.builder + " · " + y.feet + " ft"];
-    if (y.guests) bits.push("up to " + y.guests + " guests");
+    var bits = [y.type, y.builder, y.feet + " ft"];
+    if (y.guests) bits.push(y.guests + " guests");
     else if (y.cabins) bits.push(cabins(y.cabins));
     return (
       '<article class="yacht reveal" data-i="' + i + '">' +
-        '<button type="button" class="yacht__media js-open" data-i="' + i + '" aria-label="View ' + esc(y.name) + '">' + photo +
-          '<span class="yacht__tag">' + esc(y.type) + "</span>" +
-          '<span class="yacht__avail" hidden></span>' +
-          '<span class="yacht__price"><b>' + money(first.price) + "</b>/ " + esc(shortDur(first.label)) + "</span>" +
-        "</button>" +
+        '<button type="button" class="yacht__media js-open" data-i="' + i + '" aria-label="Quick view of ' + esc(y.name) + '">' + photo + "</button>" +
         '<div class="yacht__body">' +
-          '<div><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3>" +
-          '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p></div>" +
-          '<a class="yacht__more" href="/yachts/' + esc(y.handle) + '" aria-label="Full details for ' + esc(y.name) + '">→</a>' +
+          '<div class="yacht__row"><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3>" +
+          '<span class="yacht__price">from <b>' + money(first.price) + "</b> / " + esc(shortDur(first.label)) + "</span></div>" +
+          '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p>" +
+          '<div class="yacht__row yacht__row--foot"><span class="yacht__avail" hidden></span>' +
+          '<a class="yacht__link" href="/yachts/' + esc(y.handle) + '">View yacht <span aria-hidden="true">→</span></a></div>' +
         "</div>" +
       "</article>"
     );

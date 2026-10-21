@@ -55,17 +55,18 @@ export async function loadFleet(req) {
 
 export function simCard(y) {
   const first = y.durations[0];
+  const bits = [y.type, y.builder, `${y.feet} ft`];
+  if (y.guests) bits.push(`${y.guests} guests`);
   return `
         <article class="yacht">
-          <a class="yacht__media" href="/yachts/${esc(y.handle)}">
+          <a class="yacht__media" href="/yachts/${esc(y.handle)}" aria-label="${esc(y.name)}">
             <img src="${esc(sized(y.images[0] || "", 900))}" alt="${esc(y.name)}" loading="lazy">
-            <span class="yacht__tag">${esc(y.type)}</span>
-            <span class="yacht__price"><b>${money(first.price)}</b>/ ${esc(shortDur(first.label))}</span>
           </a>
           <div class="yacht__body">
-            <div><h3><a href="/yachts/${esc(y.handle)}">${esc(y.name)}</a></h3>
-            <p class="yacht__model">${esc(y.builder)} · ${y.feet} ft</p></div>
-            <a class="yacht__more" href="/yachts/${esc(y.handle)}" aria-label="View ${esc(y.name)}">→</a>
+            <div class="yacht__row"><h3><a href="/yachts/${esc(y.handle)}">${esc(y.name)}</a></h3>
+            <span class="yacht__price">from <b>${money(first.price)}</b> / ${esc(shortDur(first.label))}</span></div>
+            <p class="yacht__model">${esc(bits.join(" · "))}</p>
+            <div class="yacht__row yacht__row--foot"><span></span><a class="yacht__link" href="/yachts/${esc(y.handle)}">View yacht <span aria-hidden="true">→</span></a></div>
           </div>
         </article>`;
 }
@@ -108,7 +109,7 @@ export function page({ title, description = "", image = `${SITE}/assets/img/og-i
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021b">
   ${jsonld ? `<script type="application/ld+json">${json(jsonld).replace(/</g, "\\u003c")}</script>` : ""}
 </head>
 <body class="is-subpage">
