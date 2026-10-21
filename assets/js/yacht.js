@@ -18,7 +18,7 @@
     lightCount.textContent = (at + 1) + " / " + y.images.length;
   }
   function openLight(i) {
-    if (!y.images.length) return;
+    if (!light || !y.images.length) return;
     show(i);
     light.hidden = false;
     document.body.style.overflow = "hidden";
@@ -30,20 +30,21 @@
   document.addEventListener("click", function (e) {
     var p = e.target.closest(".js-photo");
     if (p) { openLight(+p.getAttribute("data-i")); return; }
+    if (!light) return;
     if (e.target.closest(".js-lclose") || e.target === light) closeLight();
     if (e.target.closest(".js-lprev")) show(at - 1);
     if (e.target.closest(".js-lnext")) show(at + 1);
   });
   document.addEventListener("keydown", function (e) {
-    if (light.hidden) return;
+    if (!light || light.hidden) return;
     if (e.key === "Escape") closeLight();
     if (e.key === "ArrowLeft") show(at - 1);
     if (e.key === "ArrowRight") show(at + 1);
   });
   // Swipe on phones
   var x0 = null;
-  light.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
-  light.addEventListener("touchend", function (e) {
+  if (light) light.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+  if (light) light.addEventListener("touchend", function (e) {
     if (x0 === null) return;
     var dx = e.changedTouches[0].clientX - x0;
     if (Math.abs(dx) > 40) show(at + (dx < 0 ? 1 : -1));
