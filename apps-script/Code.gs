@@ -17,9 +17,11 @@ const STATUSES = ["New", "Contacted", "Quoted", "Booked", "Lost"];
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
+const ALERT_CC = "tsirkoudis7@gmail.com";          // copy of every alert ("" = none)
 const SEND_CLIENT_CONFIRMATION = true;              // false = don't email the client
 const WHATSAPP = "13058124721";
 const LOGO = "https://yachtique.co/assets/img/logo-stacked-notag.png";
+const SITE = "https://yachtique.co";
 
 /** Run once: creates the Enquiries and Fleet tabs, formatting and sample yachts. */
 function setup() {
@@ -127,7 +129,14 @@ function json(obj) {
 }
 
 
-/* =================== Branded emails =================== */
+/* =================== Branded emails ===================
+   Same look as yachtique.co: navy and gold, Lora headings, Lato text, pill buttons,
+   details in a rounded box with gold labels. Mail apps that block web fonts fall back to Georgia/Helvetica. */
+
+const C = { bg: "#000F16", card: "#04202C", inner: "#000F16", line: "#5E5236", gold: "#C9A564", goldLight: "#EBD7AC",
+  text: "#E8E4DA", white: "#FFFFFF", muted: "#9BA8AE" };
+const SERIF = "'Lora',Georgia,'Times New Roman',serif";
+const SANS = "'Lato','Helvetica Neue',Helvetica,Arial,sans-serif";
 
 function esc(v) {
   return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -136,103 +145,181 @@ function esc(v) {
 function prettyDate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return iso || "Flexible";
   const p = iso.split("-").map(Number);
-  return Utilities.formatDate(new Date(p[0], p[1] - 1, p[2], 12), "America/New_York", "EEEE, MMMM d, yyyy");
+  return Utilities.formatDate(new Date(p[0], p[1] - 1, p[2], 12), "America/New_York", "EEE, MMM d, yyyy");
 }
 
-function detailRows(q) {
-  const rows = [
+// Days from today (Miami) to the charter date, or null
+function daysUntil(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return null;
+  const today = Utilities.formatDate(new Date(), "America/New_York", "yyyy-MM-dd").split("-").map(Number);
+  const p = iso.split("-").map(Number);
+  return Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(today[0], today[1] - 1, today[2])) / 86400000);
+}
+
+function eyebrow(text, align) {
+  return '<p style="margin:0 0 12px;font-family:' + SANS + ';font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:' + C.gold + ';text-align:' + (align || "center") + '">' + text + "</p>";
+}
+
+function heading(text) {
+  return '<h1 style="margin:0 0 14px;font-family:' + SERIF + ';font-weight:500;font-size:32px;line-height:1.2;color:' + C.white + ';text-align:center">' + text + "</h1>";
+}
+
+function para(html, extra) {
+  return '<p style="margin:0 0 24px;font-family:' + SANS + ';font-size:16px;line-height:1.7;color:' + C.text + ';text-align:center;' + (extra || "") + '">' + html + "</p>";
+}
+
+// Rounded box, two facts per row, gold label over the value (the site's info bar)
+function factsBox(q) {
+  const facts = [
     ["Date", prettyDate(q.date)],
-    ["Guests", q.guests || "Not given"],
-    ["Duration", q.duration],
-    ["Yacht", q.yacht],
-    ["Also interested in", q.extras],
-  ].filter((r) => r[1]);
-  return rows.map((r) =>
-    '<tr><td style="padding:10px 0;border-bottom:1px solid #1d3a47;color:#9BA8AE;font-size:13px;width:150px;vertical-align:top">' + esc(r[0]) +
-    '</td><td style="padding:10px 0;border-bottom:1px solid #1d3a47;color:#F6F1E7;font-size:15px">' + esc(r[1]) + "</td></tr>").join("");
+    ["Guests", q.guests ? q.guests + (/^\d+$/.test(q.guests) ? " guests" : "") : "To confirm"],
+    ["Duration", q.duration || "To confirm"],
+    ["Yacht", q.yacht || "Help me choose"],
+  ];
+  if (q.extras) facts.push(["Also arranging", q.extras]);
+  let rows = "";
+  for (let i = 0; i < facts.length; i += 2) {
+    const pair = facts.slice(i, i + 2);
+    rows += "<tr>" + pair.map((f, j) => {
+      const span = pair.length === 1 ? ' colspan="2"' : "";
+      const border = "border-top:" + (i ? "1px solid " + C.line : "0") + ";" + (j === 0 && pair.length === 2 ? "border-right:1px solid " + C.line + ";" : "");
+      return '<td' + span + ' width="' + (pair.length === 1 ? "100%" : "50%") + '" align="center" valign="top" style="padding:18px 12px;' + border + '">' +
+        '<div style="font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:' + C.gold + ';padding-bottom:6px">' + esc(f[0]) + "</div>" +
+        '<div style="font-family:' + SERIF + ';font-size:17px;font-weight:600;line-height:1.35;color:' + C.white + '">' + esc(f[1]) + "</div></td>";
+    }).join("") + "</tr>";
+  }
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border:1px solid ' + C.line + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' + rows + "</table>";
+}
+
+function messageBox(label, text) {
+  if (!text) return "";
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border:1px solid ' + C.line + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '"><tr><td style="padding:18px 22px">' +
+    '<div style="font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:' + C.gold + ';padding-bottom:8px">' + esc(label) + "</div>" +
+    '<div style="font-family:' + SANS + ';font-size:15px;line-height:1.7;color:' + C.text + ';white-space:pre-line">' + esc(text) + "</div></td></tr></table>";
 }
 
 function button(href, label, primary) {
   const style = primary
-    ? "background:#C9A564;color:#000F16;border:1px solid #C9A564"
-    : "background:transparent;color:#EBD7AC;border:1px solid #7F5119";
-  return '<a href="' + href + '" style="display:inline-block;margin:0 8px 10px 0;padding:13px 22px;font-family:Arial,Helvetica,sans-serif;font-size:14px;letter-spacing:.5px;text-decoration:none;border-radius:3px;' + style + '">' + esc(label) + "</a>";
+    ? "background:" + C.gold + ";background-image:linear-gradient(100deg,#A87A40 0%,#C9A564 50%,#DDBF86 100%);color:#000F16;border:1px solid " + C.gold
+    : "background:transparent;color:" + C.goldLight + ";border:1px solid " + C.gold;
+  return '<a href="' + esc(href) + '" style="display:inline-block;margin:0 5px 10px;padding:14px 26px;font-family:' + SANS + ';font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;border-radius:999px;' + style + '">' + esc(label) + "</a>";
+}
+
+function buttons(html) {
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:4px 0 6px">' + html + "</td></tr></table>";
+}
+
+// "What happens next": numbered gold circles, like the site and the QR cards
+function steps(list) {
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 30px">' + list.map((t, i) =>
+    '<tr><td width="46" valign="top" style="padding:0 0 16px"><div style="width:32px;height:32px;line-height:32px;border:1px solid ' + C.gold + ';border-radius:50%;text-align:center;font-family:' + SERIF + ';font-size:15px;color:' + C.gold + '">' + (i + 1) + "</div></td>" +
+    '<td valign="top" style="padding:5px 0 16px;font-family:' + SANS + ';font-size:15px;line-height:1.6;color:' + C.text + '"><b style="color:' + C.white + ';font-weight:700">' + t[0] + "</b> " + t[1] + "</td></tr>").join("") + "</table>";
+}
+
+function rule() {
+  return '<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 26px"><tr><td width="44" style="border-top:1px solid ' + C.gold + ';font-size:0;line-height:0">&nbsp;</td></tr></table>';
 }
 
 function layout(preheader, inner) {
-  return '<!doctype html><html><body style="margin:0;padding:0;background:#000F16">' +
-    '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' + esc(preheader) + "</div>" +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#000F16"><tr><td align="center" style="padding:32px 16px">' +
-    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#04202C;border:1px solid #2a3f33">' +
-    '<tr><td align="center" style="padding:36px 32px 24px;border-bottom:1px solid #2a3f33">' +
-    '<img src="' + LOGO + '" width="200" alt="Yachtique" style="display:block;width:200px;height:auto;border:0"></td></tr>' +
-    '<tr><td style="padding:32px;font-family:Arial,Helvetica,sans-serif;color:#E8E4DA">' + inner + "</td></tr>" +
-    '<tr><td align="center" style="padding:22px 32px;border-top:1px solid #2a3f33;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9BA8AE;line-height:1.7">' +
-    'Yachtique &middot; Miami, Florida<br><a href="https://yachtique.co" style="color:#C9A564;text-decoration:none">yachtique.co</a> &middot; ' +
-    '<a href="https://www.instagram.com/yachtiquemiami/" style="color:#C9A564;text-decoration:none">@yachtiquemiami</a></td></tr>' +
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">' +
+    '<style>@media (max-width:520px){.yq-pad{padding:30px 22px !important}.yq-h1{font-size:27px !important}}</style></head>' +
+    '<body style="margin:0;padding:0;background:' + C.bg + '">' +
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:' + C.bg + '">' + esc(preheader) + "</div>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + C.bg + '"><tr><td align="center" style="padding:28px 12px 36px">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:' + C.card + ';border:1px solid ' + C.line + ';border-radius:22px;border-collapse:separate">' +
+    '<tr><td align="center" style="padding:38px 32px 26px"><a href="' + SITE + '"><img src="' + LOGO + '" width="170" alt="Yachtique" style="display:block;width:170px;height:auto;border:0"></a></td></tr>' +
+    '<tr><td class="yq-pad" style="padding:6px 40px 34px">' + inner + "</td></tr>" +
+    '<tr><td align="center" style="padding:24px 32px 28px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:12px;line-height:1.9;color:' + C.muted + '">' +
+    'Yachtique &middot; Yacht charters &amp; concierge &middot; Miami, Florida<br>' +
+    '<a href="' + SITE + '" style="color:' + C.gold + ';text-decoration:none">yachtique.co</a> &nbsp;&middot;&nbsp; ' +
+    '<a href="https://wa.me/' + WHATSAPP + '" style="color:' + C.gold + ';text-decoration:none">+1 (305) 812-4721</a> &nbsp;&middot;&nbsp; ' +
+    '<a href="https://www.instagram.com/yachtiquemiami/" style="color:' + C.gold + ';text-decoration:none">@yachtiquemiami</a></td></tr>' +
     "</table></td></tr></table></body></html>";
 }
 
-function heading(text) {
-  return '<h1 style="margin:0 0 14px;font-family:Georgia,\'Times New Roman\',serif;font-weight:normal;font-size:30px;line-height:1.2;color:#F6F1E7">' + text + "</h1>";
-}
+function firstName(q) { return String(q.name || "").trim().split(/\s+/)[0] || ""; }
 
-/** Alert to Yachtique: everything needed to reply in one tap. */
-function sendOwnerAlert(q) {
+/** Alert to Yachtique: everything needed to reply in one tap. `to`/`cc` are only changed by testEmails(). */
+function sendOwnerAlert(q, to, cc) {
   const phone = String(q.phone || "").replace(/\D/g, "");
-  const sheetUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
-  const buttons =
-    (phone ? button("https://wa.me/" + phone, "WhatsApp " + (String(q.name || "").trim().split(/\s+/)[0] || "client"), true) : "") +
-    (q.email ? button("mailto:" + encodeURIComponent(q.email), "Reply by email", !phone) : "") +
-    button(sheetUrl, "Open enquiries sheet", false);
+  const first = firstName(q) || "there";
+  const when = q.date ? " on " + prettyDate(q.date) : "";
+  // Ready-made first reply, so answering takes one tap
+  const waText = "Hi " + first + ", this is Yachtique. Thank you for your charter request" + when + ". I'm checking which yachts are free and will send you the options shortly.";
+  const mailBody = "Hi " + first + ",\n\nThank you for your charter request" + when + ". I'm checking which yachts are free and will send you the options shortly.\n\nYachtique\n+1 (305) 812-4721";
+  const d = daysUntil(q.date);
+  const soon = d !== null && d >= 0 && d <= 7
+    ? '<p style="margin:0 0 22px;text-align:center"><span style="display:inline-block;padding:7px 16px;border:1px solid ' + C.gold + ';border-radius:999px;font-family:' + SANS + ';font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + C.goldLight + '">' +
+      (d === 0 ? "Charter is today" : d === 1 ? "Charter is tomorrow" : "Charter in " + d + " days") + "</span></p>"
+    : "";
+  const contact = [q.phone, q.email].filter(Boolean).map(esc).join(" &nbsp;&middot;&nbsp; ");
   const inner =
-    '<p style="margin:0 0 8px;color:#C9A564;font-size:13px;letter-spacing:1px">New enquiry</p>' +
+    eyebrow("New charter enquiry") +
     heading(esc(q.name || "New client")) +
-    '<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#E8E4DA">' +
-    (q.phone ? esc(q.phone) : "") + (q.phone && q.email ? " &middot; " : "") + (q.email ? esc(q.email) : "") + "</p>" +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">' + detailRows(q) + "</table>" +
-    (q.message ? '<p style="margin:0 0 6px;color:#9BA8AE;font-size:13px">Their message</p><p style="margin:0 0 28px;font-size:15px;line-height:1.7;color:#F6F1E7;white-space:pre-line">' + esc(q.message) + "</p>" : "") +
-    buttons;
+    (contact ? para(contact, "margin-bottom:22px") : "") +
+    soon + rule() +
+    factsBox(q) +
+    messageBox("Their message", q.message) +
+    buttons(
+      (phone ? button("https://wa.me/" + phone + "?text=" + encodeURIComponent(waText), "Reply on WhatsApp", true) : "") +
+      (q.email ? button("mailto:" + q.email + "?subject=" + encodeURIComponent("Your Yachtique charter request") + "&body=" + encodeURIComponent(mailBody), "Reply by email", !phone) : "") +
+      button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
   MailApp.sendEmail({
-    to: OWNER_EMAIL,
+    to: to || OWNER_EMAIL,
+    cc: (cc === undefined ? ALERT_CC : cc) || undefined,
     replyTo: q.email || OWNER_EMAIL,
     name: "Yachtique Enquiries",
     subject: "New enquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
-    htmlBody: layout("New enquiry from " + (q.name || "a client"), inner),
-    body: "New enquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + q.date +
-      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nExtras: " + q.extras + "\n\n" + q.message,
+    htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
+    body: "New enquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
+      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
   });
 }
 
 /** Confirmation to the client, in the Yachtique look. */
 function sendClientConfirmation(q) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(q.email || ""))) return;
-  const first = String(q.name || "").trim().split(/\s+/)[0] || "there";
+  const first = firstName(q);
   const inner =
-    heading("Thank you, " + esc(first) + ".") +
-    '<p style="margin:0 0 22px;font-size:16px;line-height:1.7;color:#E8E4DA">We have your request and Nektarios is already looking at which yachts are free for you. ' +
-    "You'll receive your options with clear pricing, usually within the hour.</p>" +
-    '<p style="margin:0 0 6px;color:#C9A564;font-size:13px;letter-spacing:1px">Your request</p>' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px">' + detailRows(q) + "</table>" +
-    '<p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#E8E4DA">Want to talk it through sooner? Message us directly.</p>' +
-    button("https://wa.me/" + WHATSAPP, "WhatsApp Nektarios", true) +
-    button("https://yachtique.co/faq.html", "Read the FAQ", false);
+    eyebrow("Charter request received") +
+    heading("Thank you" + (first ? ", " + esc(first) : "") + ".") +
+    para("We're checking which yachts are free for your day. You'll receive your options with clear pricing, usually within the hour.") +
+    rule() +
+    factsBox(q) +
+    messageBox("Your note", q.message) +
+    eyebrow("What happens next") +
+    steps([
+      ["We check availability.", "Live calendars for every yacht that fits your group."],
+      ["You receive your options.", "Photos, prices and what's included, on WhatsApp or by email."],
+      ["Confirm and sail.", "Captain, crew and any extras arranged. You just arrive."],
+    ]) +
+    para("Want to talk it through sooner? Message us directly.", "margin-bottom:18px;font-size:15px") +
+    buttons(
+      button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent("Hi Yachtique, I just sent a charter request" + (q.date ? " for " + prettyDate(q.date) : "") + "."), "Chat on WhatsApp", true) +
+      button(SITE + "/#fleet", "Browse the fleet", false));
   MailApp.sendEmail({
     to: q.email,
     replyTo: OWNER_EMAIL,
     name: "Yachtique",
-    subject: "We've received your charter request",
+    subject: "Your charter request" + (q.date ? " for " + prettyDate(q.date) : "") + " · Yachtique",
     htmlBody: layout("Your options are on the way, usually within the hour.", inner),
-    body: "Thank you, " + first + ".\n\nWe have your request and will reply with options and clear pricing, usually within the hour.\n\n" +
-      "Date: " + q.date + "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht +
-      "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co",
+    body: "Thank you" + (first ? ", " + first : "") + ".\n\nWe're checking which yachts are free for your day. You'll receive your options with clear pricing, usually within the hour.\n\n" +
+      "Date: " + prettyDate(q.date) + "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht +
+      "\n\nWhat happens next\n1. We check availability.\n2. You receive your options.\n3. Confirm and sail.\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co",
   });
 }
 
-/** Run from the editor to see both emails in your own inbox. */
+/**
+ * TEST: run from the Apps Script editor (select testEmails, press Run).
+ * Sends both emails with sample details to TEST_TO only. Nothing is added to the sheet and no client is emailed.
+ */
+const TEST_TO = "tsirkoudis7@gmail.com";
 function testEmails() {
-  const sample = { name: "Alex Morgan", phone: "+1 305 555 0123", email: OWNER_EMAIL, date: "2026-11-15", guests: "8",
-    duration: "4 hours", yacht: "Help me choose", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!" };
-  sendOwnerAlert(sample);
+  const inThreeDays = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), "America/New_York", "yyyy-MM-dd");
+  const sample = { name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
+    duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!" };
+  sendOwnerAlert(sample, TEST_TO, "");
   sendClientConfirmation(sample);
 }
