@@ -184,10 +184,62 @@ function styleBlock(sh, row, col, n) {
   sh.getRange(row, col, 1, n).setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
 }
 
+/* =================== Proposals ===================
+   Proposals tab: one row per yacht option. Every row with the same ID becomes one page at yachtique.co/p/<ID>.
+   The first row of an ID gives the client, date, guests, time, pickup, terms and validity.
+   Yacht: its web address (yachtique.co/yachts/kilauea), handle (kilauea) or name (Kilauea).
+   Prices: leave blank to use the website rates. Changes show on the page within a minute. */
+
+const PROPOSAL_HEADERS = ["ID", "Client", "Date", "Guests", "Time", "Pickup", "Yacht", "Label", "Note", "4 hours", "6 hours", "8 hours", "Terms", "Valid until", "Language"];
+
+function proposalsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("Proposals");
+  if (!sh) {
+    sh = ss.insertSheet("Proposals");
+    sh.getRange(1, 1, 1, PROPOSAL_HEADERS.length).setValues([PROPOSAL_HEADERS]);
+    styleHeader(sh, PROPOSAL_HEADERS.length);
+    sh.getRange("C2:C").setNumberFormat("yyyy-mm-dd");
+    sh.getRange("N2:N").setNumberFormat("yyyy-mm-dd");
+    sh.setColumnWidths(1, PROPOSAL_HEADERS.length, 120);
+    sh.setColumnWidth(9, 360); sh.setColumnWidth(13, 360);
+    sh.getRange(2, 1, 1, 13).setValues([["example-x1", "", "2026-12-12", 10, "Sunset charter", "Miami Beach Marina", "kilauea", "Best value",
+      "Example row: copy it, change the ID and the details, and send the client yachtique.co/p/<ID>.", 2690, 3390, 4240,
+      "Prices exclude Florida sales tax and crew gratuity. A deposit holds your yacht and date."]]);
+  }
+  return sh;
+}
+
+function getProposal(id) {
+  id = id.toLowerCase().trim();
+  if (!id) return { ok: false, error: "no id" };
+  const rows = proposalsSheet().getDataRange().getValues().slice(1).filter((r) => String(r[0]).toLowerCase().trim() === id);
+  if (!rows.length) return { ok: false, error: "not found" };
+  const ymd = (v) => v instanceof Date ? Utilities.formatDate(v, "America/New_York", "yyyy-MM-dd") : String(v || "").trim();
+  const num = (v) => Number(String(v).replace(/[^0-9.]/g, "")) || 0;
+  const first = rows[0];
+  const valid = ymd(first[13]);
+  if (valid && valid < Utilities.formatDate(new Date(), "America/New_York", "yyyy-MM-dd")) return { ok: false, error: "expired" };
+  const options = rows.filter((r) => String(r[6]).trim()).map((r) => {
+    const prices = {};
+    if (num(r[9])) prices["4 hours"] = num(r[9]);
+    if (num(r[10])) prices["6 hours"] = num(r[10]);
+    if (num(r[11])) prices["8 hours"] = num(r[11]);
+    return { yacht: String(r[6]).trim(), label: String(r[7] || "").trim(), note: String(r[8] || "").trim(), prices: prices };
+  });
+  const terms = String(first[12] || "").split(/\n+/).map((t) => t.trim()).filter(Boolean);
+  return { ok: true, proposal: {
+    client: String(first[1] || "").trim(), date: ymd(first[2]), guests: num(first[3]) || "",
+    time: String(first[4] || "").trim(), pickup: String(first[5] || "").trim(),
+    options: options, terms: terms, validUntil: valid, lang: String(first[14] || "").toLowerCase().indexOf("es") === 0 ? "es" : "en",
+  } };
+}
+
 /** The website asks here for the yachts to show. */
 function doGet(e) {
   const p = e.parameter || {};
   if (!SECRET || p.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
+  if (p.action === "proposal") return json(getProposal(String(p.id || "")));
   if (p.action !== "fleet") return json({ ok: false, error: "unknown action" });
 
   const rows = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Fleet").getDataRange().getValues().slice(1);
