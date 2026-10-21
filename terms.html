@@ -11,60 +11,95 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Lato:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021f">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261022a">
 </head>
 <body>
 <header class="nav is-scrolled">
   <div class="nav__inner">
-    <a href="/" class="nav__logo" aria-label="Yachtique home"><img src="/assets/img/logo-nav.png" alt="Yachtique" width="180" height="46"></a>
-    <a href="/#contact" class="btn btn--gold btn--sm">Enquire</a>
+    <a href="/" class="nav__logo" aria-label="Yachtique home" data-i18n-attr="aria-label:nav.home"><img src="/assets/img/logo-nav.png" alt="Yachtique" width="180" height="46"></a>
+    <div class="nav__end">
+      <div class="lang" role="group" data-i18n-attr="aria-label:lang.label" aria-label="Language"><button type="button" data-lang="en">EN</button><button type="button" data-lang="es">ES</button></div>
+      <a href="/#contact" class="btn btn--gold btn--sm" data-i18n="nav.enquire">Enquire</a>
+    </div>
   </div>
 </header>
 
 <main class="page">
   <div class="container narrow">
-    <p class="eyebrow">Legal</p>
-    <h1>Booking Terms</h1>
-    <p class="muted">Last updated: October 2026</p>
+    <p class="eyebrow" data-i18n="legal.eyebrow">Legal</p>
+    <h1 data-i18n="terms.h1">Booking Terms</h1>
+    <p class="muted legal-note" data-i18n="legal.note"></p>
+    <p class="muted" data-i18n="legal.updated">Last updated: October 2026</p>
 
-    <p>These terms explain how booking a yacht charter or concierge service through Yachtique works. Please read them before confirming a booking. If anything is unclear, ask us before you pay.</p>
+    <p data-i18n="terms.p1">These terms explain how booking a yacht charter or concierge service through Yachtique works. Please read them before confirming a booking. If anything is unclear, ask us before you pay.</p>
 
-    <h2>Our role</h2>
-    <p>Yachtique is a yacht charter broker and concierge. The yachts we offer are owned and operated by independent, licensed charter operators, who provide the vessel, captain and crew. When you book, your charter is carried out by that operator under their charter agreement, which you may be asked to sign before departure. If these terms and the operator's charter agreement differ, the operator's agreement applies to the charter itself.</p>
+    <h2 data-i18n="terms.h21">Our role</h2>
+    <p data-i18n="terms.p2">Yachtique is a yacht charter broker and concierge. The yachts we offer are owned and operated by independent, licensed charter operators, who provide the vessel, captain and crew. When you book, your charter is carried out by that operator under their charter agreement, which you may be asked to sign before departure. If these terms and the operator's charter agreement differ, the operator's agreement applies to the charter itself.</p>
 
-    <h2>Quotes and prices</h2>
-    <p>Prices on our website are starting rates and can change with the date, duration, departure point and availability. Your written quote shows the full price, including what is included and any taxes, fees, gratuity or extras. A yacht is only reserved for you once your booking is confirmed in writing and the deposit has been received.</p>
+    <h2 data-i18n="terms.h22">Quotes and prices</h2>
+    <p data-i18n="terms.p3">Prices on our website are starting rates and can change with the date, duration, departure point and availability. Your written quote shows the full price, including what is included and any taxes, fees, gratuity or extras. A yacht is only reserved for you once your booking is confirmed in writing and the deposit has been received.</p>
 
-    <h2>Deposits and payment</h2>
-    <p>A deposit is required to confirm a booking. The deposit amount, the date the balance is due and the accepted payment methods are stated in your booking confirmation. If the balance is not paid by the due date, the booking may be cancelled under the cancellation terms below.</p>
+    <h2 data-i18n="terms.h23">Deposits and payment</h2>
+    <p data-i18n="terms.p4">A deposit is required to confirm a booking. The deposit amount, the date the balance is due and the accepted payment methods are stated in your booking confirmation. If the balance is not paid by the due date, the booking may be cancelled under the cancellation terms below.</p>
 
-    <h2>Cancellations and changes by you</h2>
-    <p>The refund you receive if you cancel depends on how far in advance you cancel and on the operator's cancellation policy. These terms are stated in your booking confirmation before you pay. Requests to change the date, time or yacht are subject to availability and may change the price. Please send cancellations and change requests in writing by email or WhatsApp.</p>
+    <h2 data-i18n="terms.h24">Cancellations and changes by you</h2>
+    <p data-i18n="terms.p5">The refund you receive if you cancel depends on how far in advance you cancel and on the operator's cancellation policy. These terms are stated in your booking confirmation before you pay. Requests to change the date, time or yacht are subject to availability and may change the price. Please send cancellations and change requests in writing by email or WhatsApp.</p>
 
-    <h2>Weather and safety</h2>
-    <p>The captain is responsible for the safety of the vessel and everyone on board and has the final decision on whether a charter departs, its route, swimming stops and whether it returns early. If the captain or operator cancels before departure because of unsafe weather or sea conditions, we will offer you another date or a refund as set out in your booking confirmation. Light rain or clouds alone are not usually a reason to cancel.</p>
+    <h2 data-i18n="terms.h25">Weather and safety</h2>
+    <p data-i18n="terms.p6">The captain is responsible for the safety of the vessel and everyone on board and has the final decision on whether a charter departs, its route, swimming stops and whether it returns early. If the captain or operator cancels before departure because of unsafe weather or sea conditions, we will offer you another date or a refund as set out in your booking confirmation. Light rain or clouds alone are not usually a reason to cancel.</p>
 
-    <h2>Guests and conduct</h2>
-    <p>The number of guests cannot exceed the yacht's stated maximum, and everyone on board counts, including children. Guests must follow the instructions of the captain and crew at all times. Alcohol may only be consumed by guests aged 21 or older. Illegal drugs, weapons and dangerous behavior are not allowed, and the captain may end a charter early, without refund, if guests put safety at risk or break the law. The person who makes the booking is responsible for their group, including any damage caused to the yacht beyond normal use.</p>
+    <h2 data-i18n="terms.h26">Guests and conduct</h2>
+    <p data-i18n="terms.p7">The number of guests cannot exceed the yacht's stated maximum, and everyone on board counts, including children. Guests must follow the instructions of the captain and crew at all times. Alcohol may only be consumed by guests aged 21 or older. Illegal drugs, weapons and dangerous behavior are not allowed, and the captain may end a charter early, without refund, if guests put safety at risk or break the law. The person who makes the booking is responsible for their group, including any damage caused to the yacht beyond normal use.</p>
 
-    <h2>Timing</h2>
-    <p>Please arrive at the marina at least 15 minutes before departure. Charter time starts at the booked departure time, so late arrival may shorten your charter. Extending a charter on the day depends on the yacht's availability and is charged at the operator's rate.</p>
+    <h2 data-i18n="terms.h27">Timing</h2>
+    <p data-i18n="terms.p8">Please arrive at the marina at least 15 minutes before departure. Charter time starts at the booked departure time, so late arrival may shorten your charter. Extending a charter on the day depends on the yacht's availability and is charged at the operator's rate.</p>
 
-    <h2>Concierge services</h2>
-    <p>Villas, transport, security, catering and other services we arrange are provided by independent partners under their own terms, which we share with you when you book.</p>
+    <h2 data-i18n="terms.h28">Concierge services</h2>
+    <p data-i18n="terms.p9">Villas, transport, security, catering and other services we arrange are provided by independent partners under their own terms, which we share with you when you book.</p>
 
-    <h2>Contact</h2>
-    <p>Yachtique, Miami, Florida. Phone: <a href="tel:+13058124721">+1 (305) 812-4721</a>. Email: <a href="mailto:yachtiquemiami@gmail.com">yachtiquemiami@gmail.com</a></p>
+    <h2 data-i18n="terms.h29">Contact</h2>
+    <p data-i18n="terms.p10">Yachtique, Miami, Florida. Phone: <a href="tel:+13058124721">+1 (305) 812-4721</a>. Email: <a href="mailto:yachtiquemiami@gmail.com">yachtiquemiami@gmail.com</a></p>
   </div>
 </main>
 
 <footer class="footer">
   <div class="container footer__inner">
     <nav class="footer__links" aria-label="Footer">
-      <a href="/">Home</a><a href="/faq.html">FAQ</a><a href="/terms.html">Booking terms</a><a href="/privacy.html">Privacy</a><a href="/#contact">Contact</a>
+      <a href="/" data-i18n="foot.home">Home</a><a href="/faq.html" data-i18n="foot.faq">FAQ</a><a href="/terms.html" data-i18n="foot.terms">Booking terms</a><a href="/privacy.html" data-i18n="foot.privacy">Privacy</a><a href="/#contact" data-i18n="foot.contact">Contact</a>
     </nav>
-    <p class="footer__copy">&copy; 2026 Yachtique. Miami, Florida.</p>
+    <p class="footer__copy">&copy; 2026 <span data-i18n="foot.rights">Yachtique. Miami, Florida.</span></p>
   </div>
 </footer>
+<script type="application/json" id="i18n-es">
+{
+ "_title": "Condiciones de reserva | Yachtique",
+ "nav.home": "Inicio de Yachtique",
+ "foot.home": "Inicio",
+ "legal.eyebrow": "Legal",
+ "terms.h1": "Condiciones de reserva",
+ "legal.note": "Traducción ofrecida para su comodidad. En caso de diferencia, prevalece la versión en inglés.",
+ "legal.updated": "Última actualización: octubre de 2026",
+ "terms.p1": "Estas condiciones explican cómo funciona la reserva de un alquiler de yate o de un servicio de concierge a través de Yachtique. Le rogamos leerlas antes de confirmar una reserva. Si algo no le queda claro, consúltenos antes de pagar.",
+ "terms.h21": "Nuestra función",
+ "terms.p2": "Yachtique es un bróker de alquiler de yates y un servicio de concierge. Los yates que ofrecemos pertenecen a operadores de alquiler independientes y con licencia, que los operan y proporcionan la embarcación, el capitán y la tripulación. Cuando usted reserva, su alquiler lo lleva a cabo ese operador conforme a su contrato de alquiler, que es posible que se le pida firmar antes de la salida. Si estas condiciones y el contrato de alquiler del operador difieren, el contrato del operador rige el alquiler en sí.",
+ "terms.h22": "Cotizaciones y precios",
+ "terms.p3": "Los precios de nuestro sitio web son tarifas iniciales y pueden variar según la fecha, la duración, el punto de salida y la disponibilidad. Su cotización por escrito muestra el precio total, incluido lo que está comprendido y cualquier impuesto, cargo, propina o extra. Un yate solo queda reservado para usted una vez que su reserva se confirma por escrito y se recibe el depósito.",
+ "terms.h23": "Depósitos y pagos",
+ "terms.p4": "Se requiere un depósito para confirmar una reserva. El importe del depósito, la fecha de vencimiento del saldo y los métodos de pago aceptados se indican en su confirmación de reserva. Si el saldo no se paga en la fecha de vencimiento, la reserva puede cancelarse conforme a las condiciones de cancelación que figuran a continuación.",
+ "terms.h24": "Cancelaciones y cambios por su parte",
+ "terms.p5": "El reembolso que reciba si cancela depende de la antelación con que lo haga y de la política de cancelación del operador. Estas condiciones se indican en su confirmación de reserva antes de que usted pague. Las solicitudes para cambiar la fecha, la hora o el yate están sujetas a disponibilidad y pueden modificar el precio. Le rogamos enviar las cancelaciones y solicitudes de cambio por escrito, por correo electrónico o WhatsApp.",
+ "terms.h25": "Clima y seguridad",
+ "terms.p6": "El capitán es responsable de la seguridad de la embarcación y de todas las personas a bordo, y tiene la decisión final sobre si el alquiler sale, su ruta, las paradas para nadar y si regresa antes de tiempo. Si el capitán o el operador cancela antes de la salida por condiciones meteorológicas o del mar que no sean seguras, le ofreceremos otra fecha o un reembolso según lo establecido en su confirmación de reserva. La lluvia ligera o las nubes, por sí solas, no suelen ser motivo de cancelación.",
+ "terms.h26": "Invitados y conducta",
+ "terms.p7": "El número de invitados no puede superar el máximo indicado para el yate, y cuenta cada persona a bordo, incluidos los niños. Los invitados deben seguir en todo momento las instrucciones del capitán y la tripulación. Solo los invitados de 21 años o más pueden consumir alcohol. No se permiten drogas ilegales, armas ni conductas peligrosas, y el capitán puede dar por terminado el alquiler antes de tiempo, sin reembolso, si los invitados ponen en riesgo la seguridad o infringen la ley. La persona que hace la reserva es responsable de su grupo, incluido cualquier daño causado al yate más allá del uso normal.",
+ "terms.h27": "Horarios",
+ "terms.p8": "Le rogamos llegar a la marina al menos 15 minutos antes de la salida. El tiempo de alquiler comienza a la hora de salida reservada, por lo que una llegada tardía puede acortar su alquiler. Extender el alquiler el mismo día depende de la disponibilidad del yate y se cobra según la tarifa del operador.",
+ "terms.h28": "Servicios de concierge",
+ "terms.p9": "Las villas, los traslados, la seguridad, el catering y los demás servicios que organizamos los prestan socios independientes conforme a sus propias condiciones, que le compartimos al momento de reservar.",
+ "terms.h29": "Contacto",
+ "terms.p10": "Yachtique, Miami, Florida. Teléfono: <a href=\"tel:+13058124721\">+1 (305) 812-4721</a>. Correo electrónico: <a href=\"mailto:yachtiquemiami@gmail.com\">yachtiquemiami@gmail.com</a>"
+}
+</script>
+<script src="/assets/js/core.js?v=20261022a" defer></script>
 </body>
 </html>
