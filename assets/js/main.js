@@ -7,6 +7,10 @@ var WHATSAPP_NUMBER = "13058124721";
 var REVIEWS = [];
 
 (function () {
+  // Language helpers from /assets/js/core.js (English when core.js is missing)
+  var yq = window.yq || { t: function (k, en) { return en; }, type: function (x) { return x; }, dur: function (x) { return x; },
+    lang: function () { return "en"; }, locale: function () { return "en-US"; }, onLang: function () {}, track: function () {} };
+  var t = yq.t;
   // Fleet: live from YCN via /api/fleet (see netlify/functions/fleet.mjs)
   var grid = document.getElementById("fleetGrid");
   var select = document.getElementById("yachtSelect");
@@ -39,12 +43,19 @@ var REVIEWS = [];
   function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   function niceDate(s) {
     var p = s.split("-");
-    return new Date(+p[0], p[1] - 1, +p[2]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    return new Date(+p[0], p[1] - 1, +p[2]).toLocaleDateString(yq.locale(), { weekday: "short", month: "short", day: "numeric" });
   }
   function waLink(text) {
     return WHATSAPP_NUMBER ? "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(text) : "#contact";
   }
-  function cabins(n) { return n + (n === 1 ? " cabin" : " cabins"); }
+  function cabins(n) { return n + " " + (n === 1 ? t("card.cabin", "cabin") : t("card.cabins", "cabins")); }
+  // Two-letter weekday names, Monday first, in the visitor's language
+  function weekdays() {
+    var out = [];
+    for (var i = 0; i < 7; i++) out.push(new Date(2024, 0, 1 + i).toLocaleDateString(yq.locale(), { weekday: "short" }).replace(".", "").slice(0, 2));
+    return out;
+  }
+  var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.5 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.5 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
   function stateOn(y, date) { return date && y.busy ? y.busy[date] || "free" : null; }
 
   function card(y, i) {
@@ -52,18 +63,21 @@ var REVIEWS = [];
       ? '<img src="' + esc(sized(y.images[0], 900)) + '" alt="' + esc(label(y)) + '" loading="lazy">'
       : '<img src="/assets/img/logo-icon.png" alt="" loading="lazy">';
     var first = y.durations[0];
-    var bits = [y.type, y.builder, y.feet + " ft"];
-    if (y.guests) bits.push(y.guests + " guests");
+    var bits = [yq.type(y.type), y.builder, y.feet + " ft"];
+    if (y.guests) bits.push(y.guests + " " + t("card.guests", "guests"));
     else if (y.cabins) bits.push(cabins(y.cabins));
     return (
       '<article class="yacht reveal" data-i="' + i + '">' +
-        '<button type="button" class="yacht__media js-open" data-i="' + i + '" aria-label="Quick view of ' + esc(y.name) + '">' + photo + "</button>" +
+        '<div class="yacht__mediawrap">' +
+          '<button type="button" class="yacht__media js-open" data-i="' + i + '" aria-label="' + esc(t("card.quick", "Quick view of") + " " + y.name) + '">' + photo + "</button>" +
+          '<button type="button" class="save" data-save="' + esc(y.handle) + '" aria-pressed="false" aria-label="' + esc(t("save.add", "Save to shortlist")) + '">' + HEART + "</button>" +
+        "</div>" +
         '<div class="yacht__body">' +
           '<div class="yacht__row"><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3>" +
-          '<span class="yacht__price">from <b>' + money(first.price) + "</b> / " + esc(shortDur(first.label)) + "</span></div>" +
+          '<span class="yacht__price">' + t("card.from", "from") + " <b>" + money(first.price) + "</b> / " + esc(shortDur(first.label)) + "</span></div>" +
           '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p>" +
           '<div class="yacht__row yacht__row--foot"><span class="yacht__avail" hidden></span>' +
-          '<a class="yacht__link" href="/yachts/' + esc(y.handle) + '">View yacht <span aria-hidden="true">→</span></a></div>' +
+          '<a class="yacht__link" href="/yachts/' + esc(y.handle) + '">' + t("btn.viewyacht", "View yacht") + ' <span aria-hidden="true">→</span></a></div>' +
         "</div>" +
       "</article>"
     );
@@ -87,7 +101,7 @@ var REVIEWS = [];
       badge.hidden = !st;
       if (st) {
         badge.className = "yacht__avail yacht__avail--" + st;
-        badge.textContent = st === "free" ? "Available" : st === "partial" ? "Partly booked" : "Booked";
+        badge.textContent = st === "free" ? t("cal.free", "Available") : st === "partial" ? t("cal.partial", "Partly booked") : t("cal.full", "Booked");
       }
       el.classList.toggle("is-booked", st === "full");
       el.style.order = collapsed ? rank : st === "full" ? 2 : st === "partial" ? 1 : 0;
@@ -95,7 +109,7 @@ var REVIEWS = [];
     });
     if (moreWrap) {
       moreWrap.hidden = !collapsed;
-      if (moreBtn) moreBtn.textContent = "View all " + fleet.length + " yachts";
+      if (moreBtn) moreBtn.textContent = t("m.viewall", "View all {n} yachts", { n: fleet.length });
     }
     if (filters) {
       filters.querySelectorAll("button").forEach(function (b) {
@@ -104,8 +118,8 @@ var REVIEWS = [];
     }
     if (searchBar) {
       var parts = [];
-      if (want.date) parts.push(free + " of " + shown + " yachts available on " + niceDate(want.date));
-      if (want.guests) parts.push("for " + want.guests + " guests");
+      if (want.date) parts.push(t("m.avail", "{free} of {shown} yachts available on {date}", { free: free, shown: shown, date: niceDate(want.date) }));
+      if (want.guests) parts.push(t("m.for", "for {g} guests", { g: want.guests }));
       searchBar.hidden = !parts.length;
       searchText.textContent = parts.join(" ");
     }
@@ -114,6 +128,7 @@ var REVIEWS = [];
   function renderFleet() {
     grid.innerHTML = fleet.map(card).join("");
     observe(grid.querySelectorAll(".reveal"));
+    if (yq.shortlist) yq.shortlist.sync();
     if (filters) filters.hidden = false;
     applyWant();
   }
@@ -143,7 +158,7 @@ var REVIEWS = [];
   }
 
   if (grid) {
-    grid.innerHTML = '<p class="fleet__status">Loading the fleet…</p>';
+    grid.innerHTML = '<p class="fleet__status">' + t("m.loading", "Loading the fleet…") + "</p>";
     fetch("/api/fleet")
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (data) {
@@ -152,9 +167,10 @@ var REVIEWS = [];
         renderFleet();
         fillSelect();
         fillStats();
+        prefillShortlist();
       })
       .catch(function () {
-        grid.innerHTML = '<p class="fleet__status">Our fleet list is being updated. <a href="#contact">Tell us your plans</a> and we\'ll send you the best options for your date.</p>';
+        grid.innerHTML = '<p class="fleet__status">' + t("m.error", 'Our fleet list is being updated. <a href="#contact">Tell us your plans</a> and we\'ll send you the best options for your date.') + "</p>";
       });
   }
 
@@ -170,6 +186,7 @@ var REVIEWS = [];
       want.min = +size[0]; want.max = +size[1];
       if (formDate && want.date) { formDate.value = want.date; formDate.dispatchEvent(new Event("input")); }
       if (formGuests && want.guests) formGuests.value = want.guests;
+      yq.track("search", { v: [want.date || "any date", want.guests ? want.guests + " guests" : "", size.join("-") === "0-999" ? "" : size.join("-") + " ft"].filter(Boolean).join(" · ") });
       applyWant();
       document.getElementById("fleet").scrollIntoView({ behavior: "smooth" });
     });
@@ -202,14 +219,14 @@ var REVIEWS = [];
   }
 
   // Yacht details
-  var current = null, month = null;
+  var current = null, currentIndex = -1, month = null;
 
   function calendarHtml(y) {
-    if (!y.busy) return '<p class="muted ydlg__small">Live availability for this yacht is confirmed on enquiry.</p>';
+    if (!y.busy) return '<p class="muted ydlg__small">' + t("y.noavail", "Live availability for this yacht is confirmed on enquiry.") + "</p>";
     var first = new Date(month.getFullYear(), month.getMonth(), 1);
     var days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     var today = ymd(new Date());
-    var head = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(function (d) { return "<span>" + d + "</span>"; }).join("");
+    var head = weekdays().map(function (d) { return "<span>" + d + "</span>"; }).join("");
     var cells = "";
     for (var k = 0; k < (first.getDay() + 6) % 7; k++) cells += "<span></span>";
     for (var d = 1; d <= days; d++) {
@@ -217,16 +234,16 @@ var REVIEWS = [];
       var state = key < today ? "past" : y.busy[key] || "free";
       cells += '<span class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + '" title="' + key + '">' + d + "</span>";
     }
-    var name = month.toLocaleString("en-US", { month: "long", year: "numeric" });
+    var name = month.toLocaleString(yq.locale(), { month: "long", year: "numeric" });
     var now = new Date();
     var atStart = month.getFullYear() === now.getFullYear() && month.getMonth() === now.getMonth();
     return (
       '<div class="cal">' +
-        '<div class="cal__head"><button type="button" class="cal__nav js-month" data-step="-1" aria-label="Previous month"' + (atStart ? " disabled" : "") + ">‹</button>" +
+        '<div class="cal__head"><button type="button" class="cal__nav js-month" data-step="-1" aria-label="' + t("cal.prev", "Previous month") + '"' + (atStart ? " disabled" : "") + ">‹</button>" +
         "<b>" + name + "</b>" +
-        '<button type="button" class="cal__nav js-month" data-step="1" aria-label="Next month">›</button></div>' +
+        '<button type="button" class="cal__nav js-month" data-step="1" aria-label="' + t("cal.next", "Next month") + '">›</button></div>' +
         '<div class="cal__grid">' + head + cells + "</div>" +
-        '<p class="cal__legend"><i class="cal__d--free"></i>Available <i class="cal__d--partial"></i>Partly booked <i class="cal__d--full"></i>Booked</p>' +
+        '<p class="cal__legend"><i class="cal__d--free"></i>' + t("cal.free", "Available") + ' <i class="cal__d--partial"></i>' + t("cal.partial", "Partly booked") + ' <i class="cal__d--full"></i>' + t("cal.full", "Booked") + "</p>" +
       "</div>"
     );
   }
@@ -237,45 +254,52 @@ var REVIEWS = [];
     var y = fleet[i];
     if (!y || !dialog) return;
     current = y;
+    currentIndex = i;
+    yq.track("yacht_quickview", { y: y.handle });
     if (want.date) { var p = want.date.split("-"); month = new Date(+p[0], p[1] - 1, 1); }
     else { month = new Date(); month.setDate(1); }
     var thumbs = y.images.map(function (src, n) {
       return '<button type="button" class="ydlg__thumb js-thumb' + (n ? "" : " is-active") + '" data-src="' + esc(src) + '"><img src="' + esc(sized(src, 200)) + '" alt="" loading="lazy"></button>';
     }).join("");
     var prices = y.durations.map(function (d) {
-      return "<li><span>" + esc(d.label) + "</span><b>" + money(d.price) + "</b></li>";
+      return "<li><span>" + esc(yq.dur(d.label)) + "</span><b>" + money(d.price) + "</b></li>";
     }).join("");
-    var waText = "Hi Yachtique, I'm interested in " + label(y) + (want.date ? " on " + niceDate(want.date) : "") + (want.guests ? " for " + want.guests + " guests" : "") + ".";
+    var waText = t("m.wa.yacht", "Hi Yachtique, I'm interested in {y}", { y: label(y) }) +
+      (want.date ? t("m.on", " on {d}", { d: niceDate(want.date) }) : "") + (want.guests ? t("m.forg", " for {g} guests", { g: want.guests }) : "") + ".";
     dialog.querySelector(".ydlg__body").innerHTML =
       '<div class="ydlg__gallery">' +
         '<img class="ydlg__main" src="' + esc(sized(y.images[0] || "", 1400)) + '" alt="' + esc(label(y)) + '">' +
         '<div class="ydlg__thumbs">' + thumbs + "</div>" +
       "</div>" +
       '<div class="ydlg__info">' +
-        '<p class="eyebrow">' + esc(y.type) + "</p>" +
+        '<p class="eyebrow">' + esc(yq.type(y.type)) + "</p>" +
         "<h3>" + esc(y.name) + "</h3>" +
         '<ul class="yfacts yfacts--sm">' +
-          "<li><b>" + y.feet + " ft</b><span>Length</span></li>" +
-          (y.guests ? "<li><b>" + y.guests + "</b><span>Guests</span></li>" : "") +
-          (y.cabins ? "<li><b>" + esc(y.cabins) + "</b><span>Cabins</span></li>" : "") +
-          "<li><b>" + esc(y.builder) + "</b><span>Builder</span></li>" +
+          "<li><b>" + y.feet + " ft</b><span>" + t("f.length", "Length") + "</span></li>" +
+          (y.guests ? "<li><b>" + y.guests + "</b><span>" + t("f.guests", "Guests") + "</span></li>" : "") +
+          (y.cabins ? "<li><b>" + esc(y.cabins) + "</b><span>" + t("f.cabins", "Cabins") + "</span></li>" : "") +
+          "<li><b>" + esc(y.builder) + "</b><span>" + t("f.builder", "Builder") + "</span></li>" +
         "</ul>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
-        '<h4>Rates</h4><ul class="ydlg__prices">' + prices + "</ul>" +
-        '<p class="muted ydlg__small">Starting rates. Sales tax' + (y.gratuityIncluded ? "" : " and crew gratuity") + " may apply. Your final quote is confirmed on enquiry.</p>" +
+        "<h4>" + t("y.rates", "Rates") + '</h4><ul class="ydlg__prices">' + prices + "</ul>" +
+        '<p class="muted ydlg__small">' + (y.gratuityIncluded
+          ? t("y.popnote.tip", "Starting rates. Sales tax may apply. Your final quote is confirmed on enquiry.")
+          : t("y.popnote", "Starting rates. Sales tax and crew gratuity may apply. Your final quote is confirmed on enquiry.")) + "</p>" +
         '<dl class="ydlg__meta">' +
-          "<dt>Departs from</dt><dd>" + list(y.locations) + "</dd>" +
-          "<dt>Crew</dt><dd>" + list(y.crew) + "</dd>" +
-          "<dt>Toys</dt><dd>" + list(y.toys) + "</dd>" +
+          "<dt>" + t("y.departs", "Departs from") + "</dt><dd>" + list(y.locations) + "</dd>" +
+          "<dt>" + t("f.crew", "Crew") + "</dt><dd>" + list(y.crew) + "</dd>" +
+          "<dt>" + t("y.toys", "Toys") + "</dt><dd>" + list(y.toys) + "</dd>" +
         "</dl>" +
-        "<h4>Availability</h4><div class=\"ydlg__cal\">" + calendarHtml(y) + "</div>" +
+        "<h4>" + t("y.availability", "Availability") + '</h4><div class="ydlg__cal">' + calendarHtml(y) + "</div>" +
         '<div class="ydlg__ctas">' +
-          '<a href="/yachts/' + esc(y.handle) + '" class="btn btn--ghost btn--block">View full details</a>' +
-          '<a href="#contact" class="btn btn--gold btn--block js-enquire">Enquire about ' + esc(y.name) + "</a>" +
-          (WHATSAPP_NUMBER ? '<a href="' + esc(waLink(waText)) + '" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Ask on WhatsApp</a>' : "") +
+          '<button type="button" class="btn btn--ghost btn--block save save--btn" data-save="' + esc(y.handle) + '" aria-pressed="false">' + HEART + '<span class="save__txt">' + t("save.cta", "Save") + "</span></button>" +
+          '<a href="/yachts/' + esc(y.handle) + '" class="btn btn--ghost btn--block">' + t("y.full", "View full details") + "</a>" +
+          '<a href="#contact" class="btn btn--gold btn--block js-enquire">' + t("y.enquire", "Enquire about") + " " + esc(y.name) + "</a>" +
+          (WHATSAPP_NUMBER ? '<a href="' + esc(waLink(waText)) + '" data-yacht="' + esc(y.handle) + '" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>' + t("wa.ask", "Ask on WhatsApp") + "</a>" : "") +
         "</div>" +
       "</div>";
-    dialog.showModal();
+    if (yq.shortlist) yq.shortlist.sync();
+    if (!dialog.open) dialog.showModal();
     dialog.querySelector(".ydlg__body").scrollTop = 0;
   }
 
@@ -311,23 +335,51 @@ var REVIEWS = [];
     var y = fleet.filter(function (x) { return x.handle === handle; })[0];
     var state = y && y.busy && formDate.value ? y.busy[formDate.value] : null;
     dateNote.textContent = state === "full"
-      ? y.name + " is booked on this date. Send your enquiry anyway and we'll suggest similar yachts."
+      ? t("y.booked", "{y} is booked on this date. Send your enquiry anyway and we'll suggest similar yachts.", { y: y.name })
       : state === "partial"
-        ? y.name + " has another charter that day. Some hours may still be free."
+        ? t("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name })
         : "";
     dateNote.hidden = !dateNote.textContent;
   }
   if (select) select.addEventListener("change", checkDate);
   if (formDate) formDate.addEventListener("change", checkDate);
 
-  // WhatsApp links
-  document.querySelectorAll(".js-wa").forEach(function (a) {
-    if (WHATSAPP_NUMBER) {
-      a.href = waLink("Hi Yachtique, I'd like to plan a charter.");
-    } else {
-      a.href = "#contact";
-      a.removeAttribute("target");
-    }
+  // WhatsApp links (message in the visitor's language)
+  function waLinks() {
+    document.querySelectorAll(".js-wa").forEach(function (a) {
+      if (WHATSAPP_NUMBER) {
+        a.href = waLink(t("m.wa", "Hi Yachtique, I'd like to plan a charter."));
+      } else {
+        a.href = "#contact";
+        a.removeAttribute("target");
+      }
+    });
+  }
+  waLinks();
+
+  // Arriving from an occasion page (?occasion=birthday) or a shortlist (?shortlist=a,b): start the message for them
+  var params = new URLSearchParams(location.search);
+  var message = document.querySelector('.form textarea[name="message"]');
+  var OCC = {
+    "sunset-cruise": ["Sunset cruise", "Crucero al atardecer"], "birthday": ["Birthday", "Cumpleaños"],
+    "bachelorette-bachelor": ["Bachelorette / bachelor party", "Despedida de soltera / soltero"], "sandbar-day": ["Sandbar day", "Día en el banco de arena"],
+    "corporate": ["Corporate / VIP", "Corporativo / VIP"], "proposal": ["Proposal", "Propuesta de matrimonio"],
+  };
+  var occ = OCC[params.get("occasion")];
+  if (occ && message && !message.value) message.value = t("m.occasion", "Occasion") + ": " + occ[yq.lang() === "es" ? 1 : 0] + ". ";
+  function prefillShortlist() {
+    var hs = (params.get("shortlist") || "").split(",").filter(Boolean);
+    if (!hs.length || !message || message.value) return;
+    var names = hs.map(function (h) { var y = fleet.filter(function (x) { return x.handle === h; })[0]; return y ? label(y) : null; }).filter(Boolean);
+    if (names.length) message.value = t("m.shortlist", "My shortlist") + ": " + names.join(", ") + ". ";
+  }
+
+  // Language switch: redraw everything this script wrote
+  yq.onLang(function () {
+    if (fleet.length) { renderFleet(); }
+    waLinks();
+    if (dialog && dialog.open && currentIndex > -1) openYacht(currentIndex);
+    checkDate();
   });
 
   // Nav: background on scroll + mobile menu

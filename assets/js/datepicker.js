@@ -6,7 +6,16 @@
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
   function parse(v) { var p = v.split("-"); return new Date(+p[0], p[1] - 1, +p[2]); }
-  function nice(v) { return parse(v).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }); }
+  // Words and date formats follow the language chosen in core.js
+  function T(k, en) { return window.yq ? yq.t(k, en) : en; }
+  function loc() { return window.yq ? yq.locale() : "en-US"; }
+  function nice(v) { return parse(v).toLocaleDateString(loc(), { weekday: "short", month: "short", day: "numeric", year: "numeric" }); }
+  function weekdays() {
+    var out = [];
+    for (var i = 0; i < 7; i++) out.push(new Date(2024, 0, 1 + i).toLocaleDateString(loc(), { weekday: "short" }).replace(".", "").slice(0, 2));
+    return out;
+  }
+  var syncs = [];
   var phone = window.matchMedia("(max-width: 600px)");
   var open = null;
 
@@ -26,11 +35,12 @@
     inp.tabIndex = -1;
     inp.setAttribute("aria-hidden", "true");
     function sync() {
-      btn.textContent = inp.value ? nice(inp.value) : "Pick a date";
+      btn.textContent = inp.value ? nice(inp.value) : T("dp.pick", "Pick a date");
       wrap.classList.toggle("has-value", !!inp.value);
     }
     inp.addEventListener("input", sync);
     inp.addEventListener("change", sync);
+    syncs.push(sync);
     sync();
     btn.addEventListener("click", function (e) {
       e.preventDefault();
@@ -44,7 +54,7 @@
     var pop = document.createElement("div");
     pop.className = "dp";
     pop.setAttribute("role", "dialog");
-    pop.setAttribute("aria-label", "Choose a date");
+    pop.setAttribute("aria-label", T("dp.choose", "Choose a date"));
     var back = document.createElement("div");
     back.className = "dp-backdrop";
     document.body.appendChild(back);
@@ -81,11 +91,11 @@
     var atMin = min && ymd(m).slice(0, 7) <= min.slice(0, 7);
     var html =
       '<div class="dp__head">' +
-        '<button type="button" class="dp__nav" data-step="-1" aria-label="Previous month"' + (atMin ? " disabled" : "") + ">‹</button>" +
-        "<b>" + m.toLocaleString("en-US", { month: "long", year: "numeric" }) + "</b>" +
-        '<button type="button" class="dp__nav" data-step="1" aria-label="Next month">›</button>' +
+        '<button type="button" class="dp__nav" data-step="-1" aria-label="' + T("cal.prev", "Previous month") + '"' + (atMin ? " disabled" : "") + ">‹</button>" +
+        "<b>" + m.toLocaleString(loc(), { month: "long", year: "numeric" }) + "</b>" +
+        '<button type="button" class="dp__nav" data-step="1" aria-label="' + T("cal.next", "Next month") + '">›</button>' +
       '</div><div class="dp__grid">' +
-      ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(function (d) { return "<span>" + d + "</span>"; }).join("");
+      weekdays().map(function (d) { return "<span>" + d + "</span>"; }).join("");
     for (var k = 0; k < lead; k++) html += "<i></i>";
     for (var d = 1; d <= days; d++) {
       var key = ymd(new Date(m.getFullYear(), m.getMonth(), d));
@@ -93,11 +103,12 @@
       var off = min && key < min;
       html += '<button type="button" class="dp__d' + (key === today ? " is-today" : "") + (key === o.inp.value ? " is-picked" : "") +
         (st && !off ? " is-" + st : "") + '" data-day="' + key + '"' + (off ? " disabled" : "") +
-        ' aria-label="' + nice(key) + (st === "full" ? ", booked" : st === "partial" ? ", partly booked" : "") + '">' + d + "</button>";
+        ' aria-label="' + nice(key) + (st === "full" ? ", " + T("dp.booked", "booked") : st === "partial" ? ", " + T("dp.partial", "partly booked") : "") + '">' + d + "</button>";
     }
     html += '</div><div class="dp__foot">' +
-      (busy ? '<span class="dp__legend"><i class="is-partial"></i>Partly booked <i class="is-full"></i>Booked</span>' : '<span class="dp__legend">Times are arranged with you</span>') +
-      '<span class="dp__acts"><button type="button" class="dp__clear">Clear</button><button type="button" class="dp__close">Close</button></span></div>';
+      (busy ? '<span class="dp__legend"><i class="is-partial"></i>' + T("cal.partial", "Partly booked") + ' <i class="is-full"></i>' + T("cal.full", "Booked") + "</span>"
+        : '<span class="dp__legend">' + T("dp.times", "Times are arranged with you") + "</span>") +
+      '<span class="dp__acts"><button type="button" class="dp__clear">' + T("dp.clear", "Clear") + '</button><button type="button" class="dp__close">' + T("dp.close", "Close") + "</button></span></div>";
     o.pop.innerHTML = html;
   }
 
@@ -150,7 +161,10 @@
   window.addEventListener("resize", place);
   window.addEventListener("scroll", place, { passive: true });
 
-  function init() { document.querySelectorAll('input[type="date"]').forEach(enhance); }
+  function init() {
+    document.querySelectorAll('input[type="date"]').forEach(enhance);
+    if (window.yq && !init.done) { init.done = true; yq.onLang(function () { syncs.forEach(function (f) { f(); }); if (open) draw(); }); }
+  }
   window.yqDates = { enhance: enhance, init: init };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
