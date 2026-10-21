@@ -61,7 +61,7 @@ function body(area, yachts, from, cover) {
   </section>
 
   <div class="container">
-    ${points.length ? `<p class="apoints"><span>Departs from</span>${points.map(esc).join(" · ")}</p>` : ""}
+    ${points.length ? `<p class="apoints"><span>Departs from</span>${points.map((p) => `<i>${esc(p)}</i>`).join("")}</p>` : ""}
     ${yachts.length
       ? `<div class="fleet__grid">${yachts.map(simCard).join("")}</div>`
       : `<p class="lead">No yachts are listed here right now. Message us and we'll find the right one.</p>`}
@@ -88,5 +88,5 @@ function body(area, yachts, from, cover) {
   <a href="${esc(wa)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
   <a href="/#contact" class="mobilebar__gold">Enquire</a>
 </div>
-<script src="/assets/js/yacht.js?v=20261021c" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261021d" defer></script>`;
 }
