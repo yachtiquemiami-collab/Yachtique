@@ -140,9 +140,6 @@ p { margin: 0 0 1em; }
 .statement__grid .eyebrow { padding-top: 14px; }
 .statement__text { font-size: clamp(26px, 3vw, 40px); font-weight: 400; line-height: 1.3; letter-spacing: 0; color: var(--ink); margin: 0; }
 .statement__text em { color: var(--gold-dark); }
-.stats { list-style: none; margin: 90px 0 0; padding: 40px 0 0; border-top: 1px solid var(--line-dark); display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
-.stats b { display: block; font-family: var(--serif); font-weight: 400; font-size: clamp(38px, 4vw, 54px); line-height: 1; color: var(--ink); margin-bottom: 10px; }
-.stats span { font-size: 14px; color: var(--ink-muted); }
 
 /* Fleet */
 .fleet__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 44px; flex-wrap: wrap; }
@@ -234,9 +231,6 @@ p { margin: 0 0 1em; }
 /* Contact */
 .contact__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 80px; align-items: start; }
 .contact__info .btn--wa { margin: 14px 0 0; max-width: 360px; }
-.contact__list { list-style: none; padding: 0; margin: 40px 0 0; }
-.contact__list li { padding: 16px 0; border-bottom: 1px solid var(--line-dark); display: flex; gap: 18px; color: var(--ink); }
-.contact__list span { width: 100px; flex-shrink: 0; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-dark); padding-top: 4px; }
 .contact__list a:hover { color: var(--gold-dark); }
 .card { background: var(--navy-2); padding: 40px; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(11, 30, 39, .22); }
 
@@ -346,16 +340,10 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .ypage__grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 70px; margin-top: 50px; align-items: start; }
 .ypage__title { font-size: clamp(36px, 4.6vw, 60px); font-weight: 600; margin-bottom: 8px; }
 .ypage__sub { color: var(--muted); font-size: 17px; margin-bottom: 32px; }
-.yfacts { list-style: none; padding: 26px 0; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 18px 44px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.yfacts b { display: block; font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--white); line-height: 1.1; }
-.yfacts span { font-size: 13px; color: var(--muted); }
 .ysection { padding: 44px 0 0; }
 .ysection h2 { font-size: 32px; margin-bottom: 18px; }
 .yabout p { color: var(--text); max-width: 68ch; }
 .yabout h3 { font-size: 22px; margin: 30px 0 8px; color: var(--gold-light); }
-.yrates li { font-size: 16px; padding: 12px 0; }
-.yrates b { font-size: 24px; }
-.ysection .ydlg__meta { margin-top: 0; font-size: 15px; }
 
 .ycals__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 14px; }
 .ycals__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -400,7 +388,6 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
   .ypage { padding-top: 90px; }
   .ygallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: 0; margin: 0 -20px; gap: 6px; }
   .ygallery__item { flex: 0 0 88%; height: 260px; scroll-snap-align: center; }
-  .yfacts { gap: 16px 30px; }
   .ylight__nav { top: auto; bottom: 14px; transform: none; }
 }
 
@@ -411,11 +398,6 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
 .ahero__media { position: relative; overflow: hidden; }
 .ahero__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ahero__intro { max-width: 560px; font-size: 18px; color: var(--text); }
-.ahero__facts { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 18px 44px; }
-.ahero__facts b { display: block; font-family: var(--serif); font-weight: 400; font-size: 32px; color: var(--white); line-height: 1.1; }
-.ahero__facts span { font-size: 13px; color: var(--muted); }
-.apoints { font-size: 15px; color: var(--text); margin: 0 0 34px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.apoints span { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); padding-top: 3px; }
 .acta { margin-top: 90px; padding: 44px; border: 1px solid var(--line); border-radius: 18px; background: var(--navy-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 26px; }
 .acta .title { font-size: clamp(30px, 3.6vw, 44px); margin-bottom: 8px; }
 .acta .lead { margin: 0; color: var(--text); max-width: 520px; }
@@ -467,12 +449,6 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
 .ydlg__info h4 { font: 400 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 28px 0 10px; }
 .ydlg__summary { font-size: 15px; color: var(--text); }
 .ydlg__small { font-size: 13px; }
-.ydlg__prices { list-style: none; padding: 0; margin: 0 0 10px; }
-.ydlg__prices li { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
-.ydlg__prices b { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--white); }
-.ydlg__meta { display: grid; grid-template-columns: 110px 1fr; gap: 8px 16px; margin: 22px 0 0; font-size: 14px; }
-.ydlg__meta dt { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); padding-top: 3px; }
-.ydlg__meta dd { margin: 0; color: var(--text); }
 .ydlg__ctas { display: grid; gap: 10px; margin-top: 28px; }
 
 /* Availability calendar */
@@ -503,7 +479,6 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
   .services__grid, .about__grid, .contact__grid { grid-template-columns: 1fr; gap: 60px; }
   .services__media, .about__photo { max-width: 560px; }
   .statement__grid { grid-template-columns: 1fr; gap: 0; }
-  .stats { grid-template-columns: repeat(2, 1fr); gap: 34px 20px; margin-top: 60px; }
 }
 @media (max-width: 800px) {
   body { font-size: 16px; }
@@ -545,7 +520,6 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
   .form__row { grid-template-columns: 1fr; }
   .nav__logo img { width: 140px; }
   .fleet__head { margin-bottom: 30px; }
-  .stats b { font-size: 36px; }
 }
 
 /* Split layouts on tablets and phones: photo on top, words underneath */
@@ -577,3 +551,85 @@ button.cal__d--free:hover, button.cal__d--partial:hover { outline: 1px solid var
 .hero--center .hero__title, .hero--center .hero__sub { margin-left: auto; margin-right: auto; }
 .hero--center .about__ctas { justify-content: center; }
 .hero__logo { width: min(320px, 70vw); margin: 0 auto 34px; }
+
+/* ---------- Fact boxes ----------
+   Specs, stats, rates and contact details sit in one rounded box split by thin gold lines,
+   small gold label on top, value underneath (the info bar of the Chef Tasos quotes).
+   The 1px gap shows the box background through as the divider lines; rows always fill. */
+.yfacts, .ahero__facts, .stats {
+  --cell: var(--navy-2);
+  list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 1px;
+  background: rgba(201, 165, 100, .32); border: 1px solid rgba(201, 165, 100, .45); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, .22);
+}
+.yfacts li, .ahero__facts li, .stats li {
+  flex: 1 1 120px; display: flex; flex-direction: column-reverse; justify-content: center; align-items: center; gap: 6px;
+  padding: 20px 14px; text-align: center; background: var(--cell);
+}
+.yfacts span, .ahero__facts span {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); line-height: 1.3;
+}
+.yfacts b, .ahero__facts b {
+  font-family: var(--serif); font-weight: 600; font-size: 20px; line-height: 1.2; color: var(--white);
+}
+.ahero__facts { --cell: var(--navy); margin-top: 28px; max-width: 560px; }
+.ahero__facts b { font-size: 26px; }
+.yfacts--sm { margin: 4px 0 18px; box-shadow: none; }
+.yfacts--sm li { padding: 14px 10px; flex-basis: 90px; }
+.yfacts--sm b { font-size: 17px; }
+
+/* Home statement numbers: white boxes on the ivory section, number on top */
+.stats { --cell: var(--white); margin: 80px 0 0; background: rgba(127, 81, 25, .22); border-color: rgba(127, 81, 25, .3); box-shadow: 0 24px 50px rgba(11, 30, 39, .08); }
+.stats li { flex: 1 1 200px; flex-direction: column; padding: 34px 22px; gap: 12px; }
+.stats b { font-family: var(--serif); font-weight: 500; font-size: clamp(36px, 3.6vw, 50px); line-height: 1; color: var(--ink); }
+.stats span { font-size: 14px; color: var(--ink-muted); max-width: 22ch; }
+
+/* Rates and "On board": boxed rows */
+.ydlg__prices, .ydlg__meta {
+  list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 1px;
+  background: rgba(201, 165, 100, .3); border: 1px solid rgba(201, 165, 100, .42); border-radius: 16px; overflow: hidden;
+}
+.ydlg__prices li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 20px; background: var(--navy-2); font-size: 15px; color: var(--text); }
+.ydlg__prices b { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--white); white-space: nowrap; }
+.yrates li { padding: 16px 22px; font-size: 16px; }
+.yrates b { font-size: 23px; }
+.ydlg__meta { grid-template-columns: 130px minmax(0, 1fr); margin-top: 22px; font-size: 14px; }
+.ydlg__meta dt, .ydlg__meta dd { margin: 0; padding: 14px 18px; background: var(--navy-2); }
+.ydlg__meta dt { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; }
+.ydlg__meta dd { color: var(--text); }
+.ysection .ydlg__meta { margin-top: 0; font-size: 15px; grid-template-columns: 170px minmax(0, 1fr); }
+
+/* Area pages: departure points as gold-edged chips */
+.apoints { margin: 0 0 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.apoints span { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-right: 6px; }
+.apoints i { font-style: normal; font-size: 14px; color: var(--text); padding: 8px 16px; border: 1px solid rgba(201, 165, 100, .45); border-radius: var(--pill); background: var(--navy-2); }
+
+/* Contact details: one white card with lined rows */
+.contact__list {
+  list-style: none; padding: 0; margin: 36px 0 0; display: grid; gap: 1px;
+  background: rgba(127, 81, 25, .2); border: 1px solid rgba(127, 81, 25, .28); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 20px 44px rgba(11, 30, 39, .07);
+}
+.contact__list li { display: flex; align-items: center; gap: 18px; padding: 16px 22px; background: var(--white); color: var(--ink); min-width: 0; }
+.contact__list li a { overflow-wrap: anywhere; }
+.contact__list span { width: 96px; flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-dark); }
+
+/* The popup column is narrow: label above value, like phones */
+.ydlg__info .ydlg__meta { grid-template-columns: minmax(0, 1fr); }
+.ydlg__info .ydlg__meta dt { padding-bottom: 2px; }
+.ydlg__info .ydlg__meta dd { padding-top: 2px; margin-top: -1px; }
+
+@media (max-width: 700px) {
+  .yfacts li { flex-basis: 30%; padding: 16px 8px; }
+  .yfacts b { font-size: 18px; }
+  .ahero__facts li { padding: 16px 8px; }
+  .ahero__facts b { font-size: 22px; }
+  .stats { margin-top: 56px; }
+  .stats li { flex-basis: 40%; padding: 26px 14px; }
+  .stats b { font-size: 30px; white-space: nowrap; }
+  .ydlg__meta, .ysection .ydlg__meta { grid-template-columns: minmax(0, 1fr); }
+  .ydlg__meta dt { padding-bottom: 2px; }
+  .ydlg__meta dd { padding-top: 2px; }
+  .ydlg__meta dt + dd { margin-top: -1px; }
+  .yrates li, .ydlg__prices li { padding: 13px 16px; }
+}
