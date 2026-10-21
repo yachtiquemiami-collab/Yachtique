@@ -46,11 +46,9 @@ function body(area, yachts, from, cover) {
   return `
 <main class="ypage apage">
   <section class="ahero">
-    ${cover && cover[0] ? `<img class="ahero__img" src="${esc(sized(cover[0], 2000))}" alt="" fetchpriority="high">` : ""}
-    <div class="ahero__shade" aria-hidden="true"></div>
-    <div class="container ahero__inner">
+    <div class="ahero__text">
       <nav class="ypage__crumbs" aria-label="Breadcrumb"><a href="/#fleet">The Fleet</a><span>/</span>${esc(area.short)}</nav>
-      <p class="eyebrow eyebrow--light">Yacht charter</p>
+      <p class="eyebrow">Yacht charter</p>
       <h1 class="ypage__title">${esc(area.name)}</h1>
       <p class="ahero__intro">${esc(area.intro)}</p>
       <ul class="ahero__facts">
@@ -59,6 +57,7 @@ function body(area, yachts, from, cover) {
         <li><b>${points.length || "—"}</b><span>${points.length === 1 ? "Departure point" : "Departure points"}</span></li>
       </ul>
     </div>
+    ${cover && cover[0] ? `<div class="ahero__media"><img src="${esc(sized(cover[0], 1600))}" alt="Yacht charter in ${esc(area.name)}" fetchpriority="high"></div>` : ""}
   </section>
 
   <div class="container">
@@ -89,5 +88,5 @@ function body(area, yachts, from, cover) {
   <a href="${esc(wa)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
   <a href="/#contact" class="mobilebar__gold">Enquire</a>
 </div>
-<script src="/assets/js/yacht.js?v=20261021" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261021b" defer></script>`;
 }

@@ -51,8 +51,8 @@ function yachtBody(y, others) {
 
     <div class="ygallery" data-count="${photos.length}">
       ${photos.map((src, i) => `<button type="button" class="ygallery__item js-photo" data-i="${i}" aria-label="View photo ${i + 1}"><img src="${esc(sized(src, i ? 900 : 1600))}" alt="${esc(label)}${i ? ` photo ${i + 1}` : ""}"${i ? ' loading="lazy"' : ' fetchpriority="high"'}></button>`).join("")}
-      ${y.images.length > 1 ? `<button type="button" class="ygallery__all js-photo" data-i="0">View all ${y.images.length} photos</button>` : ""}
     </div>
+    ${y.images.length > 1 ? `<div class="ygallery__bar"><button type="button" class="ygallery__all js-photo" data-i="0">View all ${y.images.length} photos</button></div>` : ""}
 
     <div class="ypage__grid">
       <article class="ypage__main">
@@ -138,7 +138,7 @@ function yachtBody(y, others) {
 </div>
 
 <script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null }).replace(/</g, "\\u003c")}</script>
-<script src="/assets/js/yacht.js?v=20261021" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261021b" defer></script>`;
 }
 
 
