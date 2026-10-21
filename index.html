@@ -18,11 +18,11 @@
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
 
-  <link rel="preload" as="image" href="/assets/img/photos/hero.jpg" imagesrcset="/assets/img/photos/hero-1280.jpg 1280w, /assets/img/photos/hero.jpg 2400w" imagesizes="100vw">
+  <link rel="preload" as="image" href="/assets/img/photos/hero.jpg" imagesrcset="/assets/img/photos/hero-1280.jpg 1280w, /assets/img/photos/hero.jpg 2400w" imagesizes="(min-width: 1000px) 60vw, 100vw">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021">
+  <link rel="stylesheet" href="/assets/css/styles.css?v=20261021b">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"TravelAgency","name":"Yachtique","alternateName":"Yachtique Miami","description":"Miami yacht charter broker and concierge: private yacht charters with live availability, plus luxury villas, private security and chauffeured transport.","url":"https://yachtique.co/","logo":"https://yachtique.co/assets/img/logo-stacked.png","image":"https://yachtique.co/assets/img/og-image.png","telephone":"+1-305-812-4721","email":"yachtiquemiami@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Miami","addressRegion":"FL","addressCountry":"US"},"areaServed":[{"@type":"City","name":"Miami"},{"@type":"City","name":"Miami Beach"},{"@type":"City","name":"Fort Lauderdale"},{"@type":"Country","name":"The Bahamas"}],"sameAs":["https://www.instagram.com/yachtiquemiami/"],"founder":{"@type":"Person","name":"Nektarios"}}</script>
 </head>
 <body>
@@ -49,10 +49,11 @@
 
   <!-- HERO -->
   <section class="hero">
-    <img class="hero__img" src="/assets/img/photos/hero.jpg" srcset="/assets/img/photos/hero-1280.jpg 1280w, /assets/img/photos/hero.jpg 2400w" sizes="100vw" alt="A Yachtique motor yacht cruising past the Miami skyline" width="2400" height="1350" fetchpriority="high">
-    <div class="hero__shade" aria-hidden="true"></div>
-    <div class="container hero__content">
-      <p class="eyebrow eyebrow--light">Miami &middot; Fort Lauderdale &middot; The Bahamas</p>
+    <div class="hero__media">
+      <img class="hero__img" src="/assets/img/photos/hero.jpg" srcset="/assets/img/photos/hero-1280.jpg 1280w, /assets/img/photos/hero.jpg 2400w" sizes="(min-width: 1000px) 60vw, 100vw" alt="A Yachtique motor yacht cruising past the Miami skyline" width="2400" height="1350" fetchpriority="high">
+    </div>
+    <div class="hero__content">
+      <p class="eyebrow">Miami &middot; Fort Lauderdale &middot; The Bahamas</p>
       <h1 class="hero__title">Every yacht is unique.<br><em>So is every guest.</em></h1>
       <p class="hero__sub">Private yacht charters with live availability, plus villas, security and transport, arranged by one broker.</p>
 
@@ -154,21 +155,20 @@
         <p class="muted">Add a private chef, DJ, photographer, decor or water toys to any charter.</p>
       </div>
       <div class="mosaic">
-        <figure class="mosaic__item mosaic__item--tall reveal"><img src="/assets/img/photos/sunset.jpg" alt="Superyacht at anchor at sunset in Miami" loading="lazy"><figcaption><span>01</span>Sunset Cruises</figcaption></figure>
-        <figure class="mosaic__item reveal"><img src="/assets/img/photos/bow.jpg" alt="Guest relaxing on the bow of a yacht" loading="lazy"><figcaption><span>02</span>Birthdays &amp; Celebrations</figcaption></figure>
-        <figure class="mosaic__item reveal"><img src="/assets/img/photos/swim.jpg" alt="Guests on the swim platform of a catamaran" loading="lazy"><figcaption><span>03</span>Bachelor &amp; Bachelorette</figcaption></figure>
-        <figure class="mosaic__item reveal"><img src="/assets/img/photos/sandbar.jpg" alt="Guests paddleboarding beside a yacht at the sandbar" loading="lazy"><figcaption><span>04</span>Sandbar Days</figcaption></figure>
-        <figure class="mosaic__item reveal"><img src="/assets/img/photos/aerial.jpg" alt="Aerial view of a yacht on turquoise water" loading="lazy"><figcaption><span>05</span>Corporate &amp; VIP</figcaption></figure>
-        <figure class="mosaic__item mosaic__item--wide reveal"><img src="/assets/img/photos/bahamas.jpg" alt="Power catamaran anchored off green Bahamian hills" loading="lazy"><figcaption><span>06</span>Bimini &amp; the Bahamas</figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/sunset.jpg" alt="Superyacht at anchor at sunset in Miami" loading="lazy"></div><figcaption><b>Sunset Cruises</b><span>Golden hour on Biscayne Bay</span></figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/bow.jpg" alt="Guest relaxing on the bow of a yacht" loading="lazy"></div><figcaption><b>Birthdays &amp; Celebrations</b><span>Cake, decor and a DJ on board</span></figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/swim.jpg" alt="Guests on the swim platform of a catamaran" loading="lazy"></div><figcaption><b>Bachelor &amp; Bachelorette</b><span>Music, floats and the sandbar</span></figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/sandbar.jpg" alt="Guests paddleboarding beside a yacht at the sandbar" loading="lazy"></div><figcaption><b>Sandbar Days</b><span>Haulover and Nixon sandbars</span></figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/aerial.jpg" alt="Aerial view of a yacht on turquoise water" loading="lazy"></div><figcaption><b>Corporate &amp; VIP</b><span>Client days and private events</span></figcaption></figure>
+        <figure class="mosaic__item reveal"><div class="mosaic__img"><img src="/assets/img/photos/bahamas.jpg" alt="Power catamaran anchored off green Bahamian hills" loading="lazy"></div><figcaption><b>Bimini &amp; the Bahamas</b><span>Day trips and island weeks</span></figcaption></figure>
       </div>
     </div>
   </section>
 
   <!-- QUOTE -->
   <section class="quote">
-    <img src="/assets/img/photos/sunset2.jpg" alt="" class="quote__img" loading="lazy">
-    <div class="quote__shade" aria-hidden="true"></div>
-    <div class="container quote__inner reveal">
+    <div class="quote__media"><img src="/assets/img/photos/sunset2.jpg" alt="Catamaran at anchor at sunset" class="quote__img" loading="lazy"></div>
+    <div class="quote__inner reveal">
       <p class="quote__text">One broker. One phone number.<br><em>From the first message to the moment you step back on the dock.</em></p>
     </div>
   </section>
@@ -204,7 +204,6 @@
     <div class="container about__grid">
       <div class="about__photo reveal">
         <img src="/assets/img/photos/aerial.jpg" alt="" loading="lazy">
-        <div class="about__badge"><img src="/assets/img/logo-icon.png" alt="" width="120" height="54"></div>
       </div>
       <div class="about__text reveal">
         <p class="eyebrow">About</p>
@@ -355,6 +354,6 @@
   <div class="ydlg__body"></div>
 </dialog>
 
-<script src="/assets/js/main.js?v=20261021"></script>
+<script src="/assets/js/main.js?v=20261021b"></script>
 </body>
 </html>
