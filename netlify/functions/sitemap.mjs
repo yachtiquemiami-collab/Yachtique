@@ -1,15 +1,16 @@
 // GET /sitemap.xml
 // Built from the live fleet so every yacht page and area page is listed for Google.
 // Add any new static page to PAGES below.
-import { SITE, AREAS, loadFleet } from "../lib/site.mjs";
+import { SITE, AREAS, OCCASIONS, loadFleet } from "../lib/site.mjs";
 
-const PAGES = ["/", "/faq.html", "/terms.html", "/privacy.html"];
+const PAGES = ["/", "/available", "/faq.html", "/terms.html", "/privacy.html"];
 
 export default async (req) => {
   const fleet = (await loadFleet(req)) || [];
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
-    ...PAGES.map((p) => ({ loc: SITE + p, priority: p === "/" ? "1.0" : "0.4" })),
+    ...PAGES.map((p) => ({ loc: SITE + p, priority: p === "/" ? "1.0" : p === "/available" ? "0.8" : "0.4" })),
+    ...OCCASIONS.map((o) => ({ loc: `${SITE}/occasions/${o.slug}`, priority: "0.8" })),
     ...AREAS.map((a) => ({ loc: `${SITE}/yacht-charter/${a.slug}`, priority: "0.8" })),
     ...fleet.map((y) => ({ loc: `${SITE}/yachts/${y.handle}`, priority: "0.7" })),
   ];
