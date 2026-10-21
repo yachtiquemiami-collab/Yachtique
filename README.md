@@ -8,7 +8,10 @@ It's a plain static site (HTML, CSS, JS), with no build step. Netlify publishes 
 
 | What | Where |
 |---|---|
-| Markup, hidden yachts, price overrides | `netlify/fleet-config.mjs` |
+| Markup (+20%), hidden yachts, price overrides | `netlify/fleet-config.mjs` |
+| The 6 featured yachts on the home page | `featured` in `netlify/fleet-config.mjs` (yacht handles, in order) |
+| Charter area pages (names, intro text, which marinas) | `AREAS` in `netlify/lib/site.mjs` |
+| Pages listed in the sitemap | `PAGES` in `netlify/functions/sitemap.mjs` (yachts and areas are added automatically) |
 | WhatsApp number | `WHATSAPP_NUMBER` at the top of `assets/js/main.js` |
 | Text and sections | `index.html` |
 | Colours and fonts | top of `assets/css/styles.css` |
@@ -24,6 +27,27 @@ The yachts are not typed in by hand. `netlify/functions/fleet.mjs` (served at `/
 - booked dates from those calendars (dates only; event details are never read or shown)
 
 It adds the markup from `netlify/fleet-config.mjs` (+20% by default) and Netlify caches the result for an hour, so YCN changes show up on the site within the hour.
+
+### Changing the fleet settings
+
+All in `netlify/fleet-config.mjs`:
+
+- **Markup:** `markup: 0.20` means YCN price + 20%, rounded up to the nearest $5 (`roundTo`).
+- **Featured yachts:** `featured: ["bimini-blue", "sea-suite", ...]`. The handle is the last part of the yacht's address, e.g. yachtique.co/yachts/**bimini-blue**. Up to 6, shown in that order.
+- **Hide a yacht:** add its handle to `hide: [...]`.
+- **Fixed price for one yacht:** `priceOverrides: { "bimini-blue": { "4 hours": 2400 } }`.
+
+Changes go live about a minute after they are merged into `main`; the fleet itself refreshes from YCN every hour.
+
+## Server-rendered pages
+
+| Address | File | What it shows |
+|---|---|---|
+| `/yachts/<handle>` | `netlify/functions/yacht-page.mjs` | One page per yacht: gallery, rates, calendar, enquiry form |
+| `/yacht-charter/<area>` | `netlify/functions/area-page.mjs` | One page per charter area with the yachts that depart there |
+| `/sitemap.xml` | `netlify/functions/sitemap.mjs` | Every page, yacht and area, for Google |
+
+Shared header, footer and helpers: `netlify/lib/site.mjs`. After changing CSS or JS, bump the `?v=` on every `<link>`/`<script>` (all `.html` files and `netlify/lib/site.mjs`, `yacht-page.mjs`, `area-page.mjs`).
 
 ## Run locally
 
