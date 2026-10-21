@@ -168,7 +168,7 @@ var REVIEWS = [];
       want.date = finderDate.value;
       want.guests = +document.getElementById("finderGuests").value || 0;
       want.min = +size[0]; want.max = +size[1];
-      if (formDate && want.date) formDate.value = want.date;
+      if (formDate && want.date) { formDate.value = want.date; formDate.dispatchEvent(new Event("input")); }
       if (formGuests && want.guests) formGuests.value = want.guests;
       applyWant();
       document.getElementById("fleet").scrollIntoView({ behavior: "smooth" });
@@ -178,7 +178,7 @@ var REVIEWS = [];
   if (clearBtn) {
     clearBtn.addEventListener("click", function () {
       want = { date: "", guests: 0, min: 0, max: 999 };
-      if (finder) finder.reset();
+      if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) fd.dispatchEvent(new Event("input")); }
       applyWant();
     });
   }
@@ -369,6 +369,27 @@ var REVIEWS = [];
     reviews.hidden = false;
     observe(reviews.querySelectorAll(".reveal"));
   }
+
+  // Date fields: show "Pick a date" while empty (phones show a blank box otherwise)
+  function datePlaceholders() {
+    document.querySelectorAll('input[type="date"]').forEach(function (inp) {
+      if (inp.parentNode.classList && inp.parentNode.classList.contains("datewrap")) return;
+      var wrap = document.createElement("span");
+      wrap.className = "datewrap";
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      var ph = document.createElement("span");
+      ph.className = "datewrap__ph";
+      ph.setAttribute("aria-hidden", "true");
+      ph.textContent = "Pick a date";
+      wrap.appendChild(ph);
+      function sync() { wrap.classList.toggle("has-value", !!inp.value); }
+      inp.addEventListener("input", sync);
+      inp.addEventListener("change", sync);
+      sync();
+    });
+  }
+  datePlaceholders();
 
   var year = document.getElementById("year");
   if (year) year.textContent = new Date().getFullYear();
