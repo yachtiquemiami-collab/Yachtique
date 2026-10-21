@@ -254,7 +254,12 @@ var REVIEWS = [];
       '<div class="ydlg__info">' +
         '<p class="eyebrow">' + esc(y.type) + "</p>" +
         "<h3>" + esc(y.name) + "</h3>" +
-        '<p class="yacht__model">' + esc(y.builder) + " · " + y.feet + " ft" + (y.guests ? " · up to " + y.guests + " guests" : "") + (y.cabins ? " · " + cabins(y.cabins) : "") + "</p>" +
+        '<ul class="yfacts yfacts--sm">' +
+          "<li><b>" + y.feet + " ft</b><span>Length</span></li>" +
+          (y.guests ? "<li><b>" + y.guests + "</b><span>Guests</span></li>" : "") +
+          (y.cabins ? "<li><b>" + esc(y.cabins) + "</b><span>Cabins</span></li>" : "") +
+          "<li><b>" + esc(y.builder) + "</b><span>Builder</span></li>" +
+        "</ul>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
         '<h4>Rates</h4><ul class="ydlg__prices">' + prices + "</ul>" +
         '<p class="muted ydlg__small">Starting rates. Sales tax' + (y.gratuityIncluded ? "" : " and crew gratuity") + " may apply. Your final quote is confirmed on enquiry.</p>" +
