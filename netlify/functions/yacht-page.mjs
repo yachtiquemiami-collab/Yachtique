@@ -138,7 +138,7 @@ function yachtBody(y, others) {
 </div>
 
 <script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null }).replace(/</g, "\\u003c")}</script>
-<script src="/assets/js/yacht.js?v=20261021d" defer></script>`;
+<script src="/assets/js/yacht.js?v=20261021e" defer></script>`;
 }
 
 
