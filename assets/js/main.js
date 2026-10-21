@@ -178,7 +178,7 @@ var REVIEWS = [];
   if (clearBtn) {
     clearBtn.addEventListener("click", function () {
       want = { date: "", guests: 0, min: 0, max: 999 };
-      if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) fd.dispatchEvent(new Event("input")); }
+      if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) { fd.value = ""; fd.dispatchEvent(new Event("input")); } }
       applyWant();
     });
   }
@@ -375,35 +375,6 @@ var REVIEWS = [];
     observe(reviews.querySelectorAll(".reveal"));
   }
 
-  // Date fields: show "Pick a date" while empty (phones show a blank box otherwise)
-  function datePlaceholders() {
-    var fmt = function (v) {
-      var p = v.split("-");
-      return new Date(+p[0], p[1] - 1, +p[2]).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    };
-    document.querySelectorAll('input[type="date"]').forEach(function (inp) {
-      if (inp.parentNode.classList && inp.parentNode.classList.contains("datewrap")) return;
-      var wrap = document.createElement("span");
-      wrap.className = "datewrap";
-      inp.parentNode.insertBefore(wrap, inp);
-      wrap.appendChild(inp);
-      var ph = document.createElement("span");
-      ph.className = "datewrap__ph";
-      ph.setAttribute("aria-hidden", "true");
-      wrap.appendChild(ph);
-      function sync() {
-        wrap.classList.toggle("has-value", !!inp.value);
-        ph.textContent = inp.value ? fmt(inp.value) : "Pick a date";
-      }
-      inp.addEventListener("input", sync);
-      inp.addEventListener("change", sync);
-      // One click opens the calendar everywhere (Chrome would otherwise edit the hidden day/month digits)
-      inp.addEventListener("click", function () { try { if (inp.showPicker) inp.showPicker(); } catch (e) {} });
-      inp._syncDate = sync;
-      sync();
-    });
-  }
-  datePlaceholders();
 
   var year = document.getElementById("year");
   if (year) year.textContent = new Date().getFullYear();
