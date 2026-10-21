@@ -178,7 +178,7 @@ var REVIEWS = [];
   if (clearBtn) {
     clearBtn.addEventListener("click", function () {
       want = { date: "", guests: 0, min: 0, max: 999 };
-      if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) fd.dispatchEvent(new Event("input")); }
+      if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) { fd.value = ""; fd.dispatchEvent(new Event("input")); } }
       applyWant();
     });
   }
@@ -254,7 +254,12 @@ var REVIEWS = [];
       '<div class="ydlg__info">' +
         '<p class="eyebrow">' + esc(y.type) + "</p>" +
         "<h3>" + esc(y.name) + "</h3>" +
-        '<p class="yacht__model">' + esc(y.builder) + " · " + y.feet + " ft" + (y.guests ? " · up to " + y.guests + " guests" : "") + (y.cabins ? " · " + cabins(y.cabins) : "") + "</p>" +
+        '<ul class="yfacts yfacts--sm">' +
+          "<li><b>" + y.feet + " ft</b><span>Length</span></li>" +
+          (y.guests ? "<li><b>" + y.guests + "</b><span>Guests</span></li>" : "") +
+          (y.cabins ? "<li><b>" + esc(y.cabins) + "</b><span>Cabins</span></li>" : "") +
+          "<li><b>" + esc(y.builder) + "</b><span>Builder</span></li>" +
+        "</ul>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
         '<h4>Rates</h4><ul class="ydlg__prices">' + prices + "</ul>" +
         '<p class="muted ydlg__small">Starting rates. Sales tax' + (y.gratuityIncluded ? "" : " and crew gratuity") + " may apply. Your final quote is confirmed on enquiry.</p>" +
@@ -370,26 +375,6 @@ var REVIEWS = [];
     observe(reviews.querySelectorAll(".reveal"));
   }
 
-  // Date fields: show "Pick a date" while empty (phones show a blank box otherwise)
-  function datePlaceholders() {
-    document.querySelectorAll('input[type="date"]').forEach(function (inp) {
-      if (inp.parentNode.classList && inp.parentNode.classList.contains("datewrap")) return;
-      var wrap = document.createElement("span");
-      wrap.className = "datewrap";
-      inp.parentNode.insertBefore(wrap, inp);
-      wrap.appendChild(inp);
-      var ph = document.createElement("span");
-      ph.className = "datewrap__ph";
-      ph.setAttribute("aria-hidden", "true");
-      ph.textContent = "Pick a date";
-      wrap.appendChild(ph);
-      function sync() { wrap.classList.toggle("has-value", !!inp.value); }
-      inp.addEventListener("input", sync);
-      inp.addEventListener("change", sync);
-      sync();
-    });
-  }
-  datePlaceholders();
 
   var year = document.getElementById("year");
   if (year) year.textContent = new Date().getFullYear();

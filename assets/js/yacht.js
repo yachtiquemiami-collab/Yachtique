@@ -110,6 +110,7 @@
   }
   if (dateInput) {
     dateInput.min = ymd(new Date());
+    dateInput._yqBusy = y.busy; // booked days show in the date picker too
     dateInput.addEventListener("change", checkDate);
   }
 
@@ -121,26 +122,6 @@
     });
   });
 
-  // Date fields: show "Pick a date" while empty (phones show a blank box otherwise)
-  function datePlaceholders() {
-    document.querySelectorAll('input[type="date"]').forEach(function (inp) {
-      if (inp.parentNode.classList && inp.parentNode.classList.contains("datewrap")) return;
-      var wrap = document.createElement("span");
-      wrap.className = "datewrap";
-      inp.parentNode.insertBefore(wrap, inp);
-      wrap.appendChild(inp);
-      var ph = document.createElement("span");
-      ph.className = "datewrap__ph";
-      ph.setAttribute("aria-hidden", "true");
-      ph.textContent = "Pick a date";
-      wrap.appendChild(ph);
-      function sync() { wrap.classList.toggle("has-value", !!inp.value); }
-      inp.addEventListener("input", sync);
-      inp.addEventListener("change", sync);
-      sync();
-    });
-  }
-  datePlaceholders();
 
   // Mobile menu
   var toggle = document.getElementById("navToggle");
