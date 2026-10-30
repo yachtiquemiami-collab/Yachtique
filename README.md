@@ -4,6 +4,30 @@ Website for Yachtique, a yacht broker and concierge in Miami: https://yachtique.
 
 It's a plain static site (HTML, CSS, JS), with no build step. Netlify publishes it straight from this repo.
 
+## Booking checklist (from enquiry to charter)
+
+Every yacht on the site is in the YCN network. **Never contact a boat or captain directly: everything goes through YCN (Laurent, YCN Broker Support, WhatsApp).**
+
+1. **Reply within the hour.** The alert email (subject starts with `YQ-####`) has a "Reply on WhatsApp" button with the first message already written.
+2. **Check with YCN.** Look at the yacht's live calendar on [ycn.yachts/pages/brokers](https://ycn.yachts/pages/brokers), then WhatsApp Laurent to confirm yacht, date, start time, guests and pickup point. The calendar is a guide; YCN's confirmation is final. Prices change with the pickup point.
+3. **Answer the enquiry** with the buttons in the alert email:
+   - **Accept**: the client gets "your day is available" and that you'll send the final quote.
+   - **Decline**: the client gets a link to the yachts free that day.
+   - Yacht taken but others free: send a proposal page with 2 to 4 options instead (see Client proposals below).
+4. **Send the quote**:
+   - our website price (YCN net + 20%) for that duration and pickup point
+   - + Florida sales tax
+   - + crew gratuity 15 to 20% (or tell the client to tip the crew on board), unless the yacht shows it as included
+   - + 35% APA for charters of 24 hours or more (fuel, docking, food and drinks; unused APA is returned)
+5. **Take the client's deposit to Yachtique.** Yachtique always invoices the client; YCN never invoices our clients directly.
+6. **Reserve with YCN**: on the broker page, *Reserve with $500 Deposit* for that yacht with the date, start time, guest count and the client's details. Tell the client "confirmed" only after YCN confirms.
+7. **Sheet**: set the enquiry's Status to **Booked**.
+8. **72 hours before**: collect the balance from the client and pay YCN their balance.
+9. **The day before**: send the client the marina, meeting time and the captain's contact, plus the rules: arrive 15 minutes early, no red wine or glass, no smoking, children under 13 wear life jackets.
+10. **After the charter**: thank-you message and ask for a Google review.
+
+Rules to remember (YCN terms, read 30 Oct 2026): max 13 guests; 4-hour minimum, 9am to 10pm; late arrival doesn't extend the charter; private-dock pickup costs extra; pets need a $500 (up to 50 ft) or $1,000 (51 ft+) refundable deposit; jet ski drivers born 1988 or later need a Florida boating license.
+
 ## Common edits
 
 | What | Where |
