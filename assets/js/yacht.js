@@ -93,6 +93,7 @@
       if (day && !day.disabled) {
         picked = day.getAttribute("data-day");
         if (dateInput) { dateInput.value = picked; dateInput.dispatchEvent(new Event("input")); checkDate(); }
+        if (window.yq && yq.trip) yq.trip.set({ date: picked });
         drawCals();
         if (window.innerWidth < 1000) document.getElementById("book").scrollIntoView({ behavior: "smooth" });
       }

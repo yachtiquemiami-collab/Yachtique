@@ -24,7 +24,7 @@
 
   var params = new URLSearchParams(location.search);
   var shared = (params.get("y") || "").split(",").filter(Boolean);
-  var fleet = [], date = "";
+  var fleet = [], date = (window.yq && yq.trip && yq.trip.get().date) || "";
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
@@ -85,7 +85,7 @@
     }).join("") + "</tbody></table></div>";
 
     app.innerHTML = head +
-      '<div class="sltools"><label class="form sldate"><span>' + t("sl.date", "Check a date") + '</span><input type="date" id="slDate"></label></div>' +
+      '<div class="sltools"><label class="form sldate"><span>' + t("sl.date", "Check a date") + '</span><input type="date" id="slDate" name="date"></label></div>' +
       table +
       '<div class="slshare">' +
         '<a class="btn btn--wa js-send" target="_blank" rel="noopener" href="#"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>' + t("sl.send", "Send my shortlist on WhatsApp") + "</a>" +

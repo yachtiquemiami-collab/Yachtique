@@ -866,3 +866,23 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
   .popt__body { padding: 26px 20px 24px; }
   .phead__facts li { flex-basis: 40%; }
 }
+
+/* ---------- Accept / Decline page (/api/decide) ---------- */
+.dpage { background: var(--navy); }
+.dwrap { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 30px 16px; }
+.dcard { width: 100%; max-width: 520px; background: var(--navy-2); border: 1px solid rgba(201, 165, 100, .45); border-radius: 24px; padding: 34px 28px 30px; text-align: center; box-shadow: 0 30px 70px rgba(0, 0, 0, .45); }
+.dlogo { width: 150px; margin: 0 auto 22px; }
+.dcard h1 { font-size: clamp(26px, 6vw, 32px); margin: 0 0 18px; }
+.dcard p { color: var(--text); }
+.dfacts { margin: 0 0 14px; }
+.dfacts b { font-size: 16px; }
+.dcontact { font-size: 13px; color: var(--muted) !important; margin: 0 0 18px; word-break: break-word; }
+.dnote { font-size: 15px; line-height: 1.6; margin: 0 0 22px; }
+.dswitch { margin: 16px 0 0; font-size: 13px; }
+.dswitch a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.btn--decline { background: #6E2A2A; border-color: #8C3A3A; color: var(--white); }
+.btn--decline:hover { background: #823232; }
+.dicon { width: 64px; height: 64px; margin: 4px auto 14px; display: grid; place-items: center; border-radius: 50%; font-size: 28px; border: 1px solid var(--gold); }
+.dicon.is-ok { background: var(--gold-grad) border-box; color: var(--navy); border-color: transparent; }
+.dicon.is-no { color: var(--gold-light); }
+.dcard .btn--wa { margin-top: 4px; }

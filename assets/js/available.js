@@ -32,6 +32,7 @@
       if (!b) return;
       bar.querySelectorAll("button").forEach(function (x) { x.classList.toggle("is-active", x === b); });
       show(b.getAttribute("data-day"));
+      if (window.yq && yq.trip && b.getAttribute("data-day")) yq.trip.set({ date: b.getAttribute("data-day") });
       if (window.yq) yq.track("available_filter", { v: b.getAttribute("data-day") || "all" });
     });
   }
