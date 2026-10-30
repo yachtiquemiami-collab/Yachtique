@@ -11,12 +11,17 @@
 
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
-const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided"];
-// Enquiries columns (1-based), used by the Accept / Decline links
-const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16 };
+const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment"];
+// Enquiries columns (1-based), used by the Accept / Decline links and payments
+const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
+  PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
-const STATUSES = ["New", "Accepted", "Declined", "Contacted", "Quoted", "Booked", "Lost"];
+const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
+
+// Florida sales tax added to the charter price on the client's payment (Miami-Dade: 6% state + 1% county).
+// Confirm the rate with the accountant, and change it here if the charter leaves from another county.
+const TAX_RATE = 0.07;
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
@@ -82,7 +87,8 @@ function doPost(e) {
     if (!SECRET || body.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
     if (body.type === "event") return json(saveEvent(body.event || {}));
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
-    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || "")));
+    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0));
+    if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
     const q = body.enquiry || {};
@@ -90,13 +96,7 @@ function doPost(e) {
     lock.waitLock(20000);
     try {
       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
-      // Older sheets lack the newer columns: add their headers once
-      if (sheet.getRange(1, COL.DECIDED).getValue() !== "Decided") {
-        sheet.getRange(1, COL.SOURCE, 1, 4).setValues([["Source", "Language", "Ref", "Decided"]])
-          .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
-        const rule = SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build();
-        sheet.getRange("B2:B").setDataValidation(rule);
-      }
+      addNewColumns(sheet);
       sheet.appendRow([
         new Date(), "New", safe(q.name), safe(q.phone), safe(q.email), safe(q.date),
         safe(q.guests), safe(q.duration), safe(q.yacht), safe(q.extras), safe(q.message), "",
@@ -135,6 +135,37 @@ function decideUrl(ref, a) {
   return SITE + "/api/decide?ref=" + encodeURIComponent(ref) + "&a=" + a + "&t=" + decideToken(ref);
 }
 
+// Older sheets lack the newer columns: add their headers (and the newer statuses) once
+function addNewColumns(sheet) {
+  if (sheet.getRange(1, COL.PAYMENT).getValue() === "Payment") return;
+  sheet.getRange(1, COL.SOURCE, 1, ENQUIRY_HEADERS.length - COL.SOURCE + 1).setValues([ENQUIRY_HEADERS.slice(COL.SOURCE - 1)])
+    .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
+  sheet.getRange(2, COL.PRICE, sheet.getMaxRows() - 1, 2).setNumberFormat("$#,##0.00");
+  sheet.getRange(2, COL.PAID, sheet.getMaxRows() - 1, 1).setNumberFormat("mmm d, yyyy h:mm am/pm");
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build();
+  sheet.getRange("B2:B").setDataValidation(rule);
+  const range = sheet.getRange("B2:B");
+  const rules = sheet.getConditionalFormatRules();
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Paid").setBackground("#D6EBD9").setBold(true).setRanges([range]).build());
+  sheet.setConditionalFormatRules(rules);
+}
+
+function payToken(ref) {
+  const sig = Utilities.computeHmacSha256Signature("pay:" + String(ref), SECRET);
+  return sig.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("").slice(0, 20);
+}
+
+function payUrl(ref) {
+  return SITE + "/pay/" + encodeURIComponent(ref) + "?t=" + payToken(ref);
+}
+
+function cents(n) { return Math.round(Number(n || 0) * 100); }
+
+function usd(n) {
+  const c = cents(n);
+  return "$" + String(Math.floor(c / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + ("0" + (c % 100)).slice(-2);
+}
+
 function findEnquiry(ref) {
   if (!/^YQ-\d+$/.test(ref)) return null;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
@@ -144,7 +175,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.DECIDED).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.PAYMENT).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -152,6 +183,8 @@ function findEnquiry(ref) {
         duration: String(v[COL.DURATION - 1] || ""), yacht: String(v[COL.YACHT - 1] || ""), extras: String(v[COL.EXTRAS - 1] || ""),
         message: String(v[COL.MESSAGE - 1] || ""), lang: /span/i.test(String(v[COL.LANG - 1])) ? "es" : "en",
         decided: v[COL.DECIDED - 1] ? String(v[COL.DECIDED - 1]) : "",
+        price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0,
+        paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
       } };
     }
   }
@@ -160,23 +193,40 @@ function findEnquiry(ref) {
 
 function lookupEnquiry(ref) {
   const f = findEnquiry(ref);
-  return f ? { ok: true, enquiry: f.q } : { ok: false, error: "not found" };
+  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE } : { ok: false, error: "not found" };
 }
 
-function decideEnquiry(ref, a) {
+function withPayUrl(q) {
+  if (q.total > 0) q.payUrl = payUrl(q.ref);
+  return q;
+}
+
+// price: the charter price before tax typed on the Accept page (0 = Nektarios sends the quote himself).
+// With a price the client's email gets a Pay button for the total, Florida sales tax included.
+function decideEnquiry(ref, a, price) {
   if (a !== "accept" && a !== "decline") return { ok: false, error: "bad action" };
+  price = a === "accept" && price > 0 ? cents(price) / 100 : 0;
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   let f;
   try {
     f = findEnquiry(ref);
     if (!f) return { ok: false, error: "not found" };
+    addNewColumns(f.sheet);
+    // Accepted earlier without a price: add it now and send the payment link
+    const addingPrice = a === "accept" && price && /^accepted$/i.test(f.q.status) && !f.q.total;
     // Decided already (a second tap, or the other button): say so, change nothing, email nobody
-    if (/^(accepted|declined)$/i.test(f.q.status)) return { ok: true, already: true, enquiry: f.q };
+    if (!addingPrice && /^(accepted|declined|paid)$/i.test(f.q.status)) return { ok: true, already: true, enquiry: withPayUrl(f.q) };
     const status = a === "accept" ? "Accepted" : "Declined";
     f.sheet.getRange(f.row, COL.STATUS).setValue(status);
     f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
     f.q.status = status;
+    if (price) {
+      f.q.price = price;
+      f.q.total = cents(price * (1 + TAX_RATE)) / 100;
+      f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
+      withPayUrl(f.q);
+    }
   } finally {
     lock.releaseLock();
   }
@@ -187,6 +237,38 @@ function decideEnquiry(ref, a) {
     console.error("Decision email failed: " + err);
   }
   return { ok: true, enquiry: f.q, emailed: emailed };
+}
+
+/* =================== Payments ===================
+   The client pays the total on yachtique.co/pay/<ref> (netlify/functions/pay.mjs) through Stripe Checkout.
+   Stripe confirms it twice (the client's return to the page and the Stripe webhook); the first one marks the row Paid
+   and sends the emails, the second changes nothing. */
+
+function markPaid(ref, amountCents, payment) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let f;
+  try {
+    f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    addNewColumns(f.sheet);
+    if (/^paid$/i.test(f.q.status)) return { ok: true, already: true, enquiry: withPayUrl(f.q) };
+    f.sheet.getRange(f.row, COL.STATUS).setValue("Paid");
+    f.sheet.getRange(f.row, COL.PAID, 1, 2).setValues([[new Date(), payment]]);
+    // Should never differ (the amount comes from this sheet), but if it does, say so where Nektarios looks
+    if (amountCents && amountCents !== cents(f.q.total)) {
+      const note = String(f.sheet.getRange(f.row, COL.NOTES).getValue() || "");
+      f.sheet.getRange(f.row, COL.NOTES).setValue((note ? note + "\n" : "") + "Stripe received " + usd(amountCents / 100) + ", the Total says " + usd(f.q.total) + ".");
+    }
+    f.q.status = "Paid";
+    f.q.payment = payment;
+    f.q.amountPaid = amountCents ? amountCents / 100 : f.q.total;
+  } finally {
+    lock.releaseLock();
+  }
+  try { sendOwnerPaid(f.q); } catch (err) { console.error("Paid alert failed: " + err); }
+  try { sendClientPaid(f.q); } catch (err) { console.error("Paid email failed: " + err); }
+  return { ok: true, enquiry: withPayUrl(f.q) };
 }
 
 /* =================== Website insights ===================
@@ -517,10 +599,18 @@ const TXT = {
     gotSubject: (d) => "Your charter request" + (d ? " for " + d : "") + " · Yachtique", gotPre: "Your options are on the way, usually within the hour.",
     waGot: (d) => "Hi Yachtique, I just sent a charter request" + (d ? " for " + d : "") + ".",
     accEyebrow: "Good news", accHead: (n) => "Your day is available" + (n ? ", " + n : "") + ".",
-    accP: (y, d) => (y ? "<b>" + y + "</b> is available" : "We have the right yacht for you") + (d ? " on " + d : "") + ". Nektarios will message you shortly with your final quote and how to secure the date with a deposit.",
-    accSteps: [["Your final quote.", "Everything included, with tax and gratuity shown, before you pay anything."], ["A deposit holds the date.", "Your yacht is reserved for you as soon as it's paid."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
+    accP: (y, d) => (y ? "<b>" + y + "</b> is available" : "We have the right yacht for you") + (d ? " on " + d : "") + ". Nektarios will message you shortly with your final quote and a secure link to pay.",
+    accSteps: [["Your final quote.", "Everything included, with tax and gratuity shown, before you pay anything."], ["Pay securely online.", "Your yacht is reserved for you as soon as it's paid."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
     accSubject: (d) => "Good news: your charter" + (d ? " on " + d : "") + " is available · Yachtique", accPre: "Your yacht is available. Your final quote is on its way.",
     waAcc: (r) => "Hi Nektarios, I'd like to confirm my charter (" + r + ").",
+    accPPay: (y, d) => (y ? "<b>" + y + "</b> is available" : "Your yacht is available") + (d ? " on " + d : "") + ". Secure your date with the payment below: we reserve your yacht with the captain as soon as it's received.",
+    accStepsPay: [["Pay securely.", "Card, Apple Pay or Google Pay through Stripe. Florida sales tax included."], ["We reserve your yacht.", "Confirmed with the captain right after your payment."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
+    accSubjectPay: (d) => "Your charter" + (d ? " on " + d : "") + " is available: secure your date · Yachtique", accPrePay: "Your yacht is available. Pay securely to reserve it.",
+    charter: "Charter", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
+    paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
+    paidP: (a) => "We received <b>" + a + "</b> for your charter. We're reserving your yacht with the captain now, and you'll receive the final confirmation shortly.",
+    paidSteps: [["We reserve your yacht.", "Confirmed with the captain, usually within a few hours."], ["Your boarding details.", "Marina, time and what to bring, the day before you sail."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
+    paidSubject: (d) => "Payment received for your charter" + (d ? " on " + d : "") + " · Yachtique", paidPre: "Thank you. We're reserving your yacht now.",
     decEyebrow: "About your request", decHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
     decP: (y, d) => "Unfortunately we can't confirm " + (y ? "<b>" + y + "</b>" : "a yacht") + (d ? " on " + d : "") + ". We would love to find you another option: see which yachts are free that day, or message us and we'll suggest the best alternatives.",
     decFree: "See yachts free that day", decSubject: (d) => "About your charter request" + (d ? " for " + d : "") + " · Yachtique", decPre: "Let us find you another option.",
@@ -534,10 +624,18 @@ const TXT = {
     gotSubject: (d) => "Su solicitud de alquiler" + (d ? " para el " + d : "") + " · Yachtique", gotPre: "Sus opciones están en camino, normalmente en menos de una hora.",
     waGot: (d) => "Hola Yachtique, acabo de enviar una solicitud de alquiler" + (d ? " para el " + d : "") + ".",
     accEyebrow: "Buenas noticias", accHead: (n) => "Su día está disponible" + (n ? ", " + n : "") + ".",
-    accP: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Tenemos el yate ideal para usted") + (d ? " el " + d : "") + ". Nektarios le escribirá en breve con su cotización final y cómo reservar la fecha con un depósito.",
-    accSteps: [["Su cotización final.", "Todo incluido, con impuestos y propina indicados, antes de pagar nada."], ["Un depósito reserva la fecha.", "Su yate queda reservado en cuanto se paga."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
+    accP: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Tenemos el yate ideal para usted") + (d ? " el " + d : "") + ". Nektarios le escribirá en breve con su cotización final y un enlace seguro para pagar.",
+    accSteps: [["Su cotización final.", "Todo incluido, con impuestos y propina indicados, antes de pagar nada."], ["Pague en línea de forma segura.", "Su yate queda reservado en cuanto se paga."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
     accSubject: (d) => "Buenas noticias: su alquiler" + (d ? " del " + d : "") + " está disponible · Yachtique", accPre: "Su yate está disponible. Su cotización final está en camino.",
     waAcc: (r) => "Hola Nektarios, me gustaría confirmar mi alquiler (" + r + ").",
+    accPPay: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Su yate está disponible") + (d ? " el " + d : "") + ". Reserve su fecha con el pago a continuación: reservamos su yate con el capitán en cuanto lo recibamos.",
+    accStepsPay: [["Pague de forma segura.", "Tarjeta, Apple Pay o Google Pay a través de Stripe. Impuesto de ventas de Florida incluido."], ["Reservamos su yate.", "Confirmado con el capitán justo después de su pago."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
+    accSubjectPay: (d) => "Su alquiler" + (d ? " del " + d : "") + " está disponible: reserve su fecha · Yachtique", accPrePay: "Su yate está disponible. Pague de forma segura para reservarlo.",
+    charter: "Alquiler", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
+    paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
+    paidP: (a) => "Recibimos <b>" + a + "</b> por su alquiler. Ahora estamos reservando su yate con el capitán y en breve recibirá la confirmación final.",
+    paidSteps: [["Reservamos su yate.", "Confirmado con el capitán, normalmente en pocas horas."], ["Sus detalles de embarque.", "Marina, hora y qué llevar, el día antes de navegar."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
+    paidSubject: (d) => "Pago recibido por su alquiler" + (d ? " del " + d : "") + " · Yachtique", paidPre: "Gracias. Estamos reservando su yate ahora.",
     decEyebrow: "Sobre su solicitud", decHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
     decP: (y, d) => "Lamentablemente no podemos confirmar " + (y ? "<b>" + y + "</b>" : "un yate") + (d ? " el " + d : "") + ". Nos encantaría ofrecerle otra opción: vea qué yates están libres ese día o escríbanos y le sugerimos las mejores alternativas.",
     decFree: "Ver yates libres ese día", decSubject: (d) => "Sobre su solicitud de alquiler" + (d ? " del " + d : "") + " · Yachtique", decPre: "Permítanos encontrarle otra opción.",
@@ -563,10 +661,25 @@ function sendClientConfirmation(q) {
   return true;
 }
 
-/** Accepted: the yacht is available; Nektarios follows up with the final quote and deposit. */
+/** Accepted: the yacht is available. With a price, the client pays the total from the email;
+    without one, Nektarios follows up with the final quote. */
 function sendClientAccepted(q) {
   if (!validEmail(q.email)) return false;
   const L = q.lang === "es" ? "es" : "en", T = TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
+  if (q.total > 0) {
+    const pay = payUrl(q.ref) + (L === "es" ? "&lang=es" : "");
+    const innerPay =
+      eyebrow(T.accEyebrow) + heading(T.accHead(esc(first))) +
+      para(T.accPPay(yachtName(q), d)) + rule() + factsBox(q, L) + priceBox(q, L) +
+      buttons(button(pay, T.payBtn(usd(q.total)), true)) +
+      eyebrow(T.next) + steps(T.accStepsPay) +
+      para(T.question, "margin-bottom:18px;font-size:15px") +
+      buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, false));
+    MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.accSubjectPay(d), htmlBody: layout(T.accPrePay, innerPay, L),
+      body: T.accHead(first) + "\n\n" + T.accPPay(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\n" + T.total + ": " + usd(q.total) + "\n" + pay +
+        "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co" });
+    return true;
+  }
   const inner =
     eyebrow(T.accEyebrow) + heading(T.accHead(esc(first))) +
     para(T.accP(yachtName(q), d)) + rule() + factsBox(q, L) +
@@ -575,6 +688,59 @@ function sendClientAccepted(q) {
   MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.accSubject(d), htmlBody: layout(T.accPre, inner, L),
     body: T.accHead(first) + "\n\n" + T.accP(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co" });
   return true;
+}
+
+// Charter, sales tax and total, in the same rounded box as the facts
+function priceBox(q, lang) {
+  const T = TXT[lang === "es" ? "es" : "en"];
+  const rows = [[T.charter, usd(q.price), false]];
+  if (cents(q.total) > cents(q.price)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price), false]);
+  rows.push([T.total, usd(q.total), true]);
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
+    rows.map((r, i) => '<tr><td style="padding:' + (r[2] ? "16px" : "12px") + ' 20px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:' + (r[2] ? "12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:" + C.gold : "15px;color:" + C.text) + '">' + esc(r[0]) + "</td>" +
+      '<td align="right" style="padding:' + (r[2] ? "16px" : "12px") + ' 20px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SERIF + ';font-size:' + (r[2] ? "22px" : "16px") + ';font-weight:600;color:' + C.white + ';white-space:nowrap">' + r[1] + "</td></tr>").join("") +
+    "</table>";
+}
+
+/** Paid: thank the client; the final confirmation follows once YCN confirms the yacht. */
+function sendClientPaid(q) {
+  if (!validEmail(q.email)) return false;
+  const L = q.lang === "es" ? "es" : "en", T = TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
+  const amount = usd(q.amountPaid || q.total);
+  const inner =
+    eyebrow(T.paidEyebrow + " &middot; " + esc(q.ref)) + heading(T.paidHead(esc(first))) +
+    para(T.paidP(amount)) + rule() + factsBox(q, L) + priceBox(q, L) +
+    eyebrow(T.next) + steps(T.paidSteps) +
+    buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, true));
+  MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.paidSubject(d), htmlBody: layout(T.paidPre, inner, L),
+    body: T.paidHead(first) + "\n\n" + T.paidP(amount).replace(/<[^>]+>/g, "") + "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co" });
+  return true;
+}
+
+/** Alert to Yachtique: the client paid, so reserve the yacht with YCN now. `to`/`cc` are only changed by testEmails(). */
+function sendOwnerPaid(q, to, cc) {
+  const phone = String(q.phone || "").replace(/\D/g, "");
+  const amount = usd(q.amountPaid || q.total);
+  const inner =
+    eyebrow("Payment received &middot; " + esc(q.ref)) +
+    heading(esc(q.name || "Client") + " paid " + amount) +
+    para("Paid by card through Stripe. The Status in the sheet is now <b>Paid</b>.", "margin-bottom:22px") + rule() +
+    factsBox(q) + priceBox(q, "en") +
+    eyebrow("Next") +
+    steps([["Reserve with YCN now.", "Message Laurent and pay the $500 broker deposit."], ["Confirm to the client.", "Only after YCN confirms the yacht. Then set the Status to Booked."],
+      ["72 hours before.", "Pay YCN the balance. The day before, send the client the marina, time and rules."]]) +
+    buttons(
+      (phone ? button("https://wa.me/" + phone, "WhatsApp " + (firstName(q) || "client"), true) : "") +
+      button("https://dashboard.stripe.com/payments/" + encodeURIComponent(q.payment || ""), "See it in Stripe", !phone) +
+      button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
+  MailApp.sendEmail({
+    to: to || OWNER_EMAIL,
+    cc: (cc === undefined ? ALERT_CC : cc) || undefined,
+    name: "Yachtique Payments",
+    subject: q.ref + " · PAID " + amount + " · " + (q.name || "client") + " · " + prettyDate(q.date),
+    htmlBody: layout((q.name || "A client") + " paid " + amount + ". Reserve with YCN now.", inner),
+    body: (q.name || "A client") + " paid " + amount + " for " + q.ref + " (" + prettyDate(q.date) + ", " + q.yacht + ").\nNext: reserve with YCN, then confirm to the client.",
+  });
 }
 
 /** Declined: not available; point them to the yachts that are free that day. */
@@ -593,8 +759,8 @@ function sendClientDeclined(q) {
 
 /**
  * TEST: run from the Apps Script editor (select testEmails, press Run).
- * Sends every email to TEST_TO only: the alert, then the client confirmation, accepted and declined emails
- * in English and in Spanish. Nothing is added to the sheet and no client is emailed.
+ * Sends every email to TEST_TO only: the alerts (new enquiry, paid), then the client confirmation, accepted
+ * (without and with the Pay button), paid and declined emails in English and in Spanish. Nothing is added to the sheet and no client is emailed.
  */
 const TEST_TO = "yachtiquemiami@gmail.com";
 function testEmails() {
@@ -602,10 +768,14 @@ function testEmails() {
   const sample = { ref: "YQ-TEST", name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
     duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!", lang: "en" };
   sendOwnerAlert(sample, TEST_TO, "");
+  const priced = { price: 2690, total: cents(2690 * (1 + TAX_RATE)) / 100 };
+  sendOwnerPaid(Object.assign({}, sample, priced, { payment: "pi_test" }), TEST_TO, "");
   ["en", "es"].forEach((L) => {
     const q = Object.assign({}, sample, { lang: L, name: L === "es" ? "Sofía Martínez" : sample.name });
     sendClientConfirmation(q);
     sendClientAccepted(q);
+    sendClientAccepted(Object.assign({}, q, priced));
+    sendClientPaid(Object.assign({}, q, priced));
     sendClientDeclined(q);
   });
 }
