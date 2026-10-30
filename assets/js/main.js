@@ -141,6 +141,9 @@ var REVIEWS = [];
       o.setAttribute("data-handle", y.handle);
       select.appendChild(o);
     });
+    // The yacht they chose earlier stays chosen
+    var trip = yq.trip ? yq.trip.get() : {};
+    if (trip.yacht) [].forEach.call(select.options, function (o) { if (o.textContent === trip.yacht) select.value = o.value || o.textContent; });
   }
 
   function fillStats() {
@@ -164,6 +167,10 @@ var REVIEWS = [];
       .then(function (data) {
         fleet = data.yachts || [];
         if (!fleet.length) throw new Error("empty");
+        // Coming back with a date or group already chosen: show which yachts are free for it
+        var trip = yq.trip ? yq.trip.get() : {};
+        if (trip.date) want.date = trip.date;
+        if (trip.guests) want.guests = +trip.guests || 0;
         renderFleet();
         fillSelect();
         fillStats();
@@ -181,6 +188,7 @@ var REVIEWS = [];
     finder.addEventListener("submit", function (e) {
       e.preventDefault();
       var size = document.getElementById("finderSize").value.split("-");
+      if (yq.trip) yq.trip.set({ date: finderDate.value, guests: document.getElementById("finderGuests").value });
       want.date = finderDate.value;
       want.guests = +document.getElementById("finderGuests").value || 0;
       want.min = +size[0]; want.max = +size[1];
@@ -195,6 +203,8 @@ var REVIEWS = [];
   if (clearBtn) {
     clearBtn.addEventListener("click", function () {
       want = { date: "", guests: 0, min: 0, max: 999 };
+      if (yq.trip) yq.trip.set({ date: "", guests: "" });
+      if (formGuests) formGuests.value = "";
       if (finder) { finder.reset(); var fd = document.getElementById("finderDate"); if (fd) { fd.value = ""; fd.dispatchEvent(new Event("input")); } }
       applyWant();
     });
@@ -320,6 +330,7 @@ var REVIEWS = [];
       }
       if (e.target.closest(".js-enquire")) {
         if (select) select.value = label(current);
+        if (yq.trip) yq.trip.set({ yacht: label(current) });
         checkDate();
         dialog.close();
       }

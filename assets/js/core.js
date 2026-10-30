@@ -233,11 +233,69 @@
     track("enquiry", { v: placeOf(f), y: y ? y.value : "" });
   }, true);
 
+  /* ---------------- The visitor's plan: date, guests, duration ----------------
+     Chosen once (hero search, a calendar, a form), then filled in on every page they open next.
+     Kept in this browser only; a date in the past is forgotten. ?date=YYYY-MM-DD&guests=8 in a link also sets it. */
+  var TRIP = "yq_trip";
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function todayKey() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function tripGet() {
+    var t = {};
+    try { t = JSON.parse(store(TRIP) || "{}") || {}; } catch (e) {}
+    if (t.date && (!/^\d{4}-\d{2}-\d{2}$/.test(t.date) || t.date < todayKey())) delete t.date;
+    return t;
+  }
+  function tripSet(part) {
+    var t = tripGet();
+    for (var k in part) { if (part[k]) t[k] = String(part[k]); else delete t[k]; }
+    store(TRIP, JSON.stringify(t));
+  }
+  (function fromLink() {
+    var d = params.get("date"), g = params.get("guests");
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) tripSet({ date: d });
+    if (g && /^\d{1,3}$/.test(g)) tripSet({ guests: g });
+  })();
+  // Remember what they pick, wherever they pick it
+  document.addEventListener("change", function (e) {
+    var el = e.target;
+    if (!el || !el.name || el.closest("[data-no-trip]")) return;
+    if (el.name === "date") tripSet({ date: el.value });
+    else if (el.name === "guests") tripSet({ guests: el.value });
+    else if (el.name === "duration" && !/not sure/i.test(el.value)) tripSet({ duration: el.value });
+    else if (el.name === "yacht" && el.tagName === "SELECT") tripSet({ yacht: /help me choose/i.test(el.value) ? "" : el.value });
+  }, true);
+  // Fill empty fields with what they already chose
+  function tripFill(root) {
+    var t = tripGet();
+    (root || document).querySelectorAll('input[name="date"]').forEach(function (i) {
+      if (i.value || !t.date || (i.min && t.date < i.min)) return;
+      i.value = t.date;
+      i.dispatchEvent(new Event("input", { bubbles: true }));
+      i.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    (root || document).querySelectorAll('[name="guests"]').forEach(function (i) {
+      if (i.value || !t.guests) return;
+      if (i.tagName === "SELECT") {
+        // The hero search offers set sizes: pick the smallest that fits the group
+        var best = null;
+        [].forEach.call(i.options, function (o) { if (+o.value >= +t.guests && (best === null || +o.value < +best.value)) best = o; });
+        if (best) i.value = best.value;
+      } else {
+        i.value = t.guests;
+      }
+    });
+    (root || document).querySelectorAll('select[name="duration"]').forEach(function (s) {
+      if (!t.duration) return;
+      [].forEach.call(s.options, function (o) { if ((o.value || o.textContent) === t.duration) s.value = o.value || o.textContent; });
+    });
+  }
+
   window.yq = {
     lang: function () { return lang; }, t: t, type: type, dur: dur, guests: guests, cabins: cabins, locale: locale,
     setLang: setLang, onLang: function (fn) { langSubs.push(fn); }, apply: apply,
     track: track,
     shortlist: { get: slGet, set: slSet, toggle: slToggle, sync: slSync, on: function (fn) { slSubs.push(fn); } },
+    trip: { get: tripGet, set: tripSet, fill: tripFill },
   };
 
   function start() {
@@ -246,4 +304,7 @@
     track("view", { y: document.body.getAttribute("data-yacht") || "" });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+  // Fill forms once every script on the page is ready (so calendars and warnings react to the date)
+  if (document.readyState === "complete") tripFill();
+  else document.addEventListener("DOMContentLoaded", function () { setTimeout(tripFill, 0); });
 })();

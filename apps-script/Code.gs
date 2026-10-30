@@ -11,10 +11,12 @@
 
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
-const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language"];
+const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided"];
+// Enquiries columns (1-based), used by the Accept / Decline links
+const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
-const STATUSES = ["New", "Contacted", "Quoted", "Booked", "Lost"];
+const STATUSES = ["New", "Accepted", "Declined", "Contacted", "Quoted", "Booked", "Lost"];
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
@@ -79,6 +81,8 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     if (!SECRET || body.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
     if (body.type === "event") return json(saveEvent(body.event || {}));
+    if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
+    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
     const q = body.enquiry || {};
@@ -86,15 +90,22 @@ function doPost(e) {
     lock.waitLock(20000);
     try {
       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
-      // Sheets made before 22 Oct 2026 lack the Source and Language columns: add their headers once
-      if (sheet.getRange(1, 13).getValue() !== "Source") {
-        sheet.getRange(1, 13, 1, 2).setValues([["Source", "Language"]]).setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
+      // Older sheets lack the newer columns: add their headers once
+      if (sheet.getRange(1, COL.DECIDED).getValue() !== "Decided") {
+        sheet.getRange(1, COL.SOURCE, 1, 4).setValues([["Source", "Language", "Ref", "Decided"]])
+          .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
+        const rule = SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build();
+        sheet.getRange("B2:B").setDataValidation(rule);
       }
       sheet.appendRow([
         new Date(), "New", safe(q.name), safe(q.phone), safe(q.email), safe(q.date),
         safe(q.guests), safe(q.duration), safe(q.yacht), safe(q.extras), safe(q.message), "",
         safe(q.source), q.lang === "es" ? "Spanish" : "English"
       ]);
+      // A short reference for the enquiry: YQ-1002, YQ-1003... (row number + 1000)
+      const row = sheet.getLastRow();
+      q.ref = "YQ-" + (1000 + row);
+      sheet.getRange(row, COL.REF).setValue(q.ref);
     } finally {
       lock.releaseLock();
     }
@@ -107,6 +118,75 @@ function doPost(e) {
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
+}
+
+/* =================== Accept / Decline ===================
+   The new-enquiry email has Accept and Decline buttons. They open yachtique.co/api/decide (netlify/functions/decide.mjs),
+   which shows the enquiry with ONE confirm button: email scanners open links on their own, so opening never decides.
+   The confirm calls this script; the Status becomes Accepted or Declined and the client gets the matching email,
+   in their language. The link carries a code made from the ref and the shared secret, so it can't be guessed. */
+
+function decideToken(ref) {
+  const sig = Utilities.computeHmacSha256Signature(String(ref), SECRET);
+  return sig.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("").slice(0, 20);
+}
+
+function decideUrl(ref, a) {
+  return SITE + "/api/decide?ref=" + encodeURIComponent(ref) + "&a=" + a + "&t=" + decideToken(ref);
+}
+
+function findEnquiry(ref) {
+  if (!/^YQ-\d+$/.test(ref)) return null;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
+  const last = sheet.getLastRow();
+  if (last < 2) return null;
+  const refs = sheet.getRange(2, COL.REF, last - 1, 1).getValues();
+  for (let i = refs.length - 1; i >= 0; i--) {
+    if (String(refs[i][0]).trim() === ref) {
+      const row = i + 2;
+      const v = sheet.getRange(row, 1, 1, COL.DECIDED).getValues()[0];
+      const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
+      return { sheet: sheet, row: row, q: {
+        ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
+        email: String(v[COL.EMAIL - 1] || ""), date: ymd(v[COL.DATE - 1]), guests: String(v[COL.GUESTS - 1] || ""),
+        duration: String(v[COL.DURATION - 1] || ""), yacht: String(v[COL.YACHT - 1] || ""), extras: String(v[COL.EXTRAS - 1] || ""),
+        message: String(v[COL.MESSAGE - 1] || ""), lang: /span/i.test(String(v[COL.LANG - 1])) ? "es" : "en",
+        decided: v[COL.DECIDED - 1] ? String(v[COL.DECIDED - 1]) : "",
+      } };
+    }
+  }
+  return null;
+}
+
+function lookupEnquiry(ref) {
+  const f = findEnquiry(ref);
+  return f ? { ok: true, enquiry: f.q } : { ok: false, error: "not found" };
+}
+
+function decideEnquiry(ref, a) {
+  if (a !== "accept" && a !== "decline") return { ok: false, error: "bad action" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let f;
+  try {
+    f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    // Decided already (a second tap, or the other button): say so, change nothing, email nobody
+    if (/^(accepted|declined)$/i.test(f.q.status)) return { ok: true, already: true, enquiry: f.q };
+    const status = a === "accept" ? "Accepted" : "Declined";
+    f.sheet.getRange(f.row, COL.STATUS).setValue(status);
+    f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
+    f.q.status = status;
+  } finally {
+    lock.releaseLock();
+  }
+  let emailed = false;
+  try {
+    emailed = a === "accept" ? sendClientAccepted(f.q) : sendClientDeclined(f.q);
+  } catch (err) {
+    console.error("Decision email failed: " + err);
+  }
+  return { ok: true, enquiry: f.q, emailed: emailed };
 }
 
 /* =================== Website insights ===================
@@ -276,10 +356,15 @@ function esc(v) {
   return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function prettyDate(iso) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return iso || "Flexible";
+const ES_DAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const ES_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+function prettyDate(iso, lang) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return iso || (lang === "es" ? "Flexible" : "Flexible");
   const p = iso.split("-").map(Number);
-  return Utilities.formatDate(new Date(p[0], p[1] - 1, p[2], 12), "America/New_York", "EEE, MMM d, yyyy");
+  const d = new Date(p[0], p[1] - 1, p[2], 12);
+  if (lang === "es") return ES_DAYS[d.getDay()] + ", " + p[2] + " de " + ES_MONTHS[p[1] - 1] + " de " + p[0];
+  return Utilities.formatDate(d, "America/New_York", "EEE, MMM d, yyyy");
 }
 
 // Days from today (Miami) to the charter date, or null
@@ -303,14 +388,16 @@ function para(html, extra) {
 }
 
 // Rounded box, two facts per row, gold label over the value (the site's info bar)
-function factsBox(q) {
+function factsBox(q, lang) {
+  const es = lang === "es";
+  const dur = (x) => es ? String(x).replace(/(\d+)\s*hours?/i, "$1 horas").replace(/Multi-day \/ week/i, "Varios días / semana").replace(/Not sure yet/i, "Por confirmar") : x;
   const facts = [
-    ["Date", prettyDate(q.date)],
-    ["Guests", q.guests ? q.guests + (/^\d+$/.test(q.guests) ? " guests" : "") : "To confirm"],
-    ["Duration", q.duration || "To confirm"],
-    ["Yacht", q.yacht || "Help me choose"],
+    [es ? "Fecha" : "Date", prettyDate(q.date, lang).replace(/^./, (c) => c.toUpperCase())],
+    [es ? "Invitados" : "Guests", q.guests ? q.guests + (/^\d+$/.test(q.guests) ? (es ? " invitados" : " guests") : "") : (es ? "Por confirmar" : "To confirm")],
+    [es ? "Duración" : "Duration", q.duration ? dur(q.duration) : (es ? "Por confirmar" : "To confirm")],
+    [es ? "Yate" : "Yacht", q.yacht && !/help me choose/i.test(q.yacht) ? q.yacht : (es ? "Le ayudamos a elegir" : "Help me choose")],
   ];
-  if (q.extras) facts.push(["Also arranging", q.extras]);
+  if (q.extras) facts.push([es ? "También organizamos" : "Also arranging", q.extras]);
   let rows = "";
   for (let i = 0; i < facts.length; i += 2) {
     const pair = facts.slice(i, i + 2);
@@ -354,8 +441,8 @@ function rule() {
   return '<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 26px"><tr><td width="44" style="border-top:1px solid ' + C.gold + ';font-size:0;line-height:0">&nbsp;</td></tr></table>';
 }
 
-function layout(preheader, inner) {
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+function layout(preheader, inner, lang) {
+  return '<!doctype html><html lang="' + (lang === "es" ? "es" : "en") + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark">' +
     '<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Lato:wght@400;700&display=swap" rel="stylesheet">' +
     '<style>@media (max-width:520px){.yq-pad{padding:30px 22px !important}.yq-h1{font-size:27px !important}}</style></head>' +
@@ -366,7 +453,7 @@ function layout(preheader, inner) {
     '<tr><td align="center" style="padding:38px 32px 26px"><a href="' + SITE + '"><img src="' + LOGO + '" width="170" alt="Yachtique" style="display:block;width:170px;height:auto;border:0"></a></td></tr>' +
     '<tr><td class="yq-pad" style="padding:6px 40px 34px">' + inner + "</td></tr>" +
     '<tr><td align="center" style="padding:24px 32px 28px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:12px;line-height:1.9;color:' + C.muted + '">' +
-    'Yachtique &middot; Yacht charters &amp; concierge &middot; Miami, Florida<br>' +
+    (lang === "es" ? 'Yachtique &middot; Alquiler de yates y concierge &middot; Miami, Florida<br>' : 'Yachtique &middot; Yacht charters &amp; concierge &middot; Miami, Florida<br>') +
     '<a href="' + SITE + '" style="color:' + C.gold + ';text-decoration:none">yachtique.co</a> &nbsp;&middot;&nbsp; ' +
     '<a href="https://wa.me/' + WHATSAPP + '" style="color:' + C.gold + ';text-decoration:none">+1 (305) 812-4721</a> &nbsp;&middot;&nbsp; ' +
     '<a href="https://www.instagram.com/yachtiquemiami/" style="color:' + C.gold + ';text-decoration:none">@yachtiquemiami</a></td></tr>' +
@@ -389,13 +476,21 @@ function sendOwnerAlert(q, to, cc) {
       (d === 0 ? "Charter is today" : d === 1 ? "Charter is tomorrow" : "Charter in " + d + " days") + "</span></p>"
     : "";
   const contact = [q.phone, q.email].filter(Boolean).map(esc).join(" &nbsp;&middot;&nbsp; ");
+  // One tap to answer the request: each opens a page with a single confirm button
+  const decide = q.ref
+    ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '"><tr><td align="center" style="padding:20px 14px 12px">' +
+      '<div style="font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:' + C.gold + ';padding-bottom:12px">Answer ' + esc(q.ref) + (q.lang === "es" ? " &middot; client wrote in Spanish" : "") + "</div>" +
+      button(decideUrl(q.ref, "accept"), "Accept", true) + button(decideUrl(q.ref, "decline"), "Decline", false) +
+      '<div style="font-family:' + SANS + ';font-size:12px;line-height:1.6;color:' + C.muted + ';padding-top:4px">The client gets a branded email' + (q.lang === "es" ? " in Spanish" : "") + " the moment you confirm.</div></td></tr></table>"
+    : "";
   const inner =
-    eyebrow("New charter enquiry") +
+    eyebrow("New charter enquiry" + (q.ref ? " &middot; " + esc(q.ref) : "")) +
     heading(esc(q.name || "New client")) +
     (contact ? para(contact, "margin-bottom:22px") : "") +
     soon + rule() +
     factsBox(q) +
     messageBox("Their message", q.message) +
+    decide +
     buttons(
       (phone ? button("https://wa.me/" + phone + "?text=" + encodeURIComponent(waText), "Reply on WhatsApp", true) : "") +
       (q.email ? button("mailto:" + q.email + "?subject=" + encodeURIComponent("Your Yachtique charter request") + "&body=" + encodeURIComponent(mailBody), "Reply by email", !phone) : "") +
@@ -405,55 +500,112 @@ function sendOwnerAlert(q, to, cc) {
     cc: (cc === undefined ? ALERT_CC : cc) || undefined,
     replyTo: q.email || OWNER_EMAIL,
     name: "Yachtique Enquiries",
-    subject: "New enquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
+    subject: (q.ref ? q.ref + " · " : "") + "New enquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
     htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
     body: "New enquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
       "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
   });
 }
 
-/** Confirmation to the client, in the Yachtique look. */
+// Client email copy in English and Spanish (formal "usted", like the website)
+const TXT = {
+  en: {
+    gotEyebrow: "Charter request received", thanks: "Thank you", gotP: "We're checking which yachts are free for your day. You'll receive your options with clear pricing, usually within the hour.",
+    note: "Your note", next: "What happens next",
+    gotSteps: [["We check availability.", "Live calendars for every yacht that fits your group."], ["You receive your options.", "Photos, prices and what's included, on WhatsApp or by email."], ["Confirm and sail.", "Captain, crew and any extras arranged. You just arrive."]],
+    sooner: "Want to talk it through sooner? Message us directly.", chat: "Chat on WhatsApp", fleet: "Browse the fleet",
+    gotSubject: (d) => "Your charter request" + (d ? " for " + d : "") + " · Yachtique", gotPre: "Your options are on the way, usually within the hour.",
+    waGot: (d) => "Hi Yachtique, I just sent a charter request" + (d ? " for " + d : "") + ".",
+    accEyebrow: "Good news", accHead: (n) => "Your day is available" + (n ? ", " + n : "") + ".",
+    accP: (y, d) => (y ? "<b>" + y + "</b> is available" : "We have the right yacht for you") + (d ? " on " + d : "") + ". Nektarios will message you shortly with your final quote and how to secure the date with a deposit.",
+    accSteps: [["Your final quote.", "Everything included, with tax and gratuity shown, before you pay anything."], ["A deposit holds the date.", "Your yacht is reserved for you as soon as it's paid."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
+    accSubject: (d) => "Good news: your charter" + (d ? " on " + d : "") + " is available · Yachtique", accPre: "Your yacht is available. Your final quote is on its way.",
+    waAcc: (r) => "Hi Nektarios, I'd like to confirm my charter (" + r + ").",
+    decEyebrow: "About your request", decHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
+    decP: (y, d) => "Unfortunately we can't confirm " + (y ? "<b>" + y + "</b>" : "a yacht") + (d ? " on " + d : "") + ". We would love to find you another option: see which yachts are free that day, or message us and we'll suggest the best alternatives.",
+    decFree: "See yachts free that day", decSubject: (d) => "About your charter request" + (d ? " for " + d : "") + " · Yachtique", decPre: "Let us find you another option.",
+    waDec: (d) => "Hi Yachtique, could you suggest another yacht" + (d ? " for " + d : "") + "?",
+  },
+  es: {
+    gotEyebrow: "Solicitud recibida", thanks: "Gracias", gotP: "Estamos revisando qué yates están libres para su día. Recibirá sus opciones con precios claros, normalmente en menos de una hora.",
+    note: "Su nota", next: "Próximos pasos",
+    gotSteps: [["Revisamos la disponibilidad.", "Calendarios en vivo de cada yate que se ajusta a su grupo."], ["Recibe sus opciones.", "Fotos, precios y lo que incluye, por WhatsApp o por correo."], ["Confirme y navegue.", "Capitán, tripulación y extras organizados. Usted solo llega."]],
+    sooner: "¿Prefiere hablarlo antes? Escríbanos directamente.", chat: "Chatear por WhatsApp", fleet: "Ver la flota",
+    gotSubject: (d) => "Su solicitud de alquiler" + (d ? " para el " + d : "") + " · Yachtique", gotPre: "Sus opciones están en camino, normalmente en menos de una hora.",
+    waGot: (d) => "Hola Yachtique, acabo de enviar una solicitud de alquiler" + (d ? " para el " + d : "") + ".",
+    accEyebrow: "Buenas noticias", accHead: (n) => "Su día está disponible" + (n ? ", " + n : "") + ".",
+    accP: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Tenemos el yate ideal para usted") + (d ? " el " + d : "") + ". Nektarios le escribirá en breve con su cotización final y cómo reservar la fecha con un depósito.",
+    accSteps: [["Su cotización final.", "Todo incluido, con impuestos y propina indicados, antes de pagar nada."], ["Un depósito reserva la fecha.", "Su yate queda reservado en cuanto se paga."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
+    accSubject: (d) => "Buenas noticias: su alquiler" + (d ? " del " + d : "") + " está disponible · Yachtique", accPre: "Su yate está disponible. Su cotización final está en camino.",
+    waAcc: (r) => "Hola Nektarios, me gustaría confirmar mi alquiler (" + r + ").",
+    decEyebrow: "Sobre su solicitud", decHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
+    decP: (y, d) => "Lamentablemente no podemos confirmar " + (y ? "<b>" + y + "</b>" : "un yate") + (d ? " el " + d : "") + ". Nos encantaría ofrecerle otra opción: vea qué yates están libres ese día o escríbanos y le sugerimos las mejores alternativas.",
+    decFree: "Ver yates libres ese día", decSubject: (d) => "Sobre su solicitud de alquiler" + (d ? " del " + d : "") + " · Yachtique", decPre: "Permítanos encontrarle otra opción.",
+    waDec: (d) => "Hola Yachtique, ¿podrían sugerirme otro yate" + (d ? " para el " + d : "") + "?",
+  },
+};
+function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "")); }
+function yachtName(q) { return q.yacht && !/help me choose/i.test(q.yacht) ? esc(q.yacht) : ""; }
+
+/** Confirmation to the client, in the Yachtique look and their language. */
 function sendClientConfirmation(q) {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(q.email || ""))) return;
-  const first = firstName(q);
+  if (!validEmail(q.email)) return false;
+  const L = q.lang === "es" ? "es" : "en", T = TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
   const inner =
-    eyebrow("Charter request received") +
-    heading("Thank you" + (first ? ", " + esc(first) : "") + ".") +
-    para("We're checking which yachts are free for your day. You'll receive your options with clear pricing, usually within the hour.") +
-    rule() +
-    factsBox(q) +
-    messageBox("Your note", q.message) +
-    eyebrow("What happens next") +
-    steps([
-      ["We check availability.", "Live calendars for every yacht that fits your group."],
-      ["You receive your options.", "Photos, prices and what's included, on WhatsApp or by email."],
-      ["Confirm and sail.", "Captain, crew and any extras arranged. You just arrive."],
-    ]) +
-    para("Want to talk it through sooner? Message us directly.", "margin-bottom:18px;font-size:15px") +
-    buttons(
-      button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent("Hi Yachtique, I just sent a charter request" + (q.date ? " for " + prettyDate(q.date) : "") + "."), "Chat on WhatsApp", true) +
-      button(SITE + "/#fleet", "Browse the fleet", false));
-  MailApp.sendEmail({
-    to: q.email,
-    replyTo: OWNER_EMAIL,
-    name: "Yachtique",
-    subject: "Your charter request" + (q.date ? " for " + prettyDate(q.date) : "") + " · Yachtique",
-    htmlBody: layout("Your options are on the way, usually within the hour.", inner),
-    body: "Thank you" + (first ? ", " + first : "") + ".\n\nWe're checking which yachts are free for your day. You'll receive your options with clear pricing, usually within the hour.\n\n" +
-      "Date: " + prettyDate(q.date) + "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht +
-      "\n\nWhat happens next\n1. We check availability.\n2. You receive your options.\n3. Confirm and sail.\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co",
-  });
+    eyebrow(T.gotEyebrow) +
+    heading(T.thanks + (first ? ", " + esc(first) : "") + ".") +
+    para(T.gotP) + rule() + factsBox(q, L) + messageBox(T.note, q.message) +
+    eyebrow(T.next) + steps(T.gotSteps) +
+    para(T.sooner, "margin-bottom:18px;font-size:15px") +
+    buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waGot(d)), T.chat, true) + button(SITE + "/#fleet", T.fleet, false));
+  MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.gotSubject(d), htmlBody: layout(T.gotPre, inner, L),
+    body: T.thanks + (first ? ", " + first : "") + ".\n\n" + T.gotP + "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co" });
+  return true;
+}
+
+/** Accepted: the yacht is available; Nektarios follows up with the final quote and deposit. */
+function sendClientAccepted(q) {
+  if (!validEmail(q.email)) return false;
+  const L = q.lang === "es" ? "es" : "en", T = TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
+  const inner =
+    eyebrow(T.accEyebrow) + heading(T.accHead(esc(first))) +
+    para(T.accP(yachtName(q), d)) + rule() + factsBox(q, L) +
+    eyebrow(T.next) + steps(T.accSteps) +
+    buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, true));
+  MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.accSubject(d), htmlBody: layout(T.accPre, inner, L),
+    body: T.accHead(first) + "\n\n" + T.accP(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co" });
+  return true;
+}
+
+/** Declined: not available; point them to the yachts that are free that day. */
+function sendClientDeclined(q) {
+  if (!validEmail(q.email)) return false;
+  const L = q.lang === "es" ? "es" : "en", T = TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
+  const freeLink = SITE + "/?" + (q.date ? "date=" + q.date + "&" : "") + (/^\d+$/.test(q.guests) ? "guests=" + q.guests + "&" : "") + "lang=" + L + "#fleet";
+  const inner =
+    eyebrow(T.decEyebrow) + heading(T.decHead(esc(first))) +
+    para(T.decP(yachtName(q), d)) + rule() + factsBox(q, L) +
+    buttons(button(freeLink, T.decFree, true) + button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waDec(d)), T.chat, false));
+  MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.decSubject(d), htmlBody: layout(T.decPre, inner, L),
+    body: T.decHead(first) + "\n\n" + T.decP(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\n" + freeLink + "\n\nYachtique · Miami, Florida · yachtique.co" });
+  return true;
 }
 
 /**
  * TEST: run from the Apps Script editor (select testEmails, press Run).
- * Sends both emails with sample details to TEST_TO only. Nothing is added to the sheet and no client is emailed.
+ * Sends every email to TEST_TO only: the alert, then the client confirmation, accepted and declined emails
+ * in English and in Spanish. Nothing is added to the sheet and no client is emailed.
  */
 const TEST_TO = "tsirkoudis7@gmail.com";
 function testEmails() {
   const inThreeDays = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), "America/New_York", "yyyy-MM-dd");
-  const sample = { name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
-    duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!" };
+  const sample = { ref: "YQ-TEST", name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
+    duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!", lang: "en" };
   sendOwnerAlert(sample, TEST_TO, "");
-  sendClientConfirmation(sample);
+  ["en", "es"].forEach((L) => {
+    const q = Object.assign({}, sample, { lang: L, name: L === "es" ? "Sofía Martínez" : sample.name });
+    sendClientConfirmation(q);
+    sendClientAccepted(q);
+    sendClientDeclined(q);
+  });
 }
