@@ -596,7 +596,7 @@ function sendClientDeclined(q) {
  * Sends every email to TEST_TO only: the alert, then the client confirmation, accepted and declined emails
  * in English and in Spanish. Nothing is added to the sheet and no client is emailed.
  */
-const TEST_TO = "tsirkoudis7@gmail.com";
+const TEST_TO = "yachtiquemiami@gmail.com";
 function testEmails() {
   const inThreeDays = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), "America/New_York", "yyyy-MM-dd");
   const sample = { ref: "YQ-TEST", name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
