@@ -188,7 +188,10 @@ function parseIcs(ics) {
     if (line === "BEGIN:VEVENT") ev = {};
     else if (line === "END:VEVENT") {
       // Google marks all-day events as "free" by default, so TRANSP is ignored on purpose
-      if (ev && ev.start && ev.status !== "CANCELLED") addEvent(ev, mark);
+      if (ev && ev.start && ev.status !== "CANCELLED") {
+        // A repeating booking ("every Saturday") counts on every date it repeats, not just the first
+        for (const occ of occurrences(ev, limit)) addEvent(occ, mark);
+      }
       ev = null;
     } else if (ev) {
       const i = line.indexOf(":");
@@ -197,6 +200,8 @@ function parseIcs(ics) {
       if (key.startsWith("DTSTART")) ev.start = parseDt(key, val);
       else if (key.startsWith("DTEND")) ev.end = parseDt(key, val);
       else if (key === "STATUS") ev.status = val;
+      else if (key === "RRULE") ev.rrule = val;
+      else if (key.startsWith("EXDATE")) (ev.exdates = ev.exdates || []).push(...val.split(",").map((v) => v.slice(0, 8)));
     }
   }
   return busy;
@@ -215,6 +220,53 @@ function parseDt(key, val) {
   }
   // Local time (TZID=...): keep the wall-clock date; times are only compared to each other
   return { day: `${y}-${mo}-${d}`, t: Date.UTC(+y, mo - 1, +d, +h, +mi, +s) };
+}
+
+// Expands a repeating event (DAILY / WEEKLY / MONTHLY, INTERVAL, COUNT, UNTIL, BYDAY, EXDATE) up to `limit`
+function occurrences(ev, limit) {
+  if (!ev.rrule) return [ev];
+  const r = Object.fromEntries(ev.rrule.split(";").map((p) => p.split("=")));
+  const freq = r.FREQ, step = Math.max(1, +r.INTERVAL || 1), count = +r.COUNT || 0;
+  if (!/^(DAILY|WEEKLY|MONTHLY)$/.test(freq)) return [ev];
+  const until = r.UNTIL ? `${r.UNTIL.slice(0, 4)}-${r.UNTIL.slice(4, 6)}-${r.UNTIL.slice(6, 8)}` : null;
+  const DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  const byday = r.BYDAY ? r.BYDAY.split(",").map((d) => DAYS.indexOf(d.slice(-2))).filter((d) => d >= 0) : null;
+  const skip = new Set(ev.exdates || []);
+  const first = ev.start.day, span = ev.end ? daysBetween(first, ev.end.day) : 0;
+  const len = ev.start.t && ev.end && ev.end.t ? ev.end.t - ev.start.t : 0;
+  const out = [];
+  const add = (day) => {
+    if (skip.has(day.replace(/-/g, ""))) return;
+    const shift = daysBetween(first, day) * 864e5;
+    out.push({
+      start: { ...ev.start, day, t: ev.start.t ? ev.start.t + shift : undefined },
+      end: ev.end ? { ...ev.end, day: addDays(day, span), t: ev.end.t ? ev.end.t + shift : undefined } : undefined,
+    });
+  };
+  let n = 0;
+  for (let i = 0; i < 1000; i++) {
+    let days;
+    if (freq === "DAILY") days = [addDays(first, i * step)];
+    else if (freq === "WEEKLY") {
+      const weekStart = addDays(first, i * 7 * step - new Date(first + "T12:00:00Z").getUTCDay());
+      days = (byday || [new Date(first + "T12:00:00Z").getUTCDay()]).map((d) => addDays(weekStart, d)).sort();
+    } else {
+      const [y, m, d] = first.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1 + i * step, d));
+      days = dt.getUTCDate() === d ? [dt.toISOString().slice(0, 10)] : [];
+    }
+    for (const day of days) {
+      if (day < first) continue;
+      if ((until && day > until) || day > limit || (count && n >= count)) return out;
+      n++;
+      add(day);
+    }
+  }
+  return out;
+}
+
+function daysBetween(a, b) {
+  return Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
 }
 
 function addEvent(ev, mark) {
