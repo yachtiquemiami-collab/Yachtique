@@ -34,6 +34,7 @@
     "y.ratesnote.tip": "Tarifas desde el punto de salida más económico. Pueden aplicarse impuestos. Su cotización final se confirma con la solicitud.",
     "y.popnote": "Tarifas desde. Pueden aplicarse impuestos y la propina de la tripulación. Su cotización final se confirma con la solicitud.",
     "y.popnote.tip": "Tarifas desde. Pueden aplicarse impuestos. Su cotización final se confirma con la solicitud.",
+    "y.apa": "En alquileres de 24 horas o más se cobra por adelantado un fondo de aprovisionamiento (APA) del 35% del precio del alquiler para combustible, amarres, comida y bebida. Lo que no se use se devuelve.",
     "y.noavail": "La disponibilidad de este yate se confirma con la solicitud.",
     "y.full": "Ver todos los detalles", "y.enquire": "Solicitar", "y.photos": "Ver las {n} fotos", "y.photo": "Ver foto",
     "y.similar": "Yates similares", "y.english": "Descripción del yate en inglés.", "y.tap": "Toque un día libre para elegirlo",
