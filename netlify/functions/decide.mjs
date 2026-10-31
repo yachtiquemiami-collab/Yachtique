@@ -45,7 +45,10 @@ export default async (req) => {
     const rate = Number(r.taxRate) || 0;
     const site = accept ? await sitePrice(req, q) : { price: 0 };
     const suggested = site.price;
-    const tip = site.gratuityIncluded ? 0 : GRATUITY;
+    // The client's pick on the form wins; then "included" from YCN; then the default
+    const chose = String(q.gratuityChoice || "");
+    const picked = /included/i.test(chose) ? 0 : parseInt(chose, 10);
+    const tip = GRATUITY_OPTIONS.includes(picked) ? picked : site.gratuityIncluded ? 0 : GRATUITY;
     return page(accept ? "Accept enquiry" : "Decline enquiry", `
       <p class="eyebrow">${esc(ref)} · ${addPrice ? "Payment link" : accept ? "Accept" : "Decline"}</p>
       <h1>${addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${accept ? "Accept" : "Decline"} ${esc(q.name || "this enquiry")}?`}</h1>
@@ -57,7 +60,7 @@ export default async (req) => {
           <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${suggested || ""}" data-rate="${rate}">
         </label>
         <p class="dhint">${suggested ? `Website price for ${esc(q.duration)}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice ? "" : " Leave it empty to send the quote yourself."}</p>
-        <label>Gratuity
+        <label>Gratuity${chose ? ` <em class="dchose">· client chose ${esc(/included/i.test(chose) ? "included" : chose)}</em>` : ""}
           <select name="gratuity" data-taxed="${r.taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : site.gratuityIncluded ? "None (included with this yacht)" : "None"}</option>`).join("")}</select>
         </label>
         <ul class="dsum" hidden>

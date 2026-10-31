@@ -46,6 +46,7 @@
     "form.date": "Fecha", "form.guests": "Invitados", "form.duration": "Duración", "form.name": "Nombre", "form.phone": "Teléfono / WhatsApp",
     "form.email": "Correo electrónico", "form.else": "¿Algo más?", "form.else.ph": "Ocasión, punto de salida, peticiones especiales…",
     "form.notsure": "Aún no lo sé",
+    "form.tip": "Propina", "form.tip.note": "Se suma a su total, así que no hay nada que pagar a bordo.", "form.tip.incl": "La propina está incluida con este yate.",
     "cal.free": "Disponible", "cal.partial": "Parcialmente reservado", "cal.full": "Reservado",
     "cal.prev": "Mes anterior", "cal.next": "Mes siguiente",
     "dp.pick": "Elegir fecha", "dp.clear": "Borrar", "dp.close": "Cerrar", "dp.choose": "Elija una fecha",

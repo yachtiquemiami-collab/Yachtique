@@ -261,6 +261,17 @@
             <select name="yacht" id="yachtSelect"><option value="Help me choose" data-i18n="ct.help">Help me choose</option></select>
           </label>
         </div>
+        <fieldset class="form__tips" data-tips>
+          <legend data-i18n="form.tip">Gratuity</legend>
+          <div class="tips" data-tips-pick>
+            <label><input type="radio" name="gratuity" value="15%"><span>15%</span></label>
+            <label><input type="radio" name="gratuity" value="18%" checked><span>18%</span></label>
+            <label><input type="radio" name="gratuity" value="20%"><span>20%</span></label>
+          </div>
+          <input type="hidden" name="gratuity" value="Included" disabled data-tips-incl>
+          <small class="form__note" data-tips-note data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
+          <small class="form__note" data-tips-inclnote data-i18n="form.tip.incl" hidden>Gratuity is included with this yacht.</small>
+        </fieldset>
         <fieldset class="form__checks">
           <legend data-i18n="ct.also">Also interested in</legend>
           <label><input type="checkbox" name="extras" value="Villa"> <span data-i18n="ct.villa">Villa</span></label>

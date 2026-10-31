@@ -11,10 +11,10 @@
 
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
-const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity"];
+const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice"];
 // Enquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
-  PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21 };
+  PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -109,6 +109,10 @@ function doPost(e) {
       const row = sheet.getLastRow();
       q.ref = "YQ-" + (1000 + row);
       sheet.getRange(row, COL.REF).setValue(q.ref);
+      // The gratuity the client picked on the form (15%, 18%, 20% or Included); the amount is set on Accept
+      q.gratuityChoice = safe(q.gratuity);
+      delete q.gratuity;
+      if (q.gratuityChoice) sheet.getRange(row, COL.TIP_CHOICE).setValue(q.gratuityChoice);
     } finally {
       lock.releaseLock();
     }
@@ -140,7 +144,7 @@ function decideUrl(ref, a) {
 
 // Older sheets lack the newer columns: add their headers (and the newer statuses) once
 function addNewColumns(sheet) {
-  if (sheet.getRange(1, COL.GRATUITY).getValue() === "Gratuity") return;
+  if (sheet.getRange(1, COL.TIP_CHOICE).getValue() === "Gratuity choice") return;
   const hadPaid = sheet.getRange(1, COL.PAYMENT).getValue() === "Payment";
   sheet.getRange(1, COL.SOURCE, 1, ENQUIRY_HEADERS.length - COL.SOURCE + 1).setValues([ENQUIRY_HEADERS.slice(COL.SOURCE - 1)])
     .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
@@ -180,7 +184,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.GRATUITY).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.TIP_CHOICE).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -189,6 +193,7 @@ function findEnquiry(ref) {
         message: String(v[COL.MESSAGE - 1] || ""), lang: /span/i.test(String(v[COL.LANG - 1])) ? "es" : "en",
         decided: v[COL.DECIDED - 1] ? String(v[COL.DECIDED - 1]) : "",
         price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0, gratuity: Number(v[COL.GRATUITY - 1]) || 0,
+        gratuityChoice: String(v[COL.TIP_CHOICE - 1] || ""),
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
       } };
     }
@@ -489,6 +494,7 @@ function factsBox(q, lang) {
     [es ? "Duración" : "Duration", q.duration ? dur(q.duration) : (es ? "Por confirmar" : "To confirm")],
     [es ? "Yate" : "Yacht", q.yacht && !/help me choose/i.test(q.yacht) ? q.yacht : (es ? "Le ayudamos a elegir" : "Help me choose")],
   ];
+  if (q.gratuityChoice && !q.total) facts.push([es ? "Propina" : "Gratuity", /included/i.test(q.gratuityChoice) ? (es ? "Incluida con el yate" : "Included with the yacht") : q.gratuityChoice]);
   if (q.extras) facts.push([es ? "También organizamos" : "Also arranging", q.extras]);
   let rows = "";
   for (let i = 0; i < facts.length; i += 2) {
@@ -781,7 +787,7 @@ const TEST_TO = "yachtiquemiami@gmail.com";
 function testEmails() {
   const inThreeDays = Utilities.formatDate(new Date(Date.now() + 3 * 86400000), "America/New_York", "yyyy-MM-dd");
   const sample = { ref: "YQ-TEST", name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
-    duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!", lang: "en" };
+    duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", gratuityChoice: "18%", message: "Birthday on board for my wife. Sunset if possible!", lang: "en" };
   sendOwnerAlert(sample, TEST_TO, "");
   const priced = { price: 2690, gratuity: 484.2, total: cents((2690 + 484.2) * (1 + TAX_RATE)) / 100 };
   sendOwnerPaid(Object.assign({}, sample, priced, { payment: "pi_test" }), TEST_TO, "");

@@ -253,7 +253,18 @@ p { margin: 0 0 1em; }
 .form__checks legend { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-light); margin-bottom: 10px; }
 .form__checks label { display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: normal; font-size: 15px; font-weight: 400; color: var(--text); }
 .form__checks input { width: 18px; height: 18px; min-height: 0; accent-color: var(--gold); }
+.form__tips { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.form__tips legend { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-light); margin-bottom: 10px; }
+.tips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tips[hidden] { display: none; }
+.tips label { position: relative; display: block; }
+.tips input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.tips span { display: grid; place-items: center; min-height: 48px; border: 1px solid rgba(201, 165, 100, .3); border-radius: 999px; background: var(--navy); color: var(--text); font: 700 15px var(--sans); transition: border-color .2s, background .2s, color .2s; }
+.tips input:checked + span { background: var(--gold-grad); border-color: transparent; color: var(--navy); }
+.tips input:focus-visible + span { box-shadow: 0 0 0 3px rgba(201, 165, 100, .35); }
+.form__tips .form__note { margin: 0; }
 .form__note { display: block; text-transform: none; letter-spacing: normal; font-size: 13px; font-weight: 400; color: var(--gold-light); }
+.form__note[hidden] { display: none; }
 
 /* Date fields: our own calendar (assets/js/datepicker.js). The real date input stays in the form, hidden. */
 .datewrap { position: relative; display: block; }
@@ -898,3 +909,4 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .dsum__total span { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 .dsum__total b { font-size: 22px; }
 .dcard form .btn--block { width: 100%; }
+.dchose { font-style: normal; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--muted); }

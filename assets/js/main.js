@@ -173,6 +173,7 @@ var REVIEWS = [];
         if (trip.guests) want.guests = +trip.guests || 0;
         renderFleet();
         fillSelect();
+        checkTip();
         fillStats();
         prefillShortlist();
       })
@@ -331,7 +332,7 @@ var REVIEWS = [];
       if (e.target.closest(".js-enquire")) {
         if (select) select.value = label(current);
         if (yq.trip) yq.trip.set({ yacht: label(current) });
-        checkDate();
+        checkDate(); checkTip();
         dialog.close();
       }
       if (e.target.closest(".js-close") || e.target === dialog) dialog.close();
@@ -353,6 +354,22 @@ var REVIEWS = [];
     dateNote.hidden = !dateNote.textContent;
   }
   if (select) select.addEventListener("change", checkDate);
+
+  // Gratuity: the client picks 15/18/20%, unless the chosen yacht already includes it
+  function checkTip() {
+    var box = document.querySelector("[data-tips]");
+    if (!box || !select) return;
+    var opt = select.options[select.selectedIndex];
+    var handle = opt && opt.getAttribute("data-handle");
+    var y = fleet.filter(function (x) { return x.handle === handle; })[0];
+    var incl = !!(y && y.gratuityIncluded);
+    box.querySelector("[data-tips-pick]").hidden = incl;
+    box.querySelectorAll('[data-tips-pick] input').forEach(function (i) { i.disabled = incl; });
+    box.querySelector("[data-tips-incl]").disabled = !incl;
+    box.querySelector("[data-tips-note]").hidden = incl;
+    box.querySelector("[data-tips-inclnote]").hidden = !incl;
+  }
+  if (select) select.addEventListener("change", checkTip);
   if (formDate) formDate.addEventListener("change", checkDate);
 
   // WhatsApp links (message in the visitor's language)
@@ -390,7 +407,7 @@ var REVIEWS = [];
     if (fleet.length) { renderFleet(); }
     waLinks();
     if (dialog && dialog.open && currentIndex > -1) openYacht(currentIndex);
-    checkDate();
+    checkDate(); checkTip();
   });
 
   // Nav: background on scroll + mobile menu
