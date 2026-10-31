@@ -11,7 +11,7 @@ import { RX_REF, tokenOk, sheet, first, usd, cardPage } from "../lib/card.mjs";
 
 const T = {
   en: {
-    eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
+    eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
     date: "Date", guests: "Guests", duration: "Duration", yacht: "Yacht", flexible: "Flexible", help: "To confirm",
     pay: (a) => `Pay ${a}`, safe: "Card, Apple Pay or Google Pay, processed securely by Stripe. Yachtique never sees your card number.",
     terms: "By paying you agree to our", termsLink: "booking terms",
@@ -26,7 +26,7 @@ const T = {
     product: (y) => "Yacht charter" + (y ? " · " + y : ""),
   },
   es: {
-    eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
+    eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
     date: "Fecha", guests: "Invitados", duration: "Duración", yacht: "Yate", flexible: "Flexible", help: "Por confirmar",
     pay: (a) => `Pagar ${a}`, safe: "Tarjeta, Apple Pay o Google Pay, procesado de forma segura por Stripe. Yachtique nunca ve el número de su tarjeta.",
     terms: "Al pagar acepta nuestras", termsLink: "condiciones de reserva",
@@ -111,13 +111,17 @@ export default async (req, context) => {
       cancel_url: self,
     };
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.email)) p.customer_email = q.email;
-    // Sales tax as its own line, so the receipt shows it
-    if (cents(q.total) > cents(q.price)) Object.assign(p, {
-      "line_items[1][quantity]": 1,
-      "line_items[1][price_data][currency]": "usd",
-      "line_items[1][price_data][unit_amount]": cents(q.total) - cents(q.price),
-      "line_items[1][price_data][product_data][name]": S.tax(rateLabel(r.taxRate)),
-    });
+    // Gratuity and sales tax as their own lines, so the receipt shows them
+    const extra = [];
+    if (cents(q.gratuity || 0) > 0) extra.push([S.gratuity(gratPct(q)), cents(q.gratuity)]);
+    const tax = cents(q.total) - cents(q.price) - cents(q.gratuity || 0);
+    if (tax > 0) extra.push([S.tax(rateLabel(r.taxRate)), tax]);
+    extra.forEach(([name, amount], i) => Object.assign(p, {
+      [`line_items[${i + 1}][quantity]`]: 1,
+      [`line_items[${i + 1}][price_data][currency]`]: "usd",
+      [`line_items[${i + 1}][price_data][unit_amount]`]: amount,
+      [`line_items[${i + 1}][price_data][product_data][name]`]: name,
+    }));
     const s = await stripe(key, "POST", "checkout/sessions", p).catch((e) => { console.error(e); return null; });
     if (!s || !s.url) return say(S.error, S.errorP, 502);
     return new Response(null, { status: 303, headers: { Location: s.url, "Cache-Control": "no-store" } });
@@ -149,6 +153,7 @@ async function stripe(key, method, path, params) {
 }
 
 function rateLabel(rate) { return +((Number(rate) || 0) * 100).toFixed(2); }
+function gratPct(q) { return Math.round((Number(q.gratuity) || 0) / q.price * 100); }
 
 function prettyDate(iso, L) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
@@ -175,7 +180,8 @@ function facts(q, S, L) {
 function sum(q, S, rate, paid) {
   return `<ul class="dsum">
         <li><span>${S.charter}</span><b>${usd(q.price)}</b></li>
-        ${q.total > q.price ? `<li><span>${S.tax(rateLabel(rate))}</span><b>${usd(q.total - q.price)}</b></li>` : ""}
+        ${q.gratuity > 0 ? `<li><span>${S.gratuity(gratPct(q))}</span><b>${usd(q.gratuity)}</b></li>` : ""}
+        ${q.total > q.price + (q.gratuity || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li>` : ""}
         <li class="dsum__total"><span>${S.total}${paid ? " ✓" : ""}</span><b>${usd(q.total)}</b></li>
       </ul>`;
 }
