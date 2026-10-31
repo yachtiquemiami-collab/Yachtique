@@ -11,10 +11,10 @@
 
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
-const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment"];
+const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity"];
 // Enquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
-  PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20 };
+  PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -22,6 +22,9 @@ const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", 
 // Florida sales tax added to the charter price on the client's payment (Miami-Dade: 6% state + 1% county).
 // Confirm the rate with the accountant, and change it here if the charter leaves from another county.
 const TAX_RATE = 0.07;
+// The gratuity (a % of the charter price, picked on the Accept page) is added before tax: in Florida a gratuity
+// added to the bill is generally taxable. Confirm with the accountant; if it isn't, set this to false.
+const TAX_GRATUITY = true;
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
@@ -87,7 +90,7 @@ function doPost(e) {
     if (!SECRET || body.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
     if (body.type === "event") return json(saveEvent(body.event || {}));
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
-    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0));
+    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
@@ -137,16 +140,18 @@ function decideUrl(ref, a) {
 
 // Older sheets lack the newer columns: add their headers (and the newer statuses) once
 function addNewColumns(sheet) {
-  if (sheet.getRange(1, COL.PAYMENT).getValue() === "Payment") return;
+  if (sheet.getRange(1, COL.GRATUITY).getValue() === "Gratuity") return;
+  const hadPaid = sheet.getRange(1, COL.PAYMENT).getValue() === "Payment";
   sheet.getRange(1, COL.SOURCE, 1, ENQUIRY_HEADERS.length - COL.SOURCE + 1).setValues([ENQUIRY_HEADERS.slice(COL.SOURCE - 1)])
     .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
   sheet.getRange(2, COL.PRICE, sheet.getMaxRows() - 1, 2).setNumberFormat("$#,##0.00");
   sheet.getRange(2, COL.PAID, sheet.getMaxRows() - 1, 1).setNumberFormat("mmm d, yyyy h:mm am/pm");
+  sheet.getRange(2, COL.GRATUITY, sheet.getMaxRows() - 1, 1).setNumberFormat("$#,##0.00");
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).build();
   sheet.getRange("B2:B").setDataValidation(rule);
   const range = sheet.getRange("B2:B");
   const rules = sheet.getConditionalFormatRules();
-  rules.push(SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Paid").setBackground("#D6EBD9").setBold(true).setRanges([range]).build());
+  if (!hadPaid) rules.push(SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Paid").setBackground("#D6EBD9").setBold(true).setRanges([range]).build());
   sheet.setConditionalFormatRules(rules);
 }
 
@@ -175,7 +180,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.PAYMENT).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.GRATUITY).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -183,7 +188,7 @@ function findEnquiry(ref) {
         duration: String(v[COL.DURATION - 1] || ""), yacht: String(v[COL.YACHT - 1] || ""), extras: String(v[COL.EXTRAS - 1] || ""),
         message: String(v[COL.MESSAGE - 1] || ""), lang: /span/i.test(String(v[COL.LANG - 1])) ? "es" : "en",
         decided: v[COL.DECIDED - 1] ? String(v[COL.DECIDED - 1]) : "",
-        price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0,
+        price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0, gratuity: Number(v[COL.GRATUITY - 1]) || 0,
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
       } };
     }
@@ -193,7 +198,7 @@ function findEnquiry(ref) {
 
 function lookupEnquiry(ref) {
   const f = findEnquiry(ref);
-  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE } : { ok: false, error: "not found" };
+  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY } : { ok: false, error: "not found" };
 }
 
 function withPayUrl(q) {
@@ -202,8 +207,9 @@ function withPayUrl(q) {
 }
 
 // price: the charter price before tax typed on the Accept page (0 = Nektarios sends the quote himself).
-// With a price the client's email gets a Pay button for the total, Florida sales tax included.
-function decideEnquiry(ref, a, price) {
+// gratuityPct: the gratuity picked on the Accept page (18 by default, 0 = none or included with the yacht).
+// With a price the client's email gets a Pay button for the total, gratuity and Florida sales tax included.
+function decideEnquiry(ref, a, price, gratuityPct) {
   if (a !== "accept" && a !== "decline") return { ok: false, error: "bad action" };
   price = a === "accept" && price > 0 ? cents(price) / 100 : 0;
   const lock = LockService.getScriptLock();
@@ -222,9 +228,13 @@ function decideEnquiry(ref, a, price) {
     f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
     f.q.status = status;
     if (price) {
+      const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
       f.q.price = price;
-      f.q.total = cents(price * (1 + TAX_RATE)) / 100;
+      f.q.gratuity = cents(price * pct / 100) / 100;
+      const taxed = TAX_GRATUITY ? price + f.q.gratuity : price;
+      f.q.total = cents(price + f.q.gratuity + taxed * TAX_RATE) / 100;
       f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
+      f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
       withPayUrl(f.q);
     }
   } finally {
@@ -367,7 +377,7 @@ function proposalsSheet() {
     sh.setColumnWidth(9, 360); sh.setColumnWidth(13, 360);
     sh.getRange(2, 1, 1, 13).setValues([["example-x1", "", "2026-12-12", 10, "Sunset charter", "Miami Beach Marina", "kilauea", "Best value",
       "Example row: copy it, change the ID and the details, and send the client yachtique.co/p/<ID>.", 2690, 3390, 4240,
-      "Prices exclude Florida sales tax and crew gratuity. A deposit holds your yacht and date."]]);
+      "Prices exclude Florida sales tax and gratuity. A deposit holds your yacht and date."]]);
   }
   return sh;
 }
@@ -609,9 +619,9 @@ const TXT = {
     accSubject: (d) => "Good news: your charter" + (d ? " on " + d : "") + " is available · Yachtique", accPre: "Your yacht is available. Your final quote is on its way.",
     waAcc: (r) => "Hi Nektarios, I'd like to confirm my charter (" + r + ").",
     accPPay: (y, d) => (y ? "<b>" + y + "</b> is available" : "Your yacht is available") + (d ? " on " + d : "") + ". Secure your date with the payment below: we reserve your yacht with the captain as soon as it's received.",
-    accStepsPay: [["Pay securely.", "Card, Apple Pay or Google Pay through Stripe. Florida sales tax included."], ["We reserve your yacht.", "Confirmed with the captain right after your payment."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
+    accStepsPay: [["Pay securely.", "Card, Apple Pay or Google Pay through Stripe. Gratuity and Florida sales tax included."], ["We reserve your yacht.", "Confirmed with the captain right after your payment."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
     accSubjectPay: (d) => "Your charter" + (d ? " on " + d : "") + " is available: secure your date · Yachtique", accPrePay: "Your yacht is available. Pay securely to reserve it.",
-    charter: "Charter", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
+    charter: "Charter", gratuity: (p) => "Gratuity (" + p + "%)", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
     paidP: (a) => "We received <b>" + a + "</b> for your charter. We're reserving your yacht with the captain now, and you'll receive the final confirmation shortly.",
     paidSteps: [["We reserve your yacht.", "Confirmed with the captain, usually within a few hours."], ["Your boarding details.", "Marina, time and what to bring, the day before you sail."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
@@ -634,9 +644,9 @@ const TXT = {
     accSubject: (d) => "Buenas noticias: su alquiler" + (d ? " del " + d : "") + " está disponible · Yachtique", accPre: "Su yate está disponible. Su cotización final está en camino.",
     waAcc: (r) => "Hola Nektarios, me gustaría confirmar mi alquiler (" + r + ").",
     accPPay: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Su yate está disponible") + (d ? " el " + d : "") + ". Reserve su fecha con el pago a continuación: reservamos su yate con el capitán en cuanto lo recibamos.",
-    accStepsPay: [["Pague de forma segura.", "Tarjeta, Apple Pay o Google Pay a través de Stripe. Impuesto de ventas de Florida incluido."], ["Reservamos su yate.", "Confirmado con el capitán justo después de su pago."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
+    accStepsPay: [["Pague de forma segura.", "Tarjeta, Apple Pay o Google Pay a través de Stripe. Propina e impuesto de ventas de Florida incluidos."], ["Reservamos su yate.", "Confirmado con el capitán justo después de su pago."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
     accSubjectPay: (d) => "Su alquiler" + (d ? " del " + d : "") + " está disponible: reserve su fecha · Yachtique", accPrePay: "Su yate está disponible. Pague de forma segura para reservarlo.",
-    charter: "Alquiler", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
+    charter: "Alquiler", gratuity: (p) => "Propina (" + p + "%)", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
     paidP: (a) => "Recibimos <b>" + a + "</b> por su alquiler. Ahora estamos reservando su yate con el capitán y en breve recibirá la confirmación final.",
     paidSteps: [["Reservamos su yate.", "Confirmado con el capitán, normalmente en pocas horas."], ["Sus detalles de embarque.", "Marina, hora y qué llevar, el día antes de navegar."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
@@ -699,7 +709,9 @@ function sendClientAccepted(q) {
 function priceBox(q, lang) {
   const T = TXT[lang === "es" ? "es" : "en"];
   const rows = [[T.charter, usd(q.price), false]];
-  if (cents(q.total) > cents(q.price)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price), false]);
+  const grat = q.gratuity || 0;
+  if (cents(grat) > 0) rows.push([T.gratuity(Math.round(grat / q.price * 100)), usd(grat), false]);
+  if (cents(q.total) > cents(q.price + grat)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat), false]);
   rows.push([T.total, usd(q.total), true]);
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
     rows.map((r, i) => '<tr><td style="padding:' + (r[2] ? "16px" : "12px") + ' 20px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:' + (r[2] ? "12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:" + C.gold : "15px;color:" + C.text) + '">' + esc(r[0]) + "</td>" +
@@ -771,7 +783,7 @@ function testEmails() {
   const sample = { ref: "YQ-TEST", name: "Alex Morgan", phone: "+1 305 555 0123", email: TEST_TO, date: inThreeDays, guests: "8",
     duration: "4 hours", yacht: "Four Keeps (38ft Axopar)", extras: "Catering, Transport", message: "Birthday on board for my wife. Sunset if possible!", lang: "en" };
   sendOwnerAlert(sample, TEST_TO, "");
-  const priced = { price: 2690, total: cents(2690 * (1 + TAX_RATE)) / 100 };
+  const priced = { price: 2690, gratuity: 484.2, total: cents((2690 + 484.2) * (1 + TAX_RATE)) / 100 };
   sendOwnerPaid(Object.assign({}, sample, priced, { payment: "pi_test" }), TEST_TO, "");
   ["en", "es"].forEach((L) => {
     const q = Object.assign({}, sample, { lang: L, name: L === "es" ? "Sofía Martínez" : sample.name });

@@ -11,12 +11,11 @@ Every yacht on the site is in the YCN network. **Never contact a boat or captain
 1. **Reply within the hour.** The alert email (subject starts with `YQ-####`) has a "Reply on WhatsApp" button with the first message already written.
 2. **Check with YCN.** Look at the yacht's live calendar on [ycn.yachts/pages/brokers](https://ycn.yachts/pages/brokers), then WhatsApp Laurent to confirm yacht, date, start time, guests and pickup point. The calendar is a guide; YCN's confirmation is final. Prices change with the pickup point.
 3. **Answer the enquiry** with the buttons in the alert email:
-   - **Accept**: type the charter price (it starts with the website price for that yacht and duration). Florida sales tax is added, and the client gets "your day is available" with a **Pay** button for the total. Leave the price empty to send the quote yourself; tap Accept again later to add it and send the payment link.
+   - **Accept**: type the charter price (it starts with the website price for that yacht and duration) and pick the gratuity (18% is preselected; None when the yacht includes it). Gratuity and Florida sales tax are added, and the client gets "your day is available" with a **Pay** button for the total. Leave the price empty to send the quote yourself; tap Accept again later to add it and send the payment link.
    - **Decline**: the client gets a link to the yachts free that day.
    - Yacht taken but others free: send a proposal page with 2 to 4 options instead (see Client proposals below).
-4. **The price you type** (before tax):
+4. **The price you type** (before gratuity and tax):
    - our website price (YCN net + 20%) for that duration and pickup point
-   - + crew gratuity 15 to 20% if you collect it (or tell the client to tip the crew on board), unless the yacht shows it as included
    - + catering, transport and other extras you agreed
    - + 35% APA for charters of 24 hours or more (fuel, docking, food and drinks; unused APA is returned)
 5. **The client pays the full amount to Yachtique** by card, Apple Pay or Google Pay (Stripe). Yachtique always invoices the client; YCN never invoices our clients directly. When the payment lands, the Sheet Status turns **Paid** and you get a "PAID" email.
@@ -101,8 +100,9 @@ Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. T
 | Accept page with the price box | `netlify/functions/decide.mjs` |
 | Pay page (EN/ES) | `netlify/functions/pay.mjs` |
 | Stripe webhook: marks the row Paid even if the client closes the tab | `netlify/functions/stripe-webhook.mjs` |
-| Tax rate (7%, Miami-Dade), Paid emails | `TAX_RATE`, `markPaid`, `sendClientPaid`, `sendOwnerPaid` in `apps-script/Code.gs` |
-| Sheet columns | Price, Total, Paid, Payment (Stripe payment ID), added by themselves on first use |
+| Gratuity choices and the 18% default | `GRATUITY`, `GRATUITY_OPTIONS` in `netlify/functions/decide.mjs` |
+| Tax rate (7%, Miami-Dade), tax on the gratuity, Paid emails | `TAX_RATE`, `TAX_GRATUITY`, `markPaid`, `sendClientPaid`, `sendOwnerPaid` in `apps-script/Code.gs` |
+| Sheet columns | Price (charter), Total, Paid, Payment (Stripe payment ID), Gratuity, added by themselves on first use. Pass the Gratuity on to YCN for the crew. |
 
 Setup (once, from the Stripe account; keys never go in this repo):
 

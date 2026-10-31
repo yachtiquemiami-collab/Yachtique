@@ -294,7 +294,7 @@ var REVIEWS = [];
         "<h4>" + t("y.rates", "Rates") + '</h4><ul class="ydlg__prices">' + prices + "</ul>" +
         '<p class="muted ydlg__small">' + (y.gratuityIncluded
           ? t("y.popnote.tip", "Starting rates. Sales tax may apply. Your final quote is confirmed on enquiry.")
-          : t("y.popnote", "Starting rates. Sales tax and crew gratuity may apply. Your final quote is confirmed on enquiry.")) + "</p>" +
+          : t("y.popnote", "Starting rates. Sales tax and gratuity may apply. Your final quote is confirmed on enquiry.")) + "</p>" +
         '<dl class="ydlg__meta">' +
           "<dt>" + t("y.departs", "Departs from") + "</dt><dd>" + list(y.locations) + "</dd>" +
           "<dt>" + t("f.crew", "Crew") + "</dt><dd>" + list(y.crew) + "</dd>" +
