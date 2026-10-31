@@ -112,7 +112,8 @@ function doPost(e) {
       // The gratuity the client picked on the form (15%, 18%, 20% or Included); the amount is set on Accept
       q.gratuityChoice = safe(q.gratuity);
       delete q.gratuity;
-      if (q.gratuityChoice) sheet.getRange(row, COL.TIP_CHOICE).setValue(q.gratuityChoice);
+      // As text: Sheets would turn "20%" into the number 0.2
+      if (q.gratuityChoice) sheet.getRange(row, COL.TIP_CHOICE).setNumberFormat("@").setValue(q.gratuityChoice);
     } finally {
       lock.releaseLock();
     }
@@ -193,7 +194,7 @@ function findEnquiry(ref) {
         message: String(v[COL.MESSAGE - 1] || ""), lang: /span/i.test(String(v[COL.LANG - 1])) ? "es" : "en",
         decided: v[COL.DECIDED - 1] ? String(v[COL.DECIDED - 1]) : "",
         price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0, gratuity: Number(v[COL.GRATUITY - 1]) || 0,
-        gratuityChoice: String(v[COL.TIP_CHOICE - 1] || ""),
+        gratuityChoice: typeof v[COL.TIP_CHOICE - 1] === "number" ? Math.round(v[COL.TIP_CHOICE - 1] * 100) + "%" : String(v[COL.TIP_CHOICE - 1] || ""),
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
       } };
     }
