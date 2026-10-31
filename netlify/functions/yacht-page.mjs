@@ -117,6 +117,19 @@ function yachtBody(y, others) {
             <label><span data-i18n="form.duration">Duration</span>
               <select name="duration">${y.durations.map((d) => `<option value="${esc(d.label)}" data-dur>${esc(d.label)}</option>`).join("")}<option value="Not sure yet" data-i18n="form.notsure">Not sure yet</option></select>
             </label>
+            ${y.gratuityIncluded
+              ? `<input type="hidden" name="gratuity" value="Included"><p class="form__note" data-i18n="form.tip.incl">Gratuity is included with this yacht.</p>`
+              : `<fieldset class="form__tips" data-tips>
+                <legend data-i18n="form.tip">Gratuity</legend>
+                <div class="tips" data-tips-pick>
+                  <label><input type="radio" name="gratuity" value="15%"><span>15%</span></label>
+                  <label><input type="radio" name="gratuity" value="18%" checked><span>18%</span></label>
+                  <label><input type="radio" name="gratuity" value="20%"><span>20%</span></label>
+                </div>
+                <input type="hidden" name="gratuity" value="Included" disabled data-tips-incl>
+                <small class="form__note" data-tips-note data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
+                <small class="form__note" data-tips-inclnote data-i18n="form.tip.incl" hidden>Gratuity is included with this yacht.</small>
+              </fieldset>`}
             <label><span data-i18n="form.name">Name</span><input type="text" name="name" required autocomplete="name"></label>
             <label><span data-i18n="form.phone">Phone / WhatsApp</span><input type="tel" name="phone" required autocomplete="tel"></label>
             <label><span data-i18n="form.email">Email</span><input type="email" name="email" required autocomplete="email"></label>
