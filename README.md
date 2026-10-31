@@ -22,7 +22,7 @@ Every yacht on the site is in the YCN network. **Never contact a boat or captain
 6. **Reserve with YCN** straight away: on the broker page, *Reserve with $500 Deposit* for that yacht with the date, start time, guest count and the client's details. Tell the client "confirmed" only after YCN confirms.
 7. **Sheet**: set the enquiry's Status to **Booked**.
 8. **72 hours before**: pay YCN their balance.
-9. **The day before**: send the client the marina, meeting time and the captain's contact, plus the rules: arrive 15 minutes early, no red wine or glass, no smoking, children under 13 wear life jackets.
+9. **The day before**: fill in **Departure** and **Start time** in the sheet once YCN confirms them; the client gets the marina, time, rules and a calendar file automatically (see Automatic emails). Send the captain's contact on WhatsApp.
 10. **After the charter**: thank-you message and ask for a Google review.
 
 Rules to remember (YCN terms, read 30 Oct 2026): max 13 guests; 4-hour minimum, 9am to 10pm; late arrival doesn't extend the charter; private-dock pickup costs extra; pets need a $500 (up to 50 ft) or $1,000 (51 ft+) refundable deposit; jet ski drivers born 1988 or later need a Florida boating license.
@@ -102,7 +102,7 @@ Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. T
 | Stripe webhook: marks the row Paid even if the client closes the tab | `netlify/functions/stripe-webhook.mjs` |
 | Gratuity choices and the 18% default | `GRATUITY`, `GRATUITY_OPTIONS` in `netlify/functions/decide.mjs` |
 | Tax rate (7%, Miami-Dade), tax on the gratuity, Paid emails | `TAX_RATE`, `TAX_GRATUITY`, `markPaid`, `sendClientPaid`, `sendOwnerPaid` in `apps-script/Code.gs` |
-| Sheet columns | Price (charter), Total, Paid, Payment (Stripe payment ID), Gratuity, added by themselves on first use. Pass the Gratuity on to YCN for the crew. |
+| Sheet columns | Price (charter), Total, Paid, Payment (Stripe payment ID), Gratuity, Gratuity choice (from the form), Departure, Start time, Emails sent; added by themselves on first use. Pass the Gratuity on to YCN for the crew. |
 
 Setup (once, from the Stripe account; keys never go in this repo):
 
@@ -112,6 +112,22 @@ Setup (once, from the Stripe account; keys never go in this repo):
 4. Paste `apps-script/Code.gs` into Apps Script and deploy a new version (Deploy → Manage deployments → edit → New version).
 
 Test cards in test mode: `4242 4242 4242 4242`, any future date, any CVC. Test-mode payments mark the Sheet Paid too, so set test rows to Lost afterwards.
+
+## Automatic emails (Apps Script timers)
+
+Two timers run `apps-script/Code.gs` by themselves. **Turn them on once:** in Apps Script, signed in as yachtiquemiami@gmail.com, select `installTriggers` and press Run (so the emails go out from Yachtique's account).
+
+| When | Who gets it | What |
+|---|---|---|
+| Accepted, not paid after 24h (3h if the charter is within 3 days) | Client + Yachtique | Reminder with the payment link; a note to Yachtique |
+| Still unpaid after 72h (24h if close) | Yachtique | Follow up or set Lost |
+| 3 days before (Paid or Booked) | Client | What to plan for and the rules |
+| 3 days before | Yachtique | Pay YCN the balance; fill in Departure and Start time |
+| Day before | Client | Marina, time, map link, rules and a calendar file. Needs **Departure** and **Start time** in the sheet; if they're empty, Yachtique gets a reminder instead |
+| Day after | Client | Google review request, once `REVIEW_URL` is filled in |
+| Mondays 8am | Yachtique | Weekly summary: enquiries, accepted, paid, revenue, gratuity, coming up, unpaid, most viewed yachts |
+
+Client emails go out between 9am and 8pm Miami time only, in the client's language, and each one only once (the **Emails sent** column remembers). The "Payment received" email has a calendar file. TEST rows are left out of the weekly summary; set test rows to Lost so no automatic emails go to them. To preview everything, run `testAutomations` (sends to TEST_TO only).
 
 ## Working from another laptop
 
