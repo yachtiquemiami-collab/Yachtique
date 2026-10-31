@@ -577,16 +577,21 @@ function sendOwnerAlert(q, to, cc) {
       (phone ? button("https://wa.me/" + phone + "?text=" + encodeURIComponent(waText), "Reply on WhatsApp", true) : "") +
       (q.email ? button("mailto:" + q.email + "?subject=" + encodeURIComponent("Your Yachtique charter request") + "&body=" + encodeURIComponent(mailBody), "Reply by email", !phone) : "") +
       button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
-  MailApp.sendEmail({
-    to: to || OWNER_EMAIL,
-    cc: (cc === undefined ? ALERT_CC : cc) || undefined,
+  sendAlert({
     replyTo: q.email || OWNER_EMAIL,
     name: "Yachtique Enquiries",
     subject: (q.ref ? q.ref + " · " : "") + "New enquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
     htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
     body: "New enquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
       "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
-  });
+  }, to, cc);
+}
+
+// Sends an alert to Yachtique, and the copy for ALERT_CC as its own email: a cc copy never arrived (checked 30 Oct 2026)
+function sendAlert(msg, to, cc) {
+  MailApp.sendEmail(Object.assign({}, msg, { to: to || OWNER_EMAIL }));
+  const copy = cc === undefined ? ALERT_CC : cc;
+  if (copy) MailApp.sendEmail(Object.assign({}, msg, { to: copy }));
 }
 
 // Client email copy in English and Spanish (formal "usted", like the website)
@@ -733,14 +738,12 @@ function sendOwnerPaid(q, to, cc) {
       (phone ? button("https://wa.me/" + phone, "WhatsApp " + (firstName(q) || "client"), true) : "") +
       button("https://dashboard.stripe.com/payments/" + encodeURIComponent(q.payment || ""), "See it in Stripe", !phone) +
       button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
-  MailApp.sendEmail({
-    to: to || OWNER_EMAIL,
-    cc: (cc === undefined ? ALERT_CC : cc) || undefined,
+  sendAlert({
     name: "Yachtique Payments",
     subject: q.ref + " · PAID " + amount + " · " + (q.name || "client") + " · " + prettyDate(q.date),
     htmlBody: layout((q.name || "A client") + " paid " + amount + ". Reserve with YCN now.", inner),
     body: (q.name || "A client") + " paid " + amount + " for " + q.ref + " (" + prettyDate(q.date) + ", " + q.yacht + ").\nNext: reserve with YCN, then confirm to the client.",
-  });
+  }, to, cc);
 }
 
 /** Declined: not available; point them to the yachts that are free that day. */
