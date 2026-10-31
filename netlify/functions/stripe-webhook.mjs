@@ -11,7 +11,7 @@ const TOLERANCE = 300; // seconds
 
 export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const whsec = Netlify.env.get("STRIPE_WEBHOOK_SECRET");
+  const whsec = (Netlify.env.get("STRIPE_WEBHOOK_SECRET") || "").trim();
   if (!whsec) return new Response("Not configured", { status: 503 });
 
   const raw = await req.text();
