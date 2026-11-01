@@ -52,11 +52,15 @@ p { margin: 0 0 1em; }
 .section__head { text-align: center; max-width: 660px; margin: 0 auto 64px; }
 
 /* Light sections */
-.section--light { background: var(--ivory); color: var(--ink); }
-.section--light h2, .section--light h3 { color: var(--ink); }
-.section--light .muted, .section--light p { color: var(--ink-muted); }
-.section--light .lead { color: var(--ink); }
-.section--light .eyebrow { color: var(--gold-dark); }
+/* The homepage's in-between sections: the second navy, so they stand apart from the photo sections around them */
+.section--light { background: var(--navy-2); color: var(--text); }
+.steps.section--light { background: var(--navy); } /* follows the navy-2 quote band */
+.section--light h2, .section--light h3 { color: var(--white); }
+.section--light p { color: var(--text); }
+.section--light .muted { color: var(--muted); }
+.section--light .lead { color: var(--white); }
+.section--light .eyebrow { color: var(--gold); }
+.section--light .card { background: var(--navy); }
 
 .eyebrow {
   font-size: 12px;
@@ -71,7 +75,7 @@ p { margin: 0 0 1em; }
 .section__head .eyebrow::before, .section__head .eyebrow::after { content: ""; width: 48px; height: 1px; background: currentColor; opacity: .55; }
 .title { font-size: clamp(32px, 4.2vw, 52px); letter-spacing: -.005em; }
 .title em, h1 em, h2 em { font-style: italic; color: var(--gold-light); }
-.section--light .title em, .section--light h2 em { color: var(--gold-dark); }
+.section--light .title em, .section--light h2 em { color: var(--gold-light); }
 .lead { font-size: 19px; line-height: 1.65; }
 
 /* Buttons */
@@ -89,7 +93,6 @@ p { margin: 0 0 1em; }
 .btn--gold:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(201, 165, 100, .3); }
 .btn--ghost { background: transparent; border-color: var(--gold); color: var(--gold-light); }
 .btn--ghost:hover { background: rgba(201, 165, 100, .12); }
-.section--light .btn--ghost { color: var(--gold-dark); border-color: var(--gold-dark); }
 .btn--wa { background: var(--navy); color: var(--white); border-color: var(--gold); }
 .btn--wa svg { fill: var(--gold-light); }
 .btn--wa:hover { transform: translateY(-2px); background: var(--navy-3); box-shadow: 0 12px 30px rgba(0, 15, 22, .25); }
@@ -152,8 +155,8 @@ p { margin: 0 0 1em; }
 /* Statement */
 .statement__grid { display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: start; }
 .statement__grid .eyebrow { padding-top: 14px; }
-.statement__text { font-size: clamp(26px, 3vw, 40px); font-weight: 400; line-height: 1.3; letter-spacing: 0; color: var(--ink); margin: 0; }
-.statement__text em { color: var(--gold-dark); }
+.statement__text { font-size: clamp(26px, 3vw, 40px); font-weight: 400; line-height: 1.3; letter-spacing: 0; color: var(--white); margin: 0; }
+.statement__text em { color: var(--gold-light); }
 
 /* Fleet */
 .fleet__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 44px; flex-wrap: wrap; }
@@ -198,11 +201,11 @@ p { margin: 0 0 1em; }
 /* Concierge */
 .services__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 90px; align-items: center; }
 .services__media { position: relative; }
-.services__media img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 18px; box-shadow: 0 30px 60px rgba(11, 30, 39, .14); }
+.services__media img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 18px; box-shadow: 0 30px 60px rgba(0, 0, 0, .3); }
 .services__media { z-index: 0; }
 .services__list { list-style: none; padding: 0; margin: 40px 0 0; }
-.services__list li { display: grid; grid-template-columns: 50px 1fr; gap: 10px; padding: 24px 0; border-top: 1px solid var(--line-dark); }
-.services__list span { font-size: 12px; letter-spacing: .12em; color: var(--gold-dark); padding-top: 9px; }
+.services__list li { display: grid; grid-template-columns: 50px 1fr; gap: 10px; padding: 24px 0; border-top: 1px solid var(--line); }
+.services__list span { font-size: 12px; letter-spacing: .12em; color: var(--gold); padding-top: 9px; }
 .services__list h3 { font-size: 28px; margin: 0 0 4px; }
 .services__list p { margin: 0; font-size: 16px; }
 
@@ -229,7 +232,7 @@ p { margin: 0 0 1em; }
 .steps__grid li { counter-increment: step; text-align: center; }
 .steps__grid li::before {
   content: counter(step); display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 20px; border-radius: 50%;
-  border: 1px solid var(--gold-dark); font-family: var(--serif); font-size: 22px; font-weight: 500; color: var(--gold-dark);
+  border: 1px solid var(--gold); font-family: var(--serif); font-size: 22px; font-weight: 500; color: var(--gold-light);
 }
 .steps__grid h3 { font-size: 26px; }
 .steps__grid p { font-size: 16px; max-width: 30ch; margin-left: auto; margin-right: auto; }
@@ -244,7 +247,7 @@ p { margin: 0 0 1em; }
 /* Contact */
 .contact__grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 80px; align-items: start; }
 .contact__info .btn--wa { margin: 14px 0 0; max-width: 360px; }
-.contact__list a:hover { color: var(--gold-dark); }
+.contact__list a:hover { color: var(--gold-light); }
 .card { background: var(--navy-2); padding: 40px; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(11, 30, 39, .22); }
 
 .form { display: grid; gap: 18px; }
@@ -670,13 +673,13 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .yfacts--sm li { padding: 14px 10px; flex-basis: 90px; }
 .yfacts--sm b { font-size: 17px; }
 
-/* Home statement numbers: white boxes on the ivory section, number on top */
-.stats { --cell: var(--white); margin: 80px 0 0; background: rgba(127, 81, 25, .22); border-color: rgba(127, 81, 25, .3); box-shadow: 0 24px 50px rgba(11, 30, 39, .08); }
+/* Home statement numbers: navy boxes with gold lines, number on top */
+.stats { --cell: var(--navy); margin: 80px 0 0; background: rgba(201, 165, 100, .3); border-color: rgba(201, 165, 100, .42); box-shadow: 0 24px 50px rgba(0, 0, 0, .25); }
 .stats li { flex: 1 1 200px; flex-direction: column; justify-content: flex-start; padding: 32px 22px 30px; gap: 0; }
-.stats i { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-dark); }
-.stats b { font-family: var(--serif); font-weight: 500; font-size: clamp(36px, 3.4vw, 48px); line-height: 1; color: var(--ink); font-variant-numeric: lining-nums; white-space: nowrap; margin: 16px 0 14px; }
+.stats i { font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+.stats b { font-family: var(--serif); font-weight: 500; font-size: clamp(36px, 3.4vw, 48px); line-height: 1; color: var(--white); font-variant-numeric: lining-nums; white-space: nowrap; margin: 16px 0 14px; }
 .stats b::after { content: ""; display: block; width: 28px; height: 1px; background: var(--gold); margin: 18px auto 0; }
-.stats span { font-size: 14px; line-height: 1.5; color: var(--ink-muted); max-width: 22ch; }
+.stats span { font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 22ch; }
 
 /* Rates and "On board": boxed rows */
 .ydlg__prices, .ydlg__meta {
@@ -698,15 +701,15 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .apoints span { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-right: 6px; }
 .apoints i { font-style: normal; font-size: 14px; color: var(--text); padding: 8px 16px; border: 1px solid rgba(201, 165, 100, .45); border-radius: var(--pill); background: var(--navy-2); }
 
-/* Contact details: one white card with lined rows */
+/* Contact details: one navy card with lined rows */
 .contact__list {
   list-style: none; padding: 0; margin: 36px 0 0; display: grid; gap: 1px;
-  background: rgba(127, 81, 25, .2); border: 1px solid rgba(127, 81, 25, .28); border-radius: 18px; overflow: hidden;
-  box-shadow: 0 20px 44px rgba(11, 30, 39, .07);
+  background: rgba(201, 165, 100, .3); border: 1px solid rgba(201, 165, 100, .42); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, .25);
 }
-.contact__list li { display: flex; align-items: center; gap: 18px; padding: 16px 22px; background: var(--white); color: var(--ink); min-width: 0; }
+.contact__list li { display: flex; align-items: center; gap: 18px; padding: 16px 22px; background: var(--navy); color: var(--text); min-width: 0; }
 .contact__list li a { overflow-wrap: anywhere; }
-.contact__list span { width: 96px; flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-dark); }
+.contact__list span { width: 96px; flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
 
 /* The popup column is narrow: label above value, like phones */
 .ydlg__info .ydlg__meta { grid-template-columns: minmax(0, 1fr); }
