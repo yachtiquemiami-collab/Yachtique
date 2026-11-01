@@ -1,6 +1,6 @@
-// GET/POST /api/decide  ·  Accept or Decline an enquiry from the new-enquiry email.
+// GET/POST /api/decide  ·  Accept or Decline an inquiry from the new-enquiry email.
 //
-//   GET  ?ref=YQ-1042&a=accept|decline&t=CODE  -> shows the enquiry and ONE confirm button.
+//   GET  ?ref=YQ-1042&a=accept|decline&t=CODE  -> shows the inquiry and ONE confirm button.
 //        Opening never changes anything: mail apps and link scanners open every link on their own.
 //        Accept also shows the charter price (prefilled from the website rates, editable) and the gratuity
 //        (18%, or none when the yacht includes it); Florida sales tax is added and the client's email gets
@@ -17,7 +17,7 @@ const GRATUITY_OPTIONS = [0, 15, 18, 20];
 
 export default async (req) => {
   if (!Netlify.env.get("SHEETS_WEBHOOK_URL") || !Netlify.env.get("SHEETS_SECRET")) {
-    return page("Not available", `<h1>Not available</h1><p>The enquiries sheet is not connected.</p>`, 503);
+    return page("Not available", `<h1>Not available</h1><p>The inquiries sheet is not connected.</p>`, 503);
   }
   const secret = Netlify.env.get("SHEETS_SECRET");
 
@@ -31,7 +31,7 @@ export default async (req) => {
     ref = String(q.get("ref") || ""); a = String(q.get("a") || ""); t = String(q.get("t") || "");
   }
   if (!RX_REF.test(ref) || (a !== "accept" && a !== "decline") || !tokenOk(ref, t, secret)) {
-    return page("Link not valid", `<h1>This link is not valid</h1><p>Open the enquiry from the email again, or change its Status in the Enquiries sheet.</p>`, 403);
+    return page("Link not valid", `<h1>This link is not valid</h1><p>Open the inquiry from the email again, or change its Status in the Enquiries sheet.</p>`, 403);
   }
 
   if (req.method !== "POST") {
@@ -49,9 +49,9 @@ export default async (req) => {
     const chose = String(q.gratuityChoice || "");
     const picked = parseInt(chose, 10);
     const tip = GRATUITY_OPTIONS.includes(picked) ? picked : GRATUITY;
-    return page(accept ? "Accept enquiry" : "Decline enquiry", `
+    return page(accept ? "Accept inquiry" : "Decline inquiry", `
       <p class="eyebrow">${esc(ref)} · ${addPrice ? "Payment link" : accept ? "Accept" : "Decline"}</p>
-      <h1>${addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${accept ? "Accept" : "Decline"} ${esc(q.name || "this enquiry")}?`}</h1>
+      <h1>${addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${accept ? "Accept" : "Decline"} ${esc(q.name || "this inquiry")}?`}</h1>
       ${summary(q)}
       <form method="POST" action="/api/decide" class="form dform">
         <input type="hidden" name="ref" value="${esc(ref)}"><input type="hidden" name="a" value="${a}"><input type="hidden" name="t" value="${esc(t)}">
@@ -108,7 +108,7 @@ export default async (req) => {
 
 export const config = { path: "/api/decide" };
 
-// The website price for the yacht and duration on the enquiry (0 when there isn't one)
+// The website price for the yacht and duration on the inquiry (0 when there isn't one)
 async function sitePrice(req, q) {
   const name = String(q.yacht || "").replace(/\s*\(.*$/, "").trim().toLowerCase();
   if (!name || /help me choose/.test(name)) return { price: 0 };
@@ -155,7 +155,7 @@ function decided(q, already, emailed) {
         : already
           ? "Nothing changed and no email was sent again."
           : emailed ? `${esc(name)} has been emailed${es ? " in Spanish" : ""}${q.payUrl ? " with the payment link" : ""}. The Status in the sheet is now ${esc(q.status)}.`
-            : `The Status in the sheet is now ${esc(q.status)}. No email was sent (no valid email address on the enquiry).`}</p>
+            : `The Status in the sheet is now ${esc(q.status)}. No email was sent (no valid email address on the inquiry).`}</p>
       ${phone && !paid ? `<a class="btn btn--wa btn--block" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Message ${esc(name)} on WhatsApp</a>` : ""}
       ${q.payUrl && !paid ? `<p class="dswitch"><a href="${esc(q.payUrl)}" target="_blank" rel="noopener">Open the client's payment page</a></p>` : ""}`;
 }

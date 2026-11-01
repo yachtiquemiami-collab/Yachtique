@@ -232,7 +232,7 @@ var REVIEWS = [];
   var current = null, currentIndex = -1, month = null;
 
   function calendarHtml(y) {
-    if (!y.busy) return '<p class="muted ydlg__small">' + t("y.noavail", "Live availability for this yacht is confirmed on enquiry.") + "</p>";
+    if (!y.busy) return '<p class="muted ydlg__small">' + t("y.noavail", "Live availability for this yacht is confirmed on inquiry.") + "</p>";
     var first = new Date(month.getFullYear(), month.getMonth(), 1);
     var days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     var today = ymd(new Date());
@@ -292,7 +292,7 @@ var REVIEWS = [];
         "</ul>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
         "<h4>" + t("y.rates", "Rates") + '</h4><ul class="ydlg__prices">' + prices + "</ul>" +
-        '<p class="muted ydlg__small">' + t("y.popnote", "Starting rates. Sales tax and gratuity may apply. Your final quote is confirmed on enquiry.") + "</p>" +
+        '<p class="muted ydlg__small">' + t("y.popnote", "Starting rates. Sales tax and gratuity may apply. Your final quote is confirmed on inquiry.") + "</p>" +
         '<dl class="ydlg__meta">' +
           "<dt>" + t("y.departs", "Departs from") + "</dt><dd>" + list(y.locations) + "</dd>" +
           "<dt>" + t("f.crew", "Crew") + "</dt><dd>" + list(y.crew) + "</dd>" +
@@ -302,7 +302,7 @@ var REVIEWS = [];
         '<div class="ydlg__ctas">' +
           '<button type="button" class="btn btn--ghost btn--block save save--btn" data-save="' + esc(y.handle) + '" aria-pressed="false">' + HEART + '<span class="save__txt">' + t("save.cta", "Save") + "</span></button>" +
           '<a href="/yachts/' + esc(y.handle) + '" class="btn btn--ghost btn--block">' + t("y.full", "View full details") + "</a>" +
-          '<a href="#contact" class="btn btn--gold btn--block js-enquire">' + t("y.enquire", "Enquire about") + " " + esc(y.name) + "</a>" +
+          '<a href="#contact" class="btn btn--gold btn--block js-enquire">' + t("y.enquire", "Inquire about") + " " + esc(y.name) + "</a>" +
           (WHATSAPP_NUMBER ? '<a href="' + esc(waLink(waText)) + '" data-yacht="' + esc(y.handle) + '" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>' + t("wa.ask", "Ask on WhatsApp") + "</a>" : "") +
         "</div>" +
       "</div>";
@@ -344,7 +344,7 @@ var REVIEWS = [];
     var y = fleet.filter(function (x) { return x.handle === handle; })[0];
     var state = y && y.busy && formDate.value ? y.busy[formDate.value] : null;
     dateNote.textContent = state === "full"
-      ? t("y.booked", "{y} is booked on this date. Send your enquiry anyway and we'll suggest similar yachts.", { y: y.name })
+      ? t("y.booked", "{y} is booked on this date. Send your inquiry anyway and we'll suggest similar yachts.", { y: y.name })
       : state === "partial"
         ? t("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name })
         : "";

@@ -99,7 +99,7 @@ function body(days, rows, freeWeekend, from) {
 
 <div class="mobilebar">
   <a href="${esc(wa)}" data-wa-es="Hola Yachtique, me gustaría un yate esta semana." target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
-  <a href="/#contact" class="mobilebar__gold" data-i18n="mb.enquire">Enquire</a>
+  <a href="/#contact" class="mobilebar__gold" data-i18n="mb.enquire">Inquire</a>
 </div>
 <script src="/assets/js/available.js?v=${V}" defer></script>`;
 }

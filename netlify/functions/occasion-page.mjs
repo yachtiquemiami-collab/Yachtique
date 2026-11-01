@@ -117,6 +117,6 @@ function body(occ, yachts, from) {
 
 <div class="mobilebar">
   <a href="${esc(wa)}" data-wa-es="${esc(occ.es.wa)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
-  <a href="${plan}" class="mobilebar__gold" data-i18n="mb.enquire">Enquire</a>
+  <a href="${plan}" class="mobilebar__gold" data-i18n="mb.enquire">Inquire</a>
 </div>`;
 }
