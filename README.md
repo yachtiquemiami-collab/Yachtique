@@ -97,6 +97,8 @@ Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. T
 
 Paid by Zelle instead? Nektarios taps **Paid by Zelle?** (on his Accept page, or in the unpaid reminder emails), checks the amount arrived in the Yachtique account and confirms: the row turns Paid (Payment: Zelle) and the client gets the same confirmation and calendar file as a card payment (`markPaidManual` in `apps-script/Code.gs`). Sales tax is owed the same as for a card.
 
+**More time on board.** About an hour before a paid charter ends (it needs a Start time and a duration in hours), the hourly timer emails the client "Want more time?" and sends Yachtique the same link to forward on WhatsApp. The link opens **yachtique.co/extend/YQ-####** (`netlify/functions/extend.mjs`): +1 or +2 hours, priced from the yacht's own rates (the step from the booked duration to the next one, from the client's marina), plus the booking's gratuity % and sales tax. Stripe only **holds** the amount: one tap with the card kept at the first payment, or Stripe Checkout. Nektarios gets an email with **Confirm** (charges the hold) and **Not possible** (releases it); the client is emailed either way. The Sheet keeps it in **Extension** ("+1 hour · $417.92 · Held / Confirmed / Released") and **Extension payment** (Stripe's id). A hold Stripe doesn't charge within 7 days is released by itself.
+
 On the pay page the client can still switch the gratuity to 15, 18 or 20%. The Sheet works out the new Gratuity and Total (`setGratuity` in `apps-script/Code.gs`) before Stripe opens, and the Gratuity choice column shows what they picked.
 
 | Part | Where |

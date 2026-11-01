@@ -22,6 +22,22 @@ export async function sheet(body) {
   return res.json();
 }
 
+// Stripe's API, form-encoded. Throws with Stripe's message when it refuses.
+export async function stripe(key, method, path, params) {
+  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${key}`, ...(params ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
+    body: params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])) : undefined,
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    const e = new Error(`Stripe ${res.status}: ${j.error && j.error.message}`);
+    e.stripe = j.error || {};
+    throw e;
+  }
+  return j;
+}
+
 export function first(q) { return String(q.name || "").trim().split(/\s+/)[0] || ""; }
 
 export function usd(n) {

@@ -12,11 +12,11 @@
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
-  "Departure", "Start time", "Emails sent"];
+  "Departure", "Start time", "Emails sent", "Extension", "Extension payment"];
 // Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
-  DEPARTURE: 23, START: 24, SENT: 25 };
+  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -95,6 +95,7 @@ function doPost(e) {
     if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
     if (body.type === "manualpaid") return json(markPaidManual(String(body.ref || ""), String(body.method || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
+    if (body.type === "extension") return json(recordExtension(String(body.ref || ""), String(body.state || ""), Number(body.hours) || 0, Number(body.amount) || 0, String(body.payment || "")));
     if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
@@ -155,7 +156,7 @@ function decideUrl(ref, a) {
 
 // Older sheets lack the newer columns: add their headers (and the newer statuses) once
 function addNewColumns(sheet) {
-  if (sheet.getRange(1, COL.SENT).getValue() === "Emails sent") return;
+  if (sheet.getRange(1, ENQUIRY_HEADERS.length).getValue() === ENQUIRY_HEADERS[ENQUIRY_HEADERS.length - 1]) return;
   const hadPaid = sheet.getRange(1, COL.PAYMENT).getValue() === "Payment";
   sheet.getRange(1, COL.SOURCE, 1, ENQUIRY_HEADERS.length - COL.SOURCE + 1).setValues([ENQUIRY_HEADERS.slice(COL.SOURCE - 1)])
     .setFontWeight("bold").setBackground("#071820").setFontColor("#E6D0A4");
@@ -179,6 +180,16 @@ function payUrl(ref) {
   return SITE + "/pay/" + encodeURIComponent(ref) + "?t=" + payToken(ref);
 }
 
+// The client's "more time on board" page: its own code, so it can't be used to pay for or decide anything else
+function extToken(ref) {
+  const sig = Utilities.computeHmacSha256Signature("ext:" + String(ref), SECRET);
+  return sig.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("").slice(0, 20);
+}
+
+function extUrl(ref, lang) {
+  return SITE + "/extend/" + encodeURIComponent(ref) + "?t=" + extToken(ref) + (lang === "es" ? "&lang=es" : "");
+}
+
 function cents(n) { return Math.round(Number(n || 0) * 100); }
 
 function usd(n) {
@@ -195,7 +206,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.START).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.EXT_PAY).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -207,6 +218,7 @@ function findEnquiry(ref) {
         gratuityChoice: typeof v[COL.TIP_CHOICE - 1] === "number" ? Math.round(v[COL.TIP_CHOICE - 1] * 100) + "%" : String(v[COL.TIP_CHOICE - 1] || ""),
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
         departure: String(v[COL.DEPARTURE - 1] || "").trim(), payment: String(v[COL.PAYMENT - 1] || ""), start: startTime(v[COL.START - 1]),
+        extension: String(v[COL.EXT - 1] || ""), extPayment: String(v[COL.EXT_PAY - 1] || ""),
       } };
     }
   }
@@ -354,6 +366,118 @@ function markPaidManual(ref, method, price, gratuityPct) {
   }
   return markPaid(ref, cents(total), method);
 }
+
+/* =================== Extra time on board ===================
+   About an hour before the end, the client gets "Want more time?" with a link to yachtique.co/extend/<ref>
+   (netlify/functions/extend.mjs). There they pick +1 or +2 hours; Stripe only HOLDS the amount on their card
+   (one tap with the card saved at the first payment). Nektarios checks with the captain and taps Confirm
+   (the hold is charged) or Not possible (the hold is released, nothing charged) on /api/decide.
+   Extension column: "+1 hour · $380.60 · Held" → "Confirmed" or "Released"; Extension payment: Stripe's id. */
+
+function recordExtension(ref, state, hours, amountCents, payment) {
+  if (["held", "confirmed", "released"].indexOf(state) < 0 || !/^pi_/.test(payment)) return { ok: false, error: "bad request" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let f;
+  try {
+    f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    addNewColumns(f.sheet);
+    const now = f.q.extension;
+    if (state === "held") {
+      if (f.q.extPayment === payment) return { ok: true, already: true, enquiry: f.q };
+      if (!/^(paid|booked)$/i.test(f.q.status)) return { ok: false, error: "not booked" };
+      if (/Held$/.test(now)) return { ok: false, error: "one already waiting" };
+      // A second extension is added after the first, so the record of both stays in the cell
+      f.q.extension = (now ? now + " | " : "") + "+" + hours + (hours === 1 ? " hour" : " hours") + " · " + usd(amountCents / 100) + " · Held";
+      f.q.extPayment = payment;
+      f.sheet.getRange(f.row, COL.EXT, 1, 2).setValues([[f.q.extension, payment]]);
+    } else {
+      if (f.q.extPayment !== payment) return { ok: false, error: "different payment" };
+      if (!/Held$/.test(now)) return { ok: true, already: true, enquiry: f.q };
+      f.q.extension = now.replace(/Held$/, state === "confirmed" ? "Confirmed" : "Released");
+      f.sheet.getRange(f.row, COL.EXT).setValue(f.q.extension);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  const q = f.q, L = q.lang === "es" ? "es" : "en", E = EXT_TXT[L], first = firstName(q);
+  const what = q.extension.split(" | ").pop().split(" · ").slice(0, 2).join(" · ");
+  try {
+    if (state === "held") {
+      sendOwnerExtension(q, what);
+      clientMail(q, E.heldSubject, E.heldPre, eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(E.heldHead(esc(first))) + para(E.heldP(what)),
+        E.heldHead(first) + "\n\n" + E.heldP(what).replace(/<[^>]+>/g, ""));
+    } else if (state === "confirmed") {
+      clientMail(q, E.okSubject, E.okPre, eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(E.okHead(esc(first))) + para(E.okP(what)),
+        E.okHead(first) + "\n\n" + E.okP(what).replace(/<[^>]+>/g, ""));
+    } else {
+      clientMail(q, E.noSubject, E.noPre, eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(E.noHead(esc(first))) + para(E.noP(what)),
+        E.noHead(first) + "\n\n" + E.noP(what).replace(/<[^>]+>/g, ""));
+    }
+  } catch (err) {
+    console.error("Extension email failed: " + err);
+  }
+  return { ok: true, enquiry: q };
+}
+
+/** Yachtique: a client asked for more time; the money is held until the captain says yes. */
+function sendOwnerExtension(q, what) {
+  const phone = String(q.phone || "").replace(/\D/g, "");
+  const inner = eyebrow("More time requested &middot; " + esc(q.ref)) + heading(esc(q.name || "Client") + " wants " + esc(what.split(" · ")[0])) +
+    para("Stripe is holding <b>" + esc(what.split(" · ")[1]) + "</b> on their card. Nothing is charged until you confirm.", "margin-bottom:22px") + rule() +
+    factsBox(q) + eyebrow("Next") +
+    steps([["Ask the captain or YCN now.", "Is the yacht free for the extra time?"], ["Yes:", "tap Confirm. The card is charged and the client gets a confirmation."],
+      ["No:", "tap Not possible. The hold is released and the client is told, nothing charged."]]) +
+    buttons(button(decideUrl(q.ref, "extok"), "Confirm", true) + button(decideUrl(q.ref, "extno"), "Not possible", false) +
+      (phone ? button("https://wa.me/" + phone, "WhatsApp " + (firstName(q) || "client"), false) : ""));
+  sendAlert({ name: "Yachtique", subject: q.ref + " · MORE TIME " + what + " · " + (q.name || "client") + " · confirm with the captain",
+    htmlBody: layout((q.name || "A client") + " wants more time: " + what, inner),
+    body: (q.name || "A client") + " asked for " + what + " (" + q.ref + "). Confirm: " + decideUrl(q.ref, "extok") + "\nNot possible: " + decideUrl(q.ref, "extno") });
+}
+
+/** The offer, about an hour before the end: a link to add time. Yachtique gets the same link to send on WhatsApp. */
+function sendClientExtendOffer(q) {
+  const L = q.lang === "es" ? "es" : "en", E = EXT_TXT[L], first = firstName(q), link = extUrl(q.ref, L);
+  const inner = eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(E.offerHead(esc(first))) + para(E.offerP(yachtName(q))) +
+    buttons(button(link, E.offerBtn, true));
+  return clientMail(q, E.offerSubject, E.offerPre, inner, E.offerHead(first) + "\n\n" + E.offerP(yachtName(q)).replace(/<[^>]+>/g, "") + "\n\n" + link);
+}
+
+const EXT_TXT = {
+  en: {
+    eyebrow: "On board",
+    offerSubject: "Want more time on the water? · Yachtique", offerPre: "Add an hour or two in one tap.",
+    offerHead: (n) => "Enjoying the day" + (n ? ", " + n : "") + "?",
+    offerP: (y) => "If you'd like more time" + (y ? " on <b>" + y + "</b>" : "") + ", add an hour or two below. Your card is only charged once the captain confirms the yacht is free.",
+    offerBtn: "Add more time",
+    heldSubject: "We're checking with the captain · Yachtique", heldPre: "Nothing is charged until the captain confirms.",
+    heldHead: (n) => "Request received" + (n ? ", " + n : "") + ".",
+    heldP: (w) => "You asked for <b>" + w + "</b>. We're checking with the captain now. The amount is only held on your card, and it's charged once the extra time is confirmed.",
+    okSubject: "Your extra time is confirmed · Yachtique", okPre: "Enjoy the rest of your day.",
+    okHead: (n) => "Confirmed" + (n ? ", " + n : "") + ". Enjoy!",
+    okP: (w) => "Your extra time is confirmed: <b>" + w + "</b>, charged to your card. The captain knows.",
+    noSubject: "About your extra time · Yachtique", noPre: "Nothing was charged.",
+    noHead: (n) => "Sorry" + (n ? ", " + n : "") + ".",
+    noP: (w) => "The yacht isn't free for the extra time you asked for (<b>" + w + "</b>). The hold on your card has been released, and nothing was charged.",
+  },
+  es: {
+    eyebrow: "A bordo",
+    offerSubject: "¿Quiere más tiempo en el agua? · Yachtique", offerPre: "Añada una o dos horas con un toque.",
+    offerHead: (n) => "¿Disfrutando del día" + (n ? ", " + n : "") + "?",
+    offerP: (y) => "Si desea más tiempo" + (y ? " en <b>" + y + "</b>" : "") + ", añada una o dos horas abajo. Solo se cobra a su tarjeta cuando el capitán confirma que el yate está libre.",
+    offerBtn: "Añadir tiempo",
+    heldSubject: "Lo estamos consultando con el capitán · Yachtique", heldPre: "No se cobra nada hasta que el capitán confirme.",
+    heldHead: (n) => "Solicitud recibida" + (n ? ", " + n : "") + ".",
+    heldP: (w) => "Usted pidió <b>" + w + "</b>. Lo estamos consultando ahora con el capitán. El importe solo queda retenido en su tarjeta y se cobra cuando se confirme el tiempo extra.",
+    okSubject: "Su tiempo extra está confirmado · Yachtique", okPre: "Disfrute del resto del día.",
+    okHead: (n) => "Confirmado" + (n ? ", " + n : "") + ". ¡Disfrute!",
+    okP: (w) => "Su tiempo extra está confirmado: <b>" + w + "</b>, cobrado a su tarjeta. El capitán ya lo sabe.",
+    noSubject: "Sobre su tiempo extra · Yachtique", noPre: "No se cobró nada.",
+    noHead: (n) => "Lo sentimos" + (n ? ", " + n : "") + ".",
+    noP: (w) => "El yate no está libre para el tiempo extra que pidió (<b>" + w + "</b>). Se liberó la retención en su tarjeta y no se cobró nada.",
+  },
+};
 
 /* =================== Website insights ===================
    /api/track sends one anonymous event per page view or click (no names, no IPs).
@@ -1013,6 +1137,24 @@ function runAutomations(q, now, daytime) {
       sendOwnerNote(q, "Add the departure details", "The charter is tomorrow, but the sheet has no " + (!q.departure && !q.start ? "Departure or Start time" : !q.departure ? "Departure" : "Start time") +
         ". Fill " + (!q.departure && !q.start ? "them" : "it") + " in and the client gets the details within the hour.", [["Departure:", "the marina or address (from YCN)."], ["Start time:", "for example 2pm."]]);
       markSent(q, "day1missing");
+    }
+  }
+
+  // About an hour before the end: "Want more time?" (any hour: they are on board). Needs Start time and a duration in hours.
+  const hrs = parseInt(q.duration, 10);
+  if (d === 0 && q.start && hrs > 0 && !has("ext")) {
+    const p = q.start.split(":").map(Number);
+    const mins = Number(Utilities.formatDate(now, TZ, "H")) * 60 + Number(Utilities.formatDate(now, TZ, "m"));
+    const left = p[0] * 60 + p[1] + hrs * 60 - mins;
+    if (left <= 90 && left >= 20) {
+      const emailed = sendClientExtendOffer(q);
+      const phone = String(q.phone || "").replace(/\D/g, "");
+      const wa = (q.lang === "es" ? "¿Quiere más tiempo en el yate? Añádalo aquí: " : "Want more time on the yacht? Add it here: ") + extUrl(q.ref, q.lang);
+      sendOwnerNote(q, "More time offer sent", (emailed ? esc(q.name || "The client") + " got the \u201cWant more time?\u201d email." : "No valid email for the client.") +
+        " The charter ends in about " + Math.round(left / 10) * 10 + " minutes. Send the link on WhatsApp too, so they see it on board." +
+        (phone ? ' <a href="https://wa.me/' + phone + "?text=" + encodeURIComponent(wa) + '" style="color:' + C.gold + '">Send it on WhatsApp</a>' : ""),
+        [["If they ask for more time,", "you get an email with Confirm and Not possible."]]);
+      markSent(q, "ext");
     }
   }
 
