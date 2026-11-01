@@ -164,3 +164,7 @@ A private page per client request, instead of a PDF. Not in Google, not in the s
 3. Send the client **yachtique.co/p/ID**. Photos, specs and live availability come from the fleet automatically; edits show within a minute.
 
 Each "Choose" button opens WhatsApp with the yacht, length and price written. Opens and choices are counted in the Insights tab.
+
+## Photo credits
+
+The area photos on the Locations page (`assets/img/locations/`) are from Unsplash, under the Unsplash License (free for commercial use, no credit required): Miami Beach `photo-1589083130544`, Key Biscayne `photo-1648319573718`, Fort Lauderdale `photo-1766373165231`, Palm Beach County `photo-1712026258060`, Key West `photo-1617202830798`, the Bahamas `photo-1615839901889` (unsplash.com/photos/...). Replace them with your own photos any time; keep the file names.

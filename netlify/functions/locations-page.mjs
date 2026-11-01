@@ -77,7 +77,10 @@ function body(areas, totalMarinas) {
     <div class="lcards">
       ${areas.map(({ area, yachts, cover, from, marinas }) => `
       <article class="lcard">
-        <a class="lcard__media" href="/yacht-charter/${area.slug}">${cover && cover[0] ? `<img src="${esc(sized(cover[0], 1000))}" alt="Yacht charter in ${esc(area.name)}" loading="lazy">` : ""}</a>
+        <a class="lcard__media" href="/yacht-charter/${area.slug}">
+          <img src="${esc(area.photo)}" alt="${esc(area.photoAlt)}" loading="lazy" width="1400" height="1050">
+          ${cover && cover[0] ? `<span class="lcard__yacht"><img src="${esc(sized(cover[0], 400))}" alt="A yacht that departs from ${esc(area.short)}" loading="lazy"></span>` : ""}
+        </a>
         <div class="lcard__body">
           <h2><a href="/yacht-charter/${area.slug}" data-i18n="l.name.${area.slug}">${esc(area.name)}</a></h2>
           <p data-i18n="l.intro.${area.slug}">${esc(area.intro)}</p>
