@@ -10,10 +10,12 @@
 //
 //   a=zelle                                     -> the client paid by Zelle: one confirm button marks the row Paid
 //        and sends the same emails as a card payment (price and gratuity asked first if there isn't a total yet).
+//   a=extok | a=extno                           -> the client asked for more time on board (extend.mjs) and Stripe holds the
+//        amount: Confirm charges the hold, Not possible releases it. The Sheet emails the client either way.
 //
 // t is an HMAC of the ref with SHEETS_SECRET (the Apps Script builds the same code for the email buttons).
 import { esc, loadFleet } from "../lib/site.mjs";
-import { RX_REF, tokenOk, sheet, first, usd, cardPage as page } from "../lib/card.mjs";
+import { RX_REF, tokenOk, sheet, first, usd, cardPage as page, stripe } from "../lib/card.mjs";
 
 const GRATUITY = 18;                         // % preselected on the Accept page
 const GRATUITY_OPTIONS = [0, 15, 18, 20];
@@ -33,7 +35,7 @@ export default async (req) => {
     const q = new URL(req.url).searchParams;
     ref = String(q.get("ref") || ""); a = String(q.get("a") || ""); t = String(q.get("t") || "");
   }
-  if (!RX_REF.test(ref) || !["accept", "decline", "zelle"].includes(a) || !tokenOk(ref, t, secret)) {
+  if (!RX_REF.test(ref) || !["accept", "decline", "zelle", "extok", "extno"].includes(a) || !tokenOk(ref, t, secret)) {
     return page("Link not valid", `<h1>This link is not valid</h1><p>Open the inquiry from the email again, or change its Status in the Enquiries sheet.</p>`, 403);
   }
 
@@ -42,6 +44,7 @@ export default async (req) => {
     if (!r || !r.ok) return page("Not found", `<h1>We couldn't find ${esc(ref)}</h1><p>Check the Enquiries sheet: the row may have been moved or deleted.</p>`, 404);
     const q = r.enquiry;
     if (a === "zelle") return zellePage(q, t, Number(r.taxRate) || 0, r.taxGratuity, await sitePrice(req, q));
+    if (a === "extok" || a === "extno") return extensionPage(q, a, t);
     // Accepted earlier without a price: Accept again to send the payment link
     const addPrice = a === "accept" && /^accepted$/i.test(q.status) && !q.total;
     if (!addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
@@ -80,6 +83,27 @@ export default async (req) => {
       </form>
       ${addPrice ? "" : `<p class="dswitch"><a href="?ref=${encodeURIComponent(ref)}&a=${accept ? "decline" : "accept"}&t=${encodeURIComponent(t)}">${accept ? "Decline instead" : "Accept instead"}</a></p>`}
       ${accept ? priceScript() : ""}`);
+  }
+
+  if (a === "extok" || a === "extno") {
+    const r = await sheet({ type: "lookup", ref }).catch(() => null);
+    const q = r && r.ok && r.enquiry;
+    if (!q) return page("Not found", `<h1>We couldn't find ${esc(ref)}</h1>`, 404);
+    const last = lastExtension(q);
+    if (!last.held) return extensionPage(q, a, t);
+    const key = Netlify.env.get("STRIPE_SECRET_KEY");
+    const ok = a === "extok";
+    // Charge or let go of the hold first; the Sheet only changes when Stripe did it
+    const pi = key ? await stripe(key, "POST", `payment_intents/${encodeURIComponent(q.extPayment)}/${ok ? "capture" : "cancel"}`).catch((e) => ({ error: e.message })) : { error: "Stripe is not connected" };
+    if (!pi || pi.error || pi.status !== (ok ? "succeeded" : "canceled")) {
+      return page("Not done", `<h1>That didn't go through</h1><p class="dnote">Stripe said: ${esc((pi && pi.error) || (pi && pi.status) || "no answer")}. Nothing changed in the sheet and no email was sent. Check the payment in Stripe.</p>`, 502);
+    }
+    const x = await sheet({ type: "extension", ref, state: ok ? "confirmed" : "released", payment: q.extPayment }).catch(() => null);
+    return page(ok ? "Confirmed" : "Released", `
+      <p class="eyebrow">${esc(ref)} · More time</p>
+      <div class="dicon ${ok ? "is-ok" : "is-no"}">${ok ? "✓" : "✕"}</div>
+      <h1>${ok ? `${esc(last.what)} confirmed` : "Released"}</h1>
+      <p class="dnote">${ok ? `${esc(first(q) || "The client")}'s card was charged ${esc(last.amount)}. Tell the captain.` : `The hold was released, nothing was charged.`}${x && x.ok ? ` ${esc(first(q) || "The client")} has been emailed.` : " The sheet didn't update: set the Extension cell by hand and message the client."}</p>`);
   }
 
   if (a === "zelle") {
@@ -151,6 +175,32 @@ function decided(q, already, emailed, t) {
       ${phone && !paid ? `<a class="btn btn--wa btn--block" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Message ${esc(name)} on WhatsApp</a>` : ""}
       ${q.payUrl && !paid ? `<p class="dswitch"><a href="${esc(q.payUrl)}" target="_blank" rel="noopener">Open the client's payment page</a></p>` : ""}
       ${ok && !paid && t ? `<p class="dswitch"><a href="${zelleUrl(q.ref, t)}">Paid by Zelle? Mark it paid</a></p>` : ""}`;
+}
+
+// The newest request in the Extension cell: "+1 hour · $380.60 · Held"
+function lastExtension(q) {
+  const [what = "", amount = "", state = ""] = String(q.extension || "").split(" | ").pop().split(" · ");
+  return { what, amount, state, held: state === "Held" && /^pi_/.test(String(q.extPayment || "")) };
+}
+
+// Confirm or Not possible for more time on board: what is held, and one button
+function extensionPage(q, a, t) {
+  const last = lastExtension(q);
+  if (!last.held) {
+    return page("Nothing waiting", `<p class="eyebrow">${esc(q.ref)} · More time</p><h1>Nothing waiting</h1><p class="dnote">${last.state ? `The last request (${esc(last.what)}, ${esc(last.amount)}) is already ${esc(last.state.toLowerCase())}.` : "This charter has no request for more time."}</p>`);
+  }
+  const ok = a === "extok";
+  return page(ok ? "Confirm more time" : "Release the hold", `
+      <p class="eyebrow">${esc(q.ref)} · More time</p>
+      <h1>${ok ? `Confirm ${esc(last.what)} for ${esc(first(q) || "the client")}?` : `Not possible for ${esc(first(q) || "the client")}?`}</h1>
+      ${summary(q)}
+      <ul class="dsum"><li><span>Extra time</span><b>${esc(last.what)}</b></li><li class="dsum__total"><span>Held on the card</span><b>${esc(last.amount)}</b></li></ul>
+      <form method="POST" action="/api/decide" class="form dform">
+        <input type="hidden" name="ref" value="${esc(q.ref)}"><input type="hidden" name="a" value="${a}"><input type="hidden" name="t" value="${esc(t)}">
+        <p class="dnote">${ok ? "Only after the captain or YCN said yes. The card is charged now and the client gets a confirmation." : "The hold is released, nothing is charged, and the client is told the yacht isn't free."}</p>
+        <button type="submit" class="btn ${ok ? "btn--gold" : "btn--decline"} btn--block">${ok ? `Confirm and charge ${esc(last.amount)}` : "Release the hold"}</button>
+      </form>
+      <p class="dswitch"><a href="/api/decide?ref=${encodeURIComponent(q.ref)}&a=${ok ? "extno" : "extok"}&t=${encodeURIComponent(t)}">${ok ? "Not possible instead" : "Confirm instead"}</a></p>`);
 }
 
 function zelleUrl(ref, t) { return `/api/decide?ref=${encodeURIComponent(ref)}&a=zelle&t=${encodeURIComponent(t)}`; }

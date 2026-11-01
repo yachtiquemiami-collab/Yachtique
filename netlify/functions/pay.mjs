@@ -8,13 +8,13 @@
 //
 // Netlify environment variables: STRIPE_SECRET_KEY (plus SHEETS_WEBHOOK_URL and SHEETS_SECRET).
 import { WA, esc, payBadges } from "../lib/site.mjs";
-import { RX_REF, tokenOk, sheet, first, usd, cardPage } from "../lib/card.mjs";
+import { RX_REF, tokenOk, sheet, first, usd, cardPage, stripe } from "../lib/card.mjs";
 
 const T = {
   en: {
     eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
     date: "Date", guests: "Guests", duration: "Duration", yacht: "Yacht", flexible: "Flexible", help: "To confirm",
-    secure: "Secure checkout by Stripe", tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
+    secure: "Secure checkout by Stripe", saved: "Your card is kept securely by Stripe for this booking, so you can add time on board with one tap.", tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
     pay: (a) => `Pay ${a}`, safe: "Card, Apple Pay or Google Pay, processed securely by Stripe. Yachtique never sees your card number.",
     terms: "By paying you agree to our", termsLink: "booking terms",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
@@ -30,7 +30,7 @@ const T = {
   es: {
     eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
     date: "Fecha", guests: "Invitados", duration: "Duración", yacht: "Yate", flexible: "Flexible", help: "Por confirmar",
-    secure: "Pago seguro con Stripe", tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
+    secure: "Pago seguro con Stripe", saved: "Stripe guarda su tarjeta de forma segura para esta reserva, así puede añadir tiempo a bordo con un toque.", tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
     pay: (a) => `Pagar ${a}`, safe: "Tarjeta, Apple Pay o Google Pay, procesado de forma segura por Stripe. Yachtique nunca ve el número de su tarjeta.",
     terms: "Al pagar acepta nuestras", termsLink: "condiciones de reserva",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
@@ -121,6 +121,9 @@ export default async (req, context) => {
       "payment_intent_data[description]": `${ref} · ${q.name} · ${what}`,
       success_url: `${self}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: self,
+      // The card stays with Stripe for this booking, so adding time on board is one tap (extend.mjs)
+      customer_creation: "always",
+      "payment_intent_data[setup_future_usage]": "off_session",
     };
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.email)) p.customer_email = q.email;
     // Gratuity and sales tax as their own lines, so the receipt shows them
@@ -149,22 +152,11 @@ export default async (req, context) => {
         <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>
       ${payBadges(S.secure)}
-      <p class="dhint dsafe">${S.safe}</p>
+      <p class="dhint dsafe">${S.safe} ${S.saved}</p>
       <p class="dswitch">${S.terms} <a href="/terms.html${L === "es" ? "?lang=es" : ""}" target="_blank" rel="noopener">${S.termsLink}</a>.</p>`);
 };
 
 export const config = { path: "/pay/:ref" };
-
-async function stripe(key, method, path, params) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${key}`, ...(params ? { "Content-Type": "application/x-www-form-urlencoded" } : {}) },
-    body: params ? new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])) : undefined,
-  });
-  const j = await res.json();
-  if (!res.ok) throw new Error(`Stripe ${res.status}: ${j.error && j.error.message}`);
-  return j;
-}
 
 function rateLabel(rate) { return +((Number(rate) || 0) * 100).toFixed(2); }
 function gratPct(q) { return Math.round((Number(q.gratuity) || 0) / q.price * 100); }
