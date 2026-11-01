@@ -275,7 +275,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101f";
+export const V = "20261101g";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
