@@ -437,11 +437,12 @@ function sendOwnerExtension(q, what) {
 }
 
 /** The offer, about an hour before the end: a link to add time. Yachtique gets the same link to send on WhatsApp. */
-function sendClientExtendOffer(q) {
+// early: the one about an hour before the start, so they have the link for the whole charter
+function sendClientExtendOffer(q, early) {
   const L = q.lang === "es" ? "es" : "en", E = EXT_TXT[L], first = firstName(q), link = extUrl(q.ref, L);
-  const inner = eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(E.offerHead(esc(first))) + para(E.offerP(yachtName(q))) +
-    buttons(button(link, E.offerBtn, true));
-  return clientMail(q, E.offerSubject, E.offerPre, inner, E.offerHead(first) + "\n\n" + E.offerP(yachtName(q)).replace(/<[^>]+>/g, "") + "\n\n" + link);
+  const head = early ? E.earlyHead(first) : E.offerHead(first), p = early ? E.earlyP(yachtName(q)) : E.offerP(yachtName(q));
+  const inner = eyebrow(E.eyebrow + " &middot; " + esc(q.ref)) + heading(esc(head)) + para(p) + buttons(button(link, E.offerBtn, true));
+  return clientMail(q, early ? E.earlySubject : E.offerSubject, early ? E.earlyPre : E.offerPre, inner, head + "\n\n" + p.replace(/<[^>]+>/g, "") + "\n\n" + link);
 }
 
 const EXT_TXT = {
@@ -451,6 +452,9 @@ const EXT_TXT = {
     offerHead: (n) => "Enjoying the day" + (n ? ", " + n : "") + "?",
     offerP: (y) => "If you'd like more time" + (y ? " on <b>" + y + "</b>" : "") + ", add an hour or two below. Your card is only charged once the captain confirms the yacht is free.",
     offerBtn: "Add more time",
+    earlySubject: "Your charter today: add more time anytime · Yachtique", earlyPre: "Keep this link for your day on the water.",
+    earlyHead: (n) => "See you on board soon" + (n ? ", " + n : "") + ".",
+    earlyP: (y) => "Having too much fun to head back? Add an hour or two anytime during your charter" + (y ? " on <b>" + y + "</b>" : "") + " with the button below. It works until your charter ends, and your card is only charged once the captain confirms.",
     heldSubject: "We're checking with the captain · Yachtique", heldPre: "Nothing is charged until the captain confirms.",
     heldHead: (n) => "Request received" + (n ? ", " + n : "") + ".",
     heldP: (w) => "You asked for <b>" + w + "</b>. We're checking with the captain now. The amount is only held on your card, and it's charged once the extra time is confirmed.",
@@ -467,6 +471,9 @@ const EXT_TXT = {
     offerHead: (n) => "¿Disfrutando del día" + (n ? ", " + n : "") + "?",
     offerP: (y) => "Si desea más tiempo" + (y ? " en <b>" + y + "</b>" : "") + ", añada una o dos horas abajo. Solo se cobra a su tarjeta cuando el capitán confirma que el yate está libre.",
     offerBtn: "Añadir tiempo",
+    earlySubject: "Su alquiler de hoy: añada más tiempo cuando quiera · Yachtique", earlyPre: "Guarde este enlace para su día en el agua.",
+    earlyHead: (n) => "Nos vemos pronto a bordo" + (n ? ", " + n : "") + ".",
+    earlyP: (y) => "¿Lo están pasando tan bien que no quieren volver? Añada una o dos horas cuando quiera durante su alquiler" + (y ? " en <b>" + y + "</b>" : "") + " con el botón de abajo. Funciona hasta que termina su alquiler y solo se cobra a su tarjeta cuando el capitán lo confirma.",
     heldSubject: "Lo estamos consultando con el capitán · Yachtique", heldPre: "No se cobra nada hasta que el capitán confirme.",
     heldHead: (n) => "Solicitud recibida" + (n ? ", " + n : "") + ".",
     heldP: (w) => "Usted pidió <b>" + w + "</b>. Lo estamos consultando ahora con el capitán. El importe solo queda retenido en su tarjeta y se cobra cuando se confirme el tiempo extra.",
@@ -1140,11 +1147,20 @@ function runAutomations(q, now, daytime) {
     }
   }
 
-  // About an hour before the end: "Want more time?" (any hour: they are on board). Needs Start time and a duration in hours.
+  // More time on board: the link about an hour before the start (it works until the charter ends), and
+  // "Want more time?" about an hour before the end (any hour: they are on board). Needs Start time and a duration in hours.
   const hrs = parseInt(q.duration, 10);
-  if (d === 0 && q.start && hrs > 0 && !has("ext")) {
-    const p = q.start.split(":").map(Number);
-    const mins = Number(Utilities.formatDate(now, TZ, "H")) * 60 + Number(Utilities.formatDate(now, TZ, "m"));
+  const startAt = q.start ? q.start.split(":").map(Number) : null;
+  const mins = Number(Utilities.formatDate(now, TZ, "H")) * 60 + Number(Utilities.formatDate(now, TZ, "m"));
+  if (d === 0 && startAt && hrs > 0 && !has("ext0")) {
+    const toStart = startAt[0] * 60 + startAt[1] - mins;
+    if (toStart <= 90 && toStart >= 20) {
+      sendClientExtendOffer(q, true);
+      markSent(q, "ext0");
+    }
+  }
+  if (d === 0 && startAt && hrs > 0 && !has("ext")) {
+    const p = startAt;
     const left = p[0] * 60 + p[1] + hrs * 60 - mins;
     if (left <= 90 && left >= 20) {
       const emailed = sendClientExtendOffer(q);

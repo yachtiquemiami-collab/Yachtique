@@ -171,7 +171,7 @@ function yachtBody(y, others) {
   <a href="#book" class="mobilebar__gold js-tobook" data-i18n="mb.request">Request</a>
 </div>
 
-<script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null, durations: y.durations, departures: y.departures || [] }).replace(/</g, "\\u003c")}</script>
+<script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null, busyHours: y.busyHours || null, durations: y.durations, departures: y.departures || [] }).replace(/</g, "\\u003c")}</script>
 <script src="/assets/js/datepicker.js?v=${V}" defer></script>
 <script src="/assets/js/yacht.js?v=${V}" defer></script>`;
 }
