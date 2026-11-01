@@ -943,7 +943,9 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .paybadges__lock { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-light) !important; }
 .paybadges__lock svg { width: 14px; height: 14px; fill: var(--gold); }
 .paybadges ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-.paybadges li { padding: 5px 10px; border: 1px solid rgba(201, 165, 100, .45); border-radius: 6px; background: var(--navy); font-size: 12px; font-weight: 700; color: var(--white); white-space: nowrap; }
+/* Card-style chips: each brand mark in its own colour on white, as at a checkout */
+.paybadges li { display: grid; place-items: center; width: 52px; height: 34px; overflow: hidden; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
+.paybadges li svg { display: block; flex: none; }
 .dsum { list-style: none; margin: 0 0 18px; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--navy); text-align: left; }
 .dsum li { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 12px 18px; font-size: 15px; color: var(--text); }
 .dsum li + li { border-top: 1px solid var(--line); }
