@@ -94,6 +94,7 @@ function doPost(e) {
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
     if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
+    if (body.type === "manualpaid") return json(markPaidManual(String(body.ref || ""), String(body.method || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
@@ -202,7 +203,7 @@ function findEnquiry(ref) {
         price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0, gratuity: Number(v[COL.GRATUITY - 1]) || 0,
         gratuityChoice: typeof v[COL.TIP_CHOICE - 1] === "number" ? Math.round(v[COL.TIP_CHOICE - 1] * 100) + "%" : String(v[COL.TIP_CHOICE - 1] || ""),
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
-        departure: String(v[COL.DEPARTURE - 1] || "").trim(),
+        departure: String(v[COL.DEPARTURE - 1] || "").trim(), payment: String(v[COL.PAYMENT - 1] || ""),
       } };
     }
   }
@@ -316,6 +317,39 @@ function markPaid(ref, amountCents, payment) {
   try { sendOwnerPaid(f.q); } catch (err) { console.error("Paid alert failed: " + err); }
   try { sendClientPaid(f.q); } catch (err) { console.error("Paid email failed: " + err); }
   return { ok: true, enquiry: withPayUrl(f.q) };
+}
+
+// Paid outside Stripe (Zelle): Nektarios confirms it on his /api/decide page. Same result as a card payment:
+// Status Paid, Paid date, Payment = "Zelle", and the same emails (client thank-you with the calendar file, owner alert).
+// Accepted without a price: the price and gratuity typed on that page are saved first, tax added as usual.
+function markPaidManual(ref, method, price, gratuityPct) {
+  method = /^zelle$/i.test(method) ? "Zelle" : "";
+  if (!method) return { ok: false, error: "bad method" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let total;
+  try {
+    const f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    addNewColumns(f.sheet);
+    if (/^paid$/i.test(f.q.status)) return { ok: true, already: true, enquiry: withPayUrl(f.q) };
+    if (/^(declined|lost)$/i.test(f.q.status)) return { ok: false, error: "status " + f.q.status };
+    if (!(f.q.total > 0)) {
+      price = cents(price) / 100;
+      if (!(price > 0)) return { ok: false, error: "no price" };
+      const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
+      const grat = cents(price * pct / 100) / 100;
+      const taxed = TAX_GRATUITY ? price + grat : price;
+      f.q.total = cents(price + grat + taxed * TAX_RATE) / 100;
+      f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[price, f.q.total]]);
+      f.sheet.getRange(f.row, COL.GRATUITY).setValue(grat);
+    }
+    if (!f.sheet.getRange(f.row, COL.DECIDED).getValue()) f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
+    total = f.q.total;
+  } finally {
+    lock.releaseLock();
+  }
+  return markPaid(ref, cents(total), method);
 }
 
 /* =================== Website insights ===================
@@ -777,18 +811,19 @@ function sendClientPaid(q) {
 /** Alert to Yachtique: the client paid, so reserve the yacht with YCN now. `to`/`cc` are only changed by testEmails(). */
 function sendOwnerPaid(q, to, cc) {
   const phone = String(q.phone || "").replace(/\D/g, "");
+  const stripePaid = /^(pi|cs|py|ch)_/.test(String(q.payment || ""));
   const amount = usd(q.amountPaid || q.total);
   const inner =
     eyebrow("Payment received &middot; " + esc(q.ref)) +
     heading(esc(q.name || "Client") + " paid " + amount) +
-    para("Paid by card through Stripe. The Status in the sheet is now <b>Paid</b>.", "margin-bottom:22px") + rule() +
+    para((stripePaid ? "Paid by card through Stripe." : "Paid by " + esc(q.payment) + ", marked on the Accept page.") + " The Status in the sheet is now <b>Paid</b>.", "margin-bottom:22px") + rule() +
     factsBox(q) + priceBox(q, "en") +
     eyebrow("Next") +
     steps([["Reserve with YCN now.", "Message Laurent and pay the $500 broker deposit."], ["Confirm to the client.", "Only after YCN confirms the yacht. Then set the Status to Booked."],
       ["72 hours before.", "Pay YCN the balance. The day before, send the client the marina, time and rules."]]) +
     buttons(
       (phone ? button("https://wa.me/" + phone, "WhatsApp " + (firstName(q) || "client"), true) : "") +
-      button("https://dashboard.stripe.com/payments/" + encodeURIComponent(q.payment || ""), "See it in Stripe", !phone) +
+      (stripePaid ? button("https://dashboard.stripe.com/payments/" + encodeURIComponent(q.payment || ""), "See it in Stripe", !phone) : "") +
       button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
   sendAlert({
     name: "Yachtique Payments",
@@ -1035,6 +1070,8 @@ function sendOwnerNote(q, title, text, todo, to, cc) {
   const inner = eyebrow(esc(title) + " &middot; " + esc(q.ref)) + heading(esc(q.name || "Client")) + para(text, "margin-bottom:22px") + rule() +
     factsBox(q) + (q.total ? priceBox(q, "en") : "") + (todo ? eyebrow("Next") + steps(todo) : "") +
     buttons((phone ? button("https://wa.me/" + phone, "WhatsApp " + (firstName(q) || "client"), true) : "") +
+      // Waiting for payment: one tap if the client paid by Zelle instead
+      (/^accepted$/i.test(q.status) && q.ref ? button(decideUrl(q.ref, "zelle"), "Paid by Zelle?", false) : "") +
       button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", !phone));
   sendAlert({ name: "Yachtique", subject: q.ref + " · " + title + " · " + (q.name || "client") + " · " + prettyDate(q.date),
     htmlBody: layout(title + ": " + (q.name || "client"), inner), body: title + " (" + q.ref + "): " + text.replace(/<[^>]+>/g, "") }, to, cc);
