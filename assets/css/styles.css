@@ -187,6 +187,11 @@ p { margin: 0 0 1em; }
 .yacht__body h3 { font-size: 25px; font-weight: 600; margin: 0; }
 .yacht__body h3 a:hover { color: var(--gold-light); }
 .yacht__price { font-size: 13px; color: var(--muted); white-space: nowrap; }
+/* Fleet cards: the first three durations and their prices, side by side */
+.yacht__rates { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1px; background: rgba(201, 165, 100, .3); border: 1px solid rgba(201, 165, 100, .42); border-radius: 12px; overflow: hidden; }
+.yacht__rates li { display: grid; gap: 2px; justify-items: center; padding: 9px 6px; background: var(--navy-2); }
+.yacht__rates span { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.yacht__rates b { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--white); white-space: nowrap; }
 .yacht__price b { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--white); }
 .yacht__model { color: var(--muted); font-size: 14px; margin: 0; }
 .yacht__row--foot { margin-top: 10px; align-items: center; }
@@ -453,6 +458,18 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .ybook__form { gap: 12px; }
 .ybook__form label { font-size: 11px; gap: 6px; }
 .ybook__form input, .ybook__form select, .ybook__form textarea { padding: 11px 14px; min-height: 46px; font-size: 15px; }
+/* Duration cards in the booking card: tap one, its price shows under it */
+.ydurs { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.ydurs legend { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-light); margin-bottom: 8px; }
+.ydurs__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ydur { position: relative; display: block; font-size: inherit !important; letter-spacing: normal !important; text-transform: none !important; }
+.ydur input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ydur > span { display: grid; gap: 2px; min-height: 58px; align-content: center; padding: 10px 14px; border: 1px solid rgba(201, 165, 100, .3); border-radius: 12px; background: var(--navy); transition: border-color .2s, background .2s; }
+.ydur i { font-style: normal; font-size: 13px; color: var(--text); }
+.ydur b { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--white); }
+.ydur input:checked + span { border-color: var(--gold); background: rgba(201, 165, 100, .12); box-shadow: inset 0 0 0 1px var(--gold); }
+.ydur input:focus-visible + span { box-shadow: 0 0 0 3px rgba(201, 165, 100, .35); }
+.ydur--unsure > span { min-height: 58px; }
 .ybook__note { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
 
 .ysimilar { margin-top: 110px; padding-top: 70px; border-top: 1px solid var(--line); }

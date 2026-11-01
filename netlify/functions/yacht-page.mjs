@@ -3,6 +3,9 @@
 // Rendered on the server so WhatsApp, iMessage and Google see the yacht's name, price and photo.
 import { SITE, WA, V, loadFleet, simCard, unavailable, page, html, esc, json, money, sized, shortDur, list, payBadges } from "../lib/site.mjs";
 
+// Start times on the form: every half hour from 9am to 6pm, so a 4-hour charter ends by 10pm (YCN's hours)
+const START_OPTIONS = `<option value="" data-i18n="form.flexible">Flexible</option>${["9:00 am", "9:30 am", "10:00 am", "10:30 am", "11:00 am", "11:30 am", "12:00 pm", "12:30 pm", "1:00 pm", "1:30 pm", "2:00 pm", "2:30 pm", "3:00 pm", "3:30 pm", "4:00 pm", "4:30 pm", "5:00 pm", "5:30 pm", "6:00 pm"].map((t) => `<option>${t}</option>`).join("")}`;
+
 export default async (req, context) => {
   const handle = (context.params && context.params.handle) || "";
   if (!handle) return Response.redirect(new URL("/#fleet", req.url), 302);
@@ -114,12 +117,17 @@ function yachtBody(y, others) {
               <label><span data-i18n="form.guests">Guests</span><input type="number" name="guests" min="1" max="${y.guests || 100}" inputmode="numeric"></label>
             </div>
             <small class="form__note" id="ybNote" hidden></small>
-            <label><span data-i18n="form.duration">Duration</span>
-              <select name="duration">${y.durations.map((d) => `<option value="${esc(d.label)}" data-dur>${esc(d.label)}</option>`).join("")}<option value="Not sure yet" data-i18n="form.notsure">Not sure yet</option></select>
-            </label>
             ${(y.departures || []).length ? `<label><span data-i18n="form.departure">Departure</span>
               <select name="departure" id="ybDeparture">${y.departures.map((p) => `<option value="${esc(p.name)}">${esc(p.name)}${p.prices[first.label] ? ` · ${money(p.prices[first.label])}` : ""}</option>`).join("")}</select>
             </label>` : ""}
+            <label><span data-i18n="form.start">Start time</span>
+              <select name="start">${START_OPTIONS}</select>
+            </label>
+            <fieldset class="ydurs">
+              <legend data-i18n="form.duration">Duration</legend>
+              <div class="ydurs__grid">${y.durations.map((d, i) => `<label class="ydur"><input type="radio" name="duration" value="${esc(d.label)}"${i ? "" : " checked"}><span><i data-dur>${esc(d.label)}</i><b data-dur-price="${esc(d.label)}">${money(d.price)}</b></span></label>`).join("")}<label class="ydur ydur--unsure"><input type="radio" name="duration" value="Not sure yet"><span><i data-i18n="form.notsure">Not sure yet</i></span></label></div>
+            </fieldset>
+
             <fieldset class="form__tips">
               <legend data-i18n="form.tip">Gratuity</legend>
               <div class="tips">

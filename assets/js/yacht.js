@@ -121,12 +121,18 @@
   // Departure: each marina shows its price for the chosen duration, and the card's price follows the choice
   var form = document.querySelector(".ybook__form");
   var depSel = document.getElementById("ybDeparture");
-  var durSel = form && form.querySelector('[name="duration"]');
   var fromB = document.querySelector(".ybook__from b");
   function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
+  function chosenDur() { var c = form && form.querySelector('[name="duration"]:checked'); return c ? c.value : ""; }
   function showPrices() {
-    if (!depSel || !durSel) return;
-    var dur = durSel.value;
+    if (!depSel) return;
+    var dur = chosenDur();
+    // Each duration card shows its price from the chosen marina
+    var here = (y.departures[depSel.selectedIndex] || {}).prices || {};
+    [].forEach.call(form.querySelectorAll("[data-dur-price]"), function (b) {
+      var p = here[b.getAttribute("data-dur-price")];
+      if (p) b.textContent = money(p);
+    });
     [].forEach.call(depSel.options, function (o, i) {
       var p = (y.departures[i] || {}).prices || {};
       o.textContent = o.value + (p[dur] ? " \u00b7 " + money(p[dur]) : "");
@@ -138,7 +144,11 @@
       if (fromDur) fromDur.textContent = window.yq ? yq.dur(dur.replace(/ hours?$/, "h")) : dur.replace(/ hours?$/, "h");
     }
   }
-  if (depSel && durSel) { depSel.addEventListener("change", showPrices); durSel.addEventListener("change", showPrices); }
+  if (depSel && form) {
+    depSel.addEventListener("change", showPrices);
+    form.addEventListener("change", function (e) { if (e.target.name === "duration") showPrices(); });
+    showPrices();
+  }
 
   // Phone bar "Request" button
   document.querySelectorAll(".js-tobook").forEach(function (a) {
