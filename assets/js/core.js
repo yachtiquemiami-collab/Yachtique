@@ -13,7 +13,7 @@
 
   /* ---------------- Language ---------------- */
   var COMMON = {
-    "nav.fleet": "Flota", "nav.available": "Disponibles", "nav.experiences": "Experiencias", "nav.concierge": "Concierge",
+    "nav.fleet": "Flota", "nav.available": "Disponibles", "nav.locations": "Destinos", "foot.locations": "Todos los destinos", "nav.experiences": "Experiencias", "nav.concierge": "Concierge",
     "nav.about": "Nosotros", "nav.enquire": "Reservar", "nav.menu": "Abrir menú",
     "foot.tag": "Alquiler privado de yates y concierge en Miami, organizado por un solo bróker desde el primer mensaje hasta el muelle.",
     "foot.explore": "Explorar", "foot.fleet": "La flota", "foot.available": "Disponibles esta semana", "foot.shortlist": "Mi selección",
@@ -39,6 +39,8 @@
     "y.request": "Solicitar", "y.nopay": "Sin pago ahora. Le respondemos con opciones, normalmente en menos de una hora.",
     "y.booked": "{y} está reservado en esta fecha. Envíe su solicitud de todos modos y le sugeriremos yates similares.",
     "y.partial": "{y} tiene otro alquiler ese día. Puede que aún queden horas libres.",
+    "y.partialAt": "{y} está reservado {t} ese día. Puede que queden otras horas libres.", "y.bookedAt": "Reservado {t}",
+    "t.range": "de {a} a {b}", "t.from": "desde las {a}", "t.and": " y ", "form.taken": "reservado",
     "y.notfound": "Este yate no está disponible", "y.notfound.p": "Puede que haya salido de la flota. Vea los yates que podemos ofrecer hoy.",
     "y.wait": "Un momento", "y.wait.p": "Estamos actualizando la flota. Actualice esta página en unos segundos o escríbanos por WhatsApp.",
     "form.date": "Fecha", "form.guests": "Invitados", "form.duration": "Duración", "form.name": "Nombre", "form.phone": "Teléfono / WhatsApp",
@@ -83,6 +85,16 @@
   function dur(label) {
     if (lang !== "es") return label;
     return String(label).replace(/(\d+)\s*hours?/i, "$1 horas").replace(/Day Trip/i, "excursión de un día").replace(/Multi-day \/ week/i, "Varios días / semana");
+  }
+  // Booked hours on a partly booked day: [[780, 1020]] -> "from 1:00 pm to 5:00 pm" (Spanish: "de 13:00 a 17:00")
+  function clock(m) {
+    var h = Math.floor(m / 60) % 24, mi = ("0" + (m % 60)).slice(-2);
+    return lang === "es" ? h + ":" + mi : ((h + 11) % 12 + 1) + ":" + mi + (h < 12 ? " am" : " pm");
+  }
+  function bookedTimes(ranges) {
+    return (ranges || []).map(function (r) {
+      return r[1] != null ? t("t.range", "from {a} to {b}", { a: clock(r[0]), b: clock(r[1]) }) : t("t.from", "from {a}", { a: clock(r[0]) });
+    }).join(t("t.and", " and "));
   }
   function guests(n) { return n + " " + t("card.guests", "guests"); }
   function cabins(n) { return n + " " + (n === 1 ? t("card.cabin", "cabin") : t("card.cabins", "cabins")); }
@@ -220,6 +232,20 @@
     else if (/instagram\.com/.test(href)) track("instagram", { v: placeOf(a) });
   }, true);
 
+  // Links to a part of the same page ("Inquire" → #contact) scroll there without adding a step to Back,
+  // so Back goes to the page the visitor came from. Links in popups handle themselves.
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest('a[href*="#"]');
+    if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || a.target || a.closest("dialog")) return;
+    var url = new URL(a.href, location.href);
+    if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search || !url.hash || url.hash === "#") return;
+    var el = document.getElementById(decodeURIComponent(url.hash.slice(1)));
+    if (!el) return;
+    e.preventDefault();
+    el.scrollIntoView({ behavior: "smooth" });
+    history.replaceState(history.state, "", url.hash);
+  });
+
   // Enquiry forms: record the send, and pass the visit's source and language to the Sheet
   document.addEventListener("submit", function (e) {
     var f = e.target;
@@ -334,7 +360,7 @@
   }
 
   window.yq = {
-    lang: function () { return lang; }, t: t, type: type, dur: dur, guests: guests, cabins: cabins, locale: locale,
+    lang: function () { return lang; }, t: t, type: type, dur: dur, bookedTimes: bookedTimes, guests: guests, cabins: cabins, locale: locale,
     setLang: setLang, onLang: function (fn) { langSubs.push(fn); }, apply: apply,
     track: track,
     shortlist: { get: slGet, set: slSet, toggle: slToggle, sync: slSync, on: function (fn) { slSubs.push(fn); } },

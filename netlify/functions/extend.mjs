@@ -22,7 +22,8 @@ const T = {
     how: "Nothing is charged now: the amount is only held on your card. The captain confirms the yacht is free, then it's charged. If it isn't free, the hold is released.",
     heldHead: "Request sent", heldP: (w) => `We're checking ${w} with the captain now. The amount is only held on your card until it's confirmed, and you'll get an email either way.`,
     waitingHead: "Already asked", waitingP: "Your request for more time is with the captain. You'll get an email as soon as it's confirmed.",
-    notToday: "Extra time is booked on the day", notTodayP: "This link works on the day of your charter. Message us if you'd like to change your booking.",
+    notToday: "Extra time is booked on the day", notTodayP: "This link works on the day of your charter, until it ends. Message us if you'd like to change your booking.",
+    ended: "Your charter has ended", endedP: "We hope you had a wonderful day on the water. Message us anytime to plan the next one.",
     notBooked: "This charter isn't confirmed yet", notBookedP: "Message us and we'll help you.",
     noPrice: "Let's arrange it together", noPriceP: "We can't price extra time for this yacht online. Message us and we'll check with the captain.",
     off: "Online payment is coming soon", offP: "Message us and we'll arrange the extra time.",
@@ -39,7 +40,8 @@ const T = {
     how: "Ahora no se cobra nada: el importe solo queda retenido en su tarjeta. El capitán confirma que el yate está libre y entonces se cobra. Si no está libre, se libera la retención.",
     heldHead: "Solicitud enviada", heldP: (w) => `Estamos consultando ${w} con el capitán. El importe solo queda retenido en su tarjeta hasta la confirmación, y recibirá un correo en cualquier caso.`,
     waitingHead: "Ya lo pidió", waitingP: "Su solicitud de más tiempo está con el capitán. Recibirá un correo en cuanto se confirme.",
-    notToday: "El tiempo extra se pide el mismo día", notTodayP: "Este enlace funciona el día de su alquiler. Escríbanos si desea cambiar su reserva.",
+    notToday: "El tiempo extra se pide el mismo día", notTodayP: "Este enlace funciona el día de su alquiler, hasta que termina. Escríbanos si desea cambiar su reserva.",
+    ended: "Su alquiler ha terminado", endedP: "Esperamos que haya disfrutado de un día maravilloso en el agua. Escríbanos cuando quiera para planear el próximo.",
     notBooked: "Este alquiler aún no está confirmado", notBookedP: "Escríbanos y le ayudamos.",
     noPrice: "Organicémoslo juntos", noPriceP: "No podemos calcular en línea el tiempo extra para este yate. Escríbanos y lo consultamos con el capitán.",
     off: "El pago en línea llega pronto", offP: "Escríbanos y organizamos el tiempo extra.",
@@ -70,7 +72,9 @@ export default async (req, context) => {
   if (qs !== "es" && qs !== "en") L = q.lang === "es" ? "es" : "en";
   const S = T[L];
   if (!/^(paid|booked)$/i.test(q.status)) return say(S.notBooked, S.notBookedP, 409);
-  if (!onTheDay(q.date)) return say(S.notToday, S.notTodayP, 409);
+  const when = charterWindow(q);
+  if (when === "before") return say(S.notToday, S.notTodayP, 409);
+  if (when === "after") return say(S.ended, S.endedP, 409);
   const key = Netlify.env.get("STRIPE_SECRET_KEY");
   if (!key) return say(S.off, S.offP, 503);
   const self = `${url.origin}/extend/${ref}?t=${t}${qs ? `&lang=${qs}` : ""}`;
@@ -179,12 +183,22 @@ export default async (req, context) => {
 
 export const config = { path: "/extend/:ref" };
 
-// The charter day in Miami, or the next morning for a charter running past midnight
-function onTheDay(date) {
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const yesterday = new Date(today.getTime() - 86400000);
-  return date === ymd(today) || date === ymd(yesterday);
+// "before" (not the charter day yet), "open", or "after" (the charter ended, with any extra time confirmed so far
+// and 15 minutes' grace). Without a start time the link works the whole charter day.
+function charterWindow(q) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date()).map((p) => [p.type, p.value]));
+  const today = `${parts.year}-${parts.month}-${parts.day}`, now = +parts.hour * 60 + +parts.minute;
+  const date = String(q.date || "");
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(q.start || ""));
+  const hours = parseInt(q.duration, 10);
+  if (!m || !(hours > 0)) return date === today ? "open" : date > today ? "before" : "after";
+  const extra = String(q.extension || "").split(" | ").filter((x) => /Confirmed$/.test(x)).reduce((n, x) => n + (parseInt((/\+(\d+)/.exec(x) || [])[1], 10) || 0), 0);
+  const end = +m[1] * 60 + +m[2] + (hours + extra) * 60 + 15;
+  const yesterday = new Date(Date.UTC(+parts.year, +parts.month - 1, +parts.day - 1)).toISOString().slice(0, 10);
+  if (date === today) return now <= end ? "open" : "after";
+  if (date === yesterday) return now + 24 * 60 <= end ? "open" : "after";
+  return date > today ? "before" : "after";
 }
 
 // +1 and +2 hours: the yacht's price per hour from its own rates (from the client's marina when it has its own),

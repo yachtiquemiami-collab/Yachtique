@@ -206,6 +206,7 @@ var REVIEWS = [];
         fillDeparture();
         fillStats();
         prefillShortlist();
+        restoreScroll();
       })
       .catch(function () {
         grid.innerHTML = '<p class="fleet__status">' + t("m.error", 'Our fleet list is being updated. <a href="#contact">Tell us your plans</a> and we\'ll send you the best options for your date.') + "</p>";
@@ -276,7 +277,8 @@ var REVIEWS = [];
       // Days to come are buttons: tapping one makes it the visitor's date everywhere
       cells += state === "past"
         ? '<span class="cal__d cal__d--past">' + d + "</span>"
-        : '<button type="button" class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + ' js-day" data-day="' + key + '">' + d + "</button>";
+        : '<button type="button" class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + ' js-day" data-day="' + key + '"' +
+          (state === "partial" && y.busyHours && y.busyHours[key] ? ' title="' + esc(t("y.bookedAt", "Booked {t}", { t: yq.bookedTimes(y.busyHours[key]) })) + '"' : "") + ">" + d + "</button>";
     }
     var name = month.toLocaleString(yq.locale(), { month: "long", year: "numeric" });
     var now = new Date();
@@ -288,6 +290,7 @@ var REVIEWS = [];
         '<button type="button" class="cal__nav js-month" data-step="1" aria-label="' + t("cal.next", "Next month") + '">›</button></div>' +
         '<p class="muted ydlg__small">' + t("y.tap", "Tap a free day to choose it") + "</p>" +
         '<div class="cal__grid">' + head + cells + "</div>" +
+        (want.date && y.busy[want.date] === "partial" ? '<p class="ydlg__small cal__when">' + esc(partialText(y, want.date)) + "</p>" : "") +
         '<p class="cal__legend"><i class="cal__d--free"></i>' + t("cal.free", "Available") + ' <i class="cal__d--partial"></i>' + t("cal.partial", "Partly booked") + ' <i class="cal__d--full"></i>' + t("cal.full", "Booked") + "</p>" +
       "</div>"
     );
@@ -343,7 +346,11 @@ var REVIEWS = [];
         "</div>" +
       "</div>";
     if (yq.shortlist) yq.shortlist.sync();
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+      // Back on a phone closes the popup instead of leaving the page
+      if (!history.state || !history.state.yqDialog) history.pushState({ yqDialog: 1 }, "");
+    }
     dialog.querySelector(".ydlg__body").scrollTop = 0;
   }
 
@@ -378,14 +385,57 @@ var REVIEWS = [];
         dialog.querySelector(".ydlg__cal").innerHTML = calendarHtml(current);
       }
       if (e.target.closest(".js-enquire")) {
+        e.preventDefault();
         if (select) select.value = label(current);
         if (yq.trip) yq.trip.set({ yacht: label(current) });
         checkDate();
         fillDeparture();
-        dialog.close();
+        closeDialog(function () { var c = document.getElementById("contact"); if (c) c.scrollIntoView({ behavior: "smooth" }); });
       }
-      if (e.target.closest(".js-close") || e.target === dialog) dialog.close();
+      if (e.target.closest(".js-close") || e.target === dialog) closeDialog();
     });
+  }
+
+  // "Caprice is booked from 1:00 pm to 5:00 pm that day", when the calendar says when
+  function partialText(y, day) {
+    var hrs = y.busyHours && y.busyHours[day];
+    return hrs && hrs.length
+      ? t("y.partialAt", "{y} is booked {t} that day. Other hours may still be free.", { y: y.name, t: yq.bookedTimes(hrs) })
+      : t("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name });
+  }
+
+  // The popup's own history step: closing it (X, outside, Esc) takes that step back, and Back closes it
+  var afterClose = null;
+  function closeDialog(then) {
+    afterClose = then || null;
+    if (history.state && history.state.yqDialog) { history.back(); return; } // popstate closes it
+    dialog.close();
+    if (afterClose) { var f = afterClose; afterClose = null; f(); }
+  }
+  if (dialog) {
+    dialog.addEventListener("close", function () {
+      if (history.state && history.state.yqDialog) history.back();
+      else if (afterClose) { var f = afterClose; afterClose = null; f(); }
+    });
+    window.addEventListener("popstate", function () {
+      if (dialog.open) dialog.close();
+      if (afterClose) { var f = afterClose; afterClose = null; setTimeout(f, 30); }
+    });
+  }
+
+  // Coming back from a yacht page: the fleet is drawn again, so put the page back where it was
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  window.addEventListener("pagehide", function () {
+    try { sessionStorage.setItem("yq_home", JSON.stringify({ y: window.scrollY, all: showAll })); } catch (e) {}
+  });
+  function restoreScroll() {
+    var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+    if (!nav || nav.type !== "back_forward") return;
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem("yq_home") || "null"); } catch (e) {}
+    if (!saved) return;
+    if (saved.all && !showAll) { showAll = true; applyWant(); }
+    window.scrollTo(0, saved.y);
   }
 
   // Warn in the form when the chosen yacht is booked on the chosen date
@@ -398,8 +448,9 @@ var REVIEWS = [];
     dateNote.textContent = state === "full"
       ? t("y.booked", "{y} is booked on this date. Send your inquiry anyway and we'll suggest similar yachts.", { y: y.name })
       : state === "partial"
-        ? t("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name })
+        ? partialText(y, formDate.value)
         : "";
+    formDate._yqBusy = y && y.busy ? y.busy : null;
     dateNote.hidden = !dateNote.textContent;
   }
   if (select) select.addEventListener("change", checkDate);

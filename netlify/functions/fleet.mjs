@@ -25,7 +25,10 @@ export default async () => {
       yachts.map(async (y) => {
         const cal = y.calendar || (settings.calendars || {})[y.handle];
         delete y.calendar;
-        y.busy = cal ? await fetchBusy(cal) : null;
+        const cal2 = cal ? await fetchBusy(cal) : null;
+        y.busy = cal2 ? cal2.busy : null;
+        // Partly booked days: when the yacht is taken, as [from, to] minutes after midnight in Miami
+        y.busyHours = cal2 ? cal2.hours : null;
       })
     );
 
@@ -195,10 +198,11 @@ function parseIcs(ics) {
   const lines = ics.replace(/\r?\n[ \t]/g, "").split(/\r?\n/);
   const today = nyDate(new Date());
   const limit = nyDate(new Date(Date.now() + DAYS_AHEAD * 864e5));
-  const busy = {};
-  const mark = (day, kind) => {
+  const busy = {}, hours = {};
+  const mark = (day, kind, from, to) => {
     if (day < today || day > limit) return;
     if (busy[day] !== "full") busy[day] = kind;
+    if (kind === "partial" && from != null) (hours[day] = hours[day] || []).push([from, to]);
   };
 
   let ev = null;
@@ -222,7 +226,22 @@ function parseIcs(ics) {
       else if (key.startsWith("EXDATE")) (ev.exdates = ev.exdates || []).push(...val.split(",").map((v) => v.slice(0, 8)));
     }
   }
-  return busy;
+  // Times only matter on days that stayed partly booked
+  for (const day of Object.keys(hours)) {
+    if (busy[day] !== "partial") delete hours[day];
+    else hours[day].sort((a, b) => a[0] - b[0]);
+  }
+  return { busy, hours };
+}
+
+// Minutes after midnight, Miami wall clock, for a timed start or end
+function wallMinutes(p) {
+  if (p.z) {
+    const [h, m] = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(p.t)).split(":").map(Number);
+    return h * 60 + m;
+  }
+  const d = new Date(p.t);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
 // All-day → { allDay, day }; timed → { day (NY date), t (ms, comparable within one event) }
@@ -234,7 +253,7 @@ function parseDt(key, val) {
   if (!y) return null;
   if (val.endsWith("Z")) {
     const date = new Date(Date.UTC(+y, mo - 1, +d, +h, +mi, +s));
-    return { day: nyDate(date), t: date.getTime() };
+    return { day: nyDate(date), t: date.getTime(), z: true };
   }
   // Local time (TZID=...): keep the wall-clock date; times are only compared to each other
   return { day: `${y}-${mo}-${d}`, t: Date.UTC(+y, mo - 1, +d, +h, +mi, +s) };
@@ -299,7 +318,9 @@ function addEvent(ev, mark) {
   if (hours >= 20) {
     for (let day = start.day; day <= end.day; day = addDays(day, 1)) mark(day, "full");
   } else {
-    mark(start.day, "partial");
+    const from = wallMinutes(start);
+    const to = end && end.t ? (end.day > start.day ? 24 * 60 : wallMinutes(end)) : null;
+    mark(start.day, "partial", from, to != null && to > from ? to : null);
   }
 }
 

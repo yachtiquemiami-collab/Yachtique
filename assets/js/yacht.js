@@ -24,11 +24,16 @@
     show(i);
     light.hidden = false;
     document.body.style.overflow = "hidden";
+    // Back on a phone closes the photos instead of leaving the page
+    if (!history.state || !history.state.yqLight) history.pushState({ yqLight: 1 }, "");
   }
-  function closeLight() {
+  function closeLight(fromBack) {
+    if (light.hidden) return;
     light.hidden = true;
     document.body.style.overflow = "";
+    if (!fromBack && history.state && history.state.yqLight) history.back();
   }
+  window.addEventListener("popstate", function () { if (light) closeLight(true); });
   document.addEventListener("click", function (e) {
     var p = e.target.closest(".js-photo");
     if (p) { openLight(+p.getAttribute("data-i")); return; }
@@ -67,7 +72,8 @@
     for (var d = 1; d <= days; d++) {
       var key = ymd(new Date(m.getFullYear(), m.getMonth(), d));
       var st = key < today ? "past" : (y.busy && y.busy[key]) || "free";
-      cells += '<button type="button" class="cal__d cal__d--' + st + (key === picked ? " is-picked" : "") + '" data-day="' + key + '"' + (st === "past" ? " disabled" : "") + ">" + d + "</button>";
+      var hrs = st === "partial" && y.busyHours && y.busyHours[key] && window.yq && yq.bookedTimes ? ' title="' + T("y.bookedAt", "Booked {t}", { t: yq.bookedTimes(y.busyHours[key]) }) + '"' : "";
+      cells += '<button type="button" class="cal__d cal__d--' + st + (key === picked ? " is-picked" : "") + '" data-day="' + key + '"' + hrs + (st === "past" ? " disabled" : "") + ">" + d + "</button>";
     }
     return '<div class="cal"><div class="cal__head"><b>' + m.toLocaleString(loc(), { month: "long", year: "numeric" }) + '</b></div><div class="cal__grid">' + cells + "</div></div>";
   }
@@ -108,9 +114,33 @@
     var st = y.busy && dateInput.value ? y.busy[dateInput.value] : null;
     note.textContent = st === "full"
       ? T("y.booked", "{y} is booked on this date. Send your request anyway and we'll suggest similar yachts.", { y: y.name })
-      : st === "partial" ? T("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name }) : "";
+      : st === "partial" ? partialText(dateInput.value) : "";
     note.hidden = !note.textContent;
+    markStartTimes();
     if (picked !== dateInput.value) { picked = dateInput.value; drawCals(); }
+  }
+  // "Caprice is booked from 1:00 pm to 5:00 pm that day", when the calendar says when
+  function partialText(day) {
+    var hrs = y.busyHours && y.busyHours[day];
+    return hrs && hrs.length && window.yq && yq.bookedTimes
+      ? T("y.partialAt", "{y} is booked {t} that day. Other hours may still be free.", { y: y.name, t: yq.bookedTimes(hrs) })
+      : T("y.partial", "{y} has another charter that day. Some hours may still be free.", { y: y.name });
+  }
+  // Start times that would overlap the other charter that day are greyed out
+  function markStartTimes() {
+    var sel = document.querySelector('.ybook__form [name="start"]');
+    if (!sel || !dateInput) return;
+    var hrs = (y.busyHours && y.busyHours[dateInput.value]) || [];
+    var c = document.querySelector('.ybook__form [name="duration"]:checked');
+    var len = (parseInt(c && c.value, 10) || 4) * 60;
+    [].forEach.call(sel.options, function (o) {
+      if (!o._yqText) o._yqText = o.textContent;
+      var m = /^(\d+):(\d+) (am|pm)$/.exec(o.value), start = m ? (+m[1] % 12 + (m[3] === "pm" ? 12 : 0)) * 60 + +m[2] : null;
+      var clash = start != null && hrs.some(function (r) { return start < (r[1] != null ? r[1] : 24 * 60) && start + len > r[0]; });
+      o.disabled = clash;
+      o.textContent = o._yqText + (clash ? " · " + T("form.taken", "booked") : "");
+    });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = "";
   }
   if (dateInput) {
     dateInput.min = ymd(new Date());
@@ -146,7 +176,7 @@
   }
   if (depSel && form) {
     depSel.addEventListener("change", showPrices);
-    form.addEventListener("change", function (e) { if (e.target.name === "duration") showPrices(); });
+    form.addEventListener("change", function (e) { if (e.target.name === "duration") { showPrices(); markStartTimes(); } });
     showPrices();
   }
 

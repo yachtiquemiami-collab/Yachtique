@@ -274,7 +274,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101k";
+export const V = "20261101l";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
@@ -286,6 +286,7 @@ export function navHtml() {
     <nav class="nav__links" id="navLinks" aria-label="Main">
       <a href="/#fleet" data-i18n="nav.fleet">Fleet</a>
       <a href="/available" data-i18n="nav.available">Available</a>
+      <a href="/locations" data-i18n="nav.locations">Locations</a>
       <a href="/#experiences" data-i18n="nav.experiences">Experiences</a>
       <a href="/#services" data-i18n="nav.concierge">Concierge</a>
       <a href="/#about" data-i18n="nav.about">About</a>
@@ -327,6 +328,7 @@ export function footerHtml() {
       <div>
         <h3 class="footer__title" data-i18n="foot.where">Where we charter</h3>
         <ul class="footer__list">
+          <li><a href="/locations" data-i18n="foot.locations">All locations</a></li>
           ${AREAS.map((a) => `<li><a href="/yacht-charter/${a.slug}" data-i18n="area.${a.slug}">${esc(a.name)}</a></li>`).join("")}
         </ul>
       </div>
