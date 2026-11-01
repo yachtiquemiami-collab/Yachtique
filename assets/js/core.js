@@ -43,7 +43,7 @@
     "y.wait": "Un momento", "y.wait.p": "Estamos actualizando la flota. Actualice esta página en unos segundos o escríbanos por WhatsApp.",
     "form.date": "Fecha", "form.guests": "Invitados", "form.duration": "Duración", "form.name": "Nombre", "form.phone": "Teléfono / WhatsApp",
     "form.email": "Correo electrónico", "form.else": "¿Algo más?", "form.else.ph": "Ocasión, punto de salida, peticiones especiales…",
-    "form.notsure": "Aún no lo sé", "form.departure": "Punto de salida",
+    "form.notsure": "Aún no lo sé", "pay.secure": "Pago seguro con Stripe", "form.departure": "Punto de salida",
     "form.tip": "Propina", "form.tip.note": "Se suma a su total, así que no hay nada que pagar a bordo.", "form.mean": "¿Quiso decir {e}?",
     "cal.free": "Disponible", "cal.partial": "Parcialmente reservado", "cal.full": "Reservado",
     "cal.prev": "Mes anterior", "cal.next": "Mes siguiente",

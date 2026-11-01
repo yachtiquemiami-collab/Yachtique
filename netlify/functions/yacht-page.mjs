@@ -1,7 +1,7 @@
 // GET /yachts/:handle
 // One page per yacht, built from the live fleet (/api/fleet) so it always matches the home page.
 // Rendered on the server so WhatsApp, iMessage and Google see the yacht's name, price and photo.
-import { SITE, WA, V, loadFleet, simCard, unavailable, page, html, esc, json, money, sized, shortDur, list } from "../lib/site.mjs";
+import { SITE, WA, V, loadFleet, simCard, unavailable, page, html, esc, json, money, sized, shortDur, list, payBadges } from "../lib/site.mjs";
 
 export default async (req, context) => {
   const handle = (context.params && context.params.handle) || "";
@@ -137,6 +137,7 @@ function yachtBody(y, others) {
           </form>
           <a href="${esc(wa)}" data-wa-es="${esc(waEs)}" data-yacht="${esc(y.handle)}" class="btn btn--wa btn--block" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg><span data-i18n="wa.ask">Ask on WhatsApp</span></a>
           <p class="ybook__note" data-i18n="y.nopay">No payment now. We reply with options, usually within the hour.</p>
+          ${payBadges()}
         </div>
       </aside>
     </div>

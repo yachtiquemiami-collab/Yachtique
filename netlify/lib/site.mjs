@@ -275,7 +275,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101g";
+export const V = "20261101h";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
@@ -369,6 +369,14 @@ export function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 export function json(v) { return JSON.stringify(v); }
+// "Secure checkout by Stripe" with the ways to pay that Stripe Checkout offers (wallets show on supported devices)
+export function payBadges(label = "Secure checkout by Stripe") {
+  return `<div class="paybadges" aria-label="Payment methods we accept">
+  <p class="paybadges__lock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg><span data-i18n="pay.secure">${esc(label)}</span></p>
+  <ul><li>Apple Pay</li><li>Google Pay</li><li>Visa</li><li>Mastercard</li><li>Amex</li></ul>
+</div>`;
+}
+
 export function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
 export function sized(src, w) { return src + (src.indexOf("?") > -1 ? "&" : "?") + "width=" + w; }
 export function shortDur(d) { return d.replace(/ hours?$/, "h"); }
