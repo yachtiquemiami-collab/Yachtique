@@ -74,7 +74,7 @@
       [t("sl.departs", "Departs from"), places],
       [yq.t("f.crew", "Crew"), function (y) { return y.crew && y.crew.length ? esc(y.crew.join(", ")) : "—"; }],
       [yq.t("y.toys", "Toys"), function (y) { return y.toys && y.toys.length ? esc(y.toys.join(", ")) : "—"; }],
-      [yq.t("y.gratuity", "Gratuity"), function (y) { return y.gratuityIncluded ? yq.t("y.included", "Included") : yq.t("y.notincluded", "Not included"); }],
+      [yq.t("y.gratuity", "Gratuity"), function () { return yq.t("y.tipchoice", "15, 18 or 20%, your choice"); }],
       ["", function (y) {
         return '<div class="slacts"><a href="/yachts/' + esc(y.handle) + '" class="yacht__link">' + t("sl.view", "View yacht") + " →</a>" +
           (shared.length ? "" : '<button type="button" class="link-btn js-remove" data-h="' + esc(y.handle) + '">' + t("sl.remove", "Remove") + "</button>") + "</div>";

@@ -265,6 +265,7 @@ p { margin: 0 0 1em; }
 .form__tips .form__note { margin: 0; }
 .form__note { display: block; text-transform: none; letter-spacing: normal; font-size: 13px; font-weight: 400; color: var(--gold-light); }
 .form__note[hidden] { display: none; }
+.form__mean { margin-top: 6px; text-align: left; }
 
 /* Date fields: our own calendar (assets/js/datepicker.js). The real date input stays in the form, hidden. */
 .datewrap { position: relative; display: block; }

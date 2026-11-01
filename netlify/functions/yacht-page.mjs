@@ -82,7 +82,7 @@ function yachtBody(y, others) {
         <section class="ysection">
           <h2 data-i18n="y.rates">Rates</h2>
           <ul class="ydlg__prices yrates">${y.durations.map((d) => `<li><span data-dur>${esc(d.label)}</span><b>${money(d.price)}</b></li>`).join("")}</ul>
-          <p class="muted ydlg__small" data-i18n="${y.gratuityIncluded ? "y.ratesnote.tip" : "y.ratesnote"}">Starting rates from the lowest-priced pickup point. Sales tax${y.gratuityIncluded ? "" : " and gratuity"} may apply. Your final quote is confirmed on enquiry.</p>
+          <p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. Sales tax and gratuity may apply. Your final quote is confirmed on enquiry.</p>
           ${y.durations.some((d) => /(^|\D)(2[4-9]|[3-9]\d|\d{3,}) hours|week/i.test(d.label)) ? `<p class="muted ydlg__small" data-i18n="y.apa">For charters of 24 hours or more, an Advance Provisioning Allowance (APA) of 35% of the charter price is collected in advance for fuel, docking, food and drinks. Anything unused is returned.</p>` : ""}
         </section>
 
@@ -92,7 +92,7 @@ function yachtBody(y, others) {
             <dt data-i18n="y.departs">Departs from</dt><dd>${list(y.locations)}</dd>
             <dt data-i18n="f.crew">Crew</dt><dd>${list(y.crew)}</dd>
             <dt data-i18n="y.toys">Toys</dt><dd>${list(y.toys)}</dd>
-            <dt data-i18n="y.gratuity">Gratuity</dt><dd data-i18n="${y.gratuityIncluded ? "y.included" : "y.notincluded"}">${y.gratuityIncluded ? "Included" : "Not included"}</dd>
+            <dt data-i18n="y.gratuity">Gratuity</dt><dd data-i18n="y.tipchoice">15, 18 or 20%, your choice</dd>
           </dl>
         </section>
 
@@ -117,19 +117,15 @@ function yachtBody(y, others) {
             <label><span data-i18n="form.duration">Duration</span>
               <select name="duration">${y.durations.map((d) => `<option value="${esc(d.label)}" data-dur>${esc(d.label)}</option>`).join("")}<option value="Not sure yet" data-i18n="form.notsure">Not sure yet</option></select>
             </label>
-            ${y.gratuityIncluded
-              ? `<input type="hidden" name="gratuity" value="Included"><p class="form__note" data-i18n="form.tip.incl">Gratuity is included with this yacht.</p>`
-              : `<fieldset class="form__tips" data-tips>
-                <legend data-i18n="form.tip">Gratuity</legend>
-                <div class="tips" data-tips-pick>
-                  <label><input type="radio" name="gratuity" value="15%"><span>15%</span></label>
-                  <label><input type="radio" name="gratuity" value="18%" checked><span>18%</span></label>
-                  <label><input type="radio" name="gratuity" value="20%"><span>20%</span></label>
-                </div>
-                <input type="hidden" name="gratuity" value="Included" disabled data-tips-incl>
-                <small class="form__note" data-tips-note data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
-                <small class="form__note" data-tips-inclnote data-i18n="form.tip.incl" hidden>Gratuity is included with this yacht.</small>
-              </fieldset>`}
+            <fieldset class="form__tips">
+              <legend data-i18n="form.tip">Gratuity</legend>
+              <div class="tips">
+                <label><input type="radio" name="gratuity" value="15%"><span>15%</span></label>
+                <label><input type="radio" name="gratuity" value="18%" checked><span>18%</span></label>
+                <label><input type="radio" name="gratuity" value="20%"><span>20%</span></label>
+              </div>
+              <small class="form__note" data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
+            </fieldset>
             <label><span data-i18n="form.name">Name</span><input type="text" name="name" required autocomplete="name"></label>
             <label><span data-i18n="form.phone">Phone / WhatsApp</span><input type="tel" name="phone" required autocomplete="tel"></label>
             <label><span data-i18n="form.email">Email</span><input type="email" name="email" required autocomplete="email"></label>

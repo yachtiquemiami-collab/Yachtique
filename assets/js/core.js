@@ -29,11 +29,9 @@
     "f.length": "Eslora", "f.guests": "Invitados", "f.cabins": "Camarotes", "f.sleeps": "Pernoctan", "f.crew": "Tripulación", "f.builder": "Astillero",
     "f.upto": "Hasta",
     "y.rates": "Tarifas", "y.onboard": "A bordo", "y.availability": "Disponibilidad", "y.theyacht": "El yate",
-    "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida",
+    "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida", "y.tipchoice": "15, 18 o 20 %, a su elección",
     "y.ratesnote": "Tarifas desde el punto de salida más económico. Pueden aplicarse impuestos y la propina. Su cotización final se confirma con la solicitud.",
-    "y.ratesnote.tip": "Tarifas desde el punto de salida más económico. Pueden aplicarse impuestos. Su cotización final se confirma con la solicitud.",
     "y.popnote": "Tarifas desde. Pueden aplicarse impuestos y la propina. Su cotización final se confirma con la solicitud.",
-    "y.popnote.tip": "Tarifas desde. Pueden aplicarse impuestos. Su cotización final se confirma con la solicitud.",
     "y.apa": "En alquileres de 24 horas o más se cobra por adelantado un fondo de aprovisionamiento (APA) del 35% del precio del alquiler para combustible, amarres, comida y bebida. Lo que no se use se devuelve.",
     "y.noavail": "La disponibilidad de este yate se confirma con la solicitud.",
     "y.full": "Ver todos los detalles", "y.enquire": "Solicitar", "y.photos": "Ver las {n} fotos", "y.photo": "Ver foto",
@@ -46,7 +44,7 @@
     "form.date": "Fecha", "form.guests": "Invitados", "form.duration": "Duración", "form.name": "Nombre", "form.phone": "Teléfono / WhatsApp",
     "form.email": "Correo electrónico", "form.else": "¿Algo más?", "form.else.ph": "Ocasión, punto de salida, peticiones especiales…",
     "form.notsure": "Aún no lo sé",
-    "form.tip": "Propina", "form.tip.note": "Se suma a su total, así que no hay nada que pagar a bordo.", "form.tip.incl": "La propina está incluida con este yate.",
+    "form.tip": "Propina", "form.tip.note": "Se suma a su total, así que no hay nada que pagar a bordo.", "form.mean": "¿Quiso decir {e}?",
     "cal.free": "Disponible", "cal.partial": "Parcialmente reservado", "cal.full": "Reservado",
     "cal.prev": "Mes anterior", "cal.next": "Mes siguiente",
     "dp.pick": "Elegir fecha", "dp.clear": "Borrar", "dp.close": "Cerrar", "dp.choose": "Elija una fecha",
@@ -233,6 +231,45 @@
     });
     var y = f.querySelector('[name="yacht"]');
     track("enquiry", { v: placeOf(f), y: y ? y.value : "" });
+  }, true);
+
+  // Email typos (gmal.com, hotmial.com, .con): a "Did you mean…?" under the field, one tap fixes it.
+  // A wrong address means the client never gets our emails.
+  var DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "live.com", "msn.com", "me.com"];
+  function near(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return false;
+    var d = [], i, j;
+    for (i = 0; i <= a.length; i++) d[i] = [i];
+    for (j = 0; j <= b.length; j++) d[0][j] = j;
+    for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+    return d[a.length][b.length] <= 2;
+  }
+  function emailFix(v) {
+    var m = /^([^@\s]+)@([^@\s]+)$/.exec(v.trim().toLowerCase());
+    if (!m) return "";
+    var dom = m[2].replace(/\.(con|cmo|ocm|om|co|comm)$/, ".com");
+    if (DOMAINS.indexOf(dom) >= 0) return dom === m[2] ? "" : m[1] + "@" + dom;
+    for (var k = 0; k < DOMAINS.length; k++) if (near(dom, DOMAINS[k])) return m[1] + "@" + DOMAINS[k];
+    return "";
+  }
+  document.addEventListener("change", function (e) {
+    var inp = e.target;
+    if (!inp || inp.type !== "email") return;
+    var hint = inp.parentNode.querySelector(".form__mean");
+    var fix = emailFix(inp.value);
+    if (!fix) { if (hint) hint.hidden = true; return; }
+    if (!hint) {
+      hint = document.createElement("button");
+      hint.type = "button"; hint.className = "form__note form__mean link-btn";
+      hint.addEventListener("click", function () { inp.value = hint.getAttribute("data-fix"); hint.hidden = true; });
+      inp.parentNode.appendChild(hint);
+    }
+    hint.setAttribute("data-fix", fix);
+    hint.textContent = t("form.mean", "Did you mean {e}?", { e: fix });
+    hint.hidden = false;
   }, true);
 
   /* ---------------- The visitor's plan: date, guests, duration ----------------
