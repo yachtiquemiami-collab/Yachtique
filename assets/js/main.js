@@ -271,7 +271,10 @@ var REVIEWS = [];
     for (var d = 1; d <= days; d++) {
       var key = ymd(new Date(month.getFullYear(), month.getMonth(), d));
       var state = key < today ? "past" : y.busy[key] || "free";
-      cells += '<span class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + '" title="' + key + '">' + d + "</span>";
+      // Days to come are buttons: tapping one makes it the visitor's date everywhere
+      cells += state === "past"
+        ? '<span class="cal__d cal__d--past">' + d + "</span>"
+        : '<button type="button" class="cal__d cal__d--' + state + (key === want.date ? " is-picked" : "") + ' js-day" data-day="' + key + '">' + d + "</button>";
     }
     var name = month.toLocaleString(yq.locale(), { month: "long", year: "numeric" });
     var now = new Date();
@@ -281,6 +284,7 @@ var REVIEWS = [];
         '<div class="cal__head"><button type="button" class="cal__nav js-month" data-step="-1" aria-label="' + t("cal.prev", "Previous month") + '"' + (atStart ? " disabled" : "") + ">‹</button>" +
         "<b>" + name + "</b>" +
         '<button type="button" class="cal__nav js-month" data-step="1" aria-label="' + t("cal.next", "Next month") + '">›</button></div>' +
+        '<p class="muted ydlg__small">' + t("y.tap", "Tap a free day to choose it") + "</p>" +
         '<div class="cal__grid">' + head + cells + "</div>" +
         '<p class="cal__legend"><i class="cal__d--free"></i>' + t("cal.free", "Available") + ' <i class="cal__d--partial"></i>' + t("cal.partial", "Partly booked") + ' <i class="cal__d--full"></i>' + t("cal.full", "Booked") + "</p>" +
       "</div>"
@@ -289,12 +293,13 @@ var REVIEWS = [];
 
   function list(arr) { return arr && arr.length ? arr.map(esc).join(" · ") : "—"; }
 
-  function openYacht(i) {
+  // redraw: the same yacht again after a new date (not counted as another view)
+  function openYacht(i, redraw) {
     var y = fleet[i];
     if (!y || !dialog) return;
     current = y;
     currentIndex = i;
-    yq.track("yacht_quickview", { y: y.handle });
+    if (!redraw) yq.track("yacht_quickview", { y: y.handle });
     if (want.date) { var p = want.date.split("-"); month = new Date(+p[0], p[1] - 1, 1); }
     else { month = new Date(); month.setDate(1); }
     var thumbs = y.images.map(function (src, n) {
@@ -349,6 +354,21 @@ var REVIEWS = [];
       if (thumb) {
         dialog.querySelector(".ydlg__main").src = sized(thumb.getAttribute("data-src"), 1400);
         dialog.querySelectorAll(".js-thumb").forEach(function (t) { t.classList.toggle("is-active", t === thumb); });
+      }
+      var day = e.target.closest(".js-day");
+      if (day) {
+        // The new date goes to the search at the top, the inquiry form and the remembered plan; the popup redraws for it
+        want.date = day.getAttribute("data-day");
+        if (yq.trip) yq.trip.set({ date: want.date });
+        [formDate, document.getElementById("finderDate")].forEach(function (inp) {
+          if (inp) { inp.value = want.date; inp.dispatchEvent(new Event("input")); }
+        });
+        checkDate();
+        applyWant();
+        var body = dialog.querySelector(".ydlg__body"), top = body.scrollTop;
+        openYacht(currentIndex, true);
+        body.scrollTop = top;
+        return;
       }
       var nav = e.target.closest(".js-month");
       if (nav) {
