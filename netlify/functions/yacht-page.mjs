@@ -1,7 +1,7 @@
 // GET /yachts/:handle
 // One page per yacht, built from the live fleet (/api/fleet) so it always matches the home page.
 // Rendered on the server so WhatsApp, iMessage and Google see the yacht's name, price and photo.
-import { SITE, WA, V, loadFleet, simCard, unavailable, page, html, esc, json, money, sized, shortDur, list, payBadges } from "../lib/site.mjs";
+import { SITE, WA, V, loadFleet, simCard, unavailable, page, html, esc, json, money, sized, shortDur, list, payBadges, FOOD_URL } from "../lib/site.mjs";
 
 // Start times on the form: every half hour from 9am to 6pm, so a 4-hour charter ends by 10pm (YCN's hours)
 const START_OPTIONS = `<option value="" data-i18n="form.flexible">Flexible</option>${["9:00 am", "9:30 am", "10:00 am", "10:30 am", "11:00 am", "11:30 am", "12:00 pm", "12:30 pm", "1:00 pm", "1:30 pm", "2:00 pm", "2:30 pm", "3:00 pm", "3:30 pm", "4:00 pm", "4:30 pm", "5:00 pm", "5:30 pm", "6:00 pm"].map((t) => `<option>${t}</option>`).join("")}`;
@@ -97,6 +97,12 @@ function yachtBody(y, others) {
             <dt data-i18n="y.toys">Toys</dt><dd>${list(y.toys)}</dd>
             <dt data-i18n="y.gratuity">Gratuity</dt><dd data-i18n="y.tipchoice">15, 18 or 20%, your choice</dd>
           </dl>
+        </section>
+
+        <section class="ysection yfood">
+          <h2 data-i18n="y.food">Food on board</h2>
+          <p data-i18n="y.food.p">Chef-made boards, sliders and sushi from Yacht Bites, delivered to the dock before you sail. Order by 4pm the day before.</p>
+          <a class="btn btn--ghost" href="${FOOD_URL}" target="_blank" rel="noopener" data-i18n="y.food.btn">See the menu</a>
         </section>
 
         <section class="ysection">

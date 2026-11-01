@@ -35,6 +35,8 @@ const SEND_CLIENT_CONFIRMATION = true;              // false = don't email the c
 const WHATSAPP = "13058124721";
 const LOGO = "https://yachtique.co/assets/img/logo-stacked-notag.png";
 const SITE = "https://yachtique.co";
+// Food on board: Yacht Bites' menu, ordered under Nektarios's partner link (dockside delivery, order by 4pm the day before)
+const FOOD_URL = "https://yachtbites.co/order.html?k=TkVLVEFSSU9TLTQ2MR9OZWt0YXJpb3MgUGFwYXN0YXZyb3U.13n2l6#menu";
 
 /** Run once: creates the Enquiries and Fleet tabs, formatting and sample yachts. */
 function setup() {
@@ -935,7 +937,7 @@ function sendClientPaid(q) {
   const inner =
     eyebrow(T.paidEyebrow + " &middot; " + esc(q.ref)) + heading(T.paidHead(esc(first))) +
     para(T.paidP(amount)) + rule() + factsBox(q, L) + priceBox(q, L) +
-    eyebrow(T.next) + steps(T.paidSteps) +
+    eyebrow(T.next) + steps(T.paidSteps) + foodBox(L) +
     buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, true));
   MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.paidSubject(d), htmlBody: layout(T.paidPre, inner, L),
     body: T.paidHead(first) + "\n\n" + T.paidP(amount).replace(/<[^>]+>/g, "") + "\n\nWhatsApp: https://wa.me/" + WHATSAPP + "\n\nYachtique · Miami, Florida · yachtique.co",
@@ -1199,10 +1201,19 @@ function sendClientUnpaid(q) {
   return clientMail(q, A.unpaidSubject(d), A.unpaidPre, inner, A.unpaidHead(first) + "\n\n" + A.unpaidP(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\n" + pay);
 }
 
+// "Food on board": Yacht Bites boards delivered to the yacht, with the menu button
+function foodBox(lang) {
+  const es = lang === "es";
+  return eyebrow(es ? "Comida a bordo" : "Food on board") +
+    para(es ? "Tablas de chef, sliders y sushi de <b>Yacht Bites</b>, entregados en el muelle antes de zarpar. Pida antes de las 4 p. m. del día anterior."
+      : "Chef-made boards, sliders and sushi from <b>Yacht Bites</b>, delivered to the dock before you sail. Order by 4pm the day before.", "margin-bottom:16px") +
+    buttons(button(FOOD_URL, es ? "Ver el menú" : "See the menu", false));
+}
+
 function sendClientTrip3(q) {
   const L = q.lang, T = TXT[L], A = AUTO_TXT[L], first = firstName(q), d = q.date ? prettyDate(q.date, L) : "";
   const inner = eyebrow(A.trip3Eyebrow + " &middot; " + esc(q.ref)) + heading(A.trip3Head(esc(first))) + para(A.trip3P(yachtName(q), d)) + rule() +
-    factsBox(q, L) + steps(RULES[L]) + buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, true));
+    factsBox(q, L) + steps(RULES[L]) + foodBox(L) + buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waAcc(q.ref)), T.chat, true));
   return clientMail(q, A.trip3Subject(d), A.trip3Pre, inner, A.trip3Head(first) + "\n\n" + A.trip3P(yachtName(q), d).replace(/<[^>]+>/g, "") + "\n\n" +
     RULES[L].map((r) => "- " + r[0] + " " + r[1]).join("\n"));
 }
