@@ -104,7 +104,7 @@ function yachtBody(y, others) {
 
       <aside class="ybook" id="book">
         <div class="ybook__card">
-          <p class="ybook__from"><span data-i18n="card.From">From</span> <b>${money(first.price)}</b> / ${esc(shortDur(first.label))}</p>
+          <p class="ybook__from"><span data-i18n="card.From">From</span> <b>${money(first.price)}</b> / <span data-from-dur>${esc(shortDur(first.label))}</span></p>
           <form class="form ybook__form" name="enquiry" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
             <input type="hidden" name="form-name" value="enquiry">
             <input type="hidden" name="yacht" value="${esc(label)}">
@@ -117,6 +117,9 @@ function yachtBody(y, others) {
             <label><span data-i18n="form.duration">Duration</span>
               <select name="duration">${y.durations.map((d) => `<option value="${esc(d.label)}" data-dur>${esc(d.label)}</option>`).join("")}<option value="Not sure yet" data-i18n="form.notsure">Not sure yet</option></select>
             </label>
+            ${(y.departures || []).length ? `<label><span data-i18n="form.departure">Departure</span>
+              <select name="departure" id="ybDeparture">${y.departures.map((p) => `<option value="${esc(p.name)}">${esc(p.name)}${p.prices[first.label] ? ` · ${money(p.prices[first.label])}` : ""}</option>`).join("")}</select>
+            </label>` : ""}
             <fieldset class="form__tips">
               <legend data-i18n="form.tip">Gratuity</legend>
               <div class="tips">
@@ -159,7 +162,7 @@ function yachtBody(y, others) {
   <a href="#book" class="mobilebar__gold js-tobook" data-i18n="mb.request">Request</a>
 </div>
 
-<script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null }).replace(/</g, "\\u003c")}</script>
+<script type="application/json" id="yachtData">${json({ name: y.name, images: y.images, busy: y.busy || null, durations: y.durations, departures: y.departures || [] }).replace(/</g, "\\u003c")}</script>
 <script src="/assets/js/datepicker.js?v=${V}" defer></script>
 <script src="/assets/js/yacht.js?v=${V}" defer></script>`;
 }

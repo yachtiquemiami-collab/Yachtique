@@ -22,7 +22,7 @@ Every yacht on the site is in the YCN network. **Never contact a boat or captain
 6. **Reserve with YCN** straight away: on the broker page, *Reserve with $500 Deposit* for that yacht with the date, start time, guest count and the client's details. Tell the client "confirmed" only after YCN confirms.
 7. **Sheet**: set the inquiry's Status to **Booked**.
 8. **72 hours before**: pay YCN their balance.
-9. **The day before**: fill in **Departure** and **Start time** in the sheet once YCN confirms them; the client gets the marina, time, rules and a calendar file automatically (see Automatic emails). Send the captain's contact on WhatsApp.
+9. **The day before**: check **Departure** (the client picks a marina on the form; some yachts cost more from some marinas, and the Accept page prefills the price for theirs) and fill in **Start time** once YCN confirms them; the client gets the marina, time, rules and a calendar file automatically (see Automatic emails). Send the captain's contact on WhatsApp.
 10. **After the charter**: thank-you message and ask for a Google review.
 
 Rules to remember (YCN terms, read 30 Oct 2026): max 13 guests; 4-hour minimum, 9am to 10pm; late arrival doesn't extend the charter; private-dock pickup costs extra; pets need a $500 (up to 50 ft) or $1,000 (51 ft+) refundable deposit; jet ski drivers born 1988 or later need a Florida boating license.

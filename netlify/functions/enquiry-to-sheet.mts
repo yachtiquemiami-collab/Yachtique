@@ -7,7 +7,7 @@
 
 import type { FormSubmittedEvent } from "@netlify/functions"
 
-const FIELDS = ["name", "phone", "email", "date", "guests", "duration", "yacht", "extras", "gratuity", "message", "source", "lang"] as const
+const FIELDS = ["name", "phone", "email", "date", "guests", "duration", "yacht", "departure", "extras", "gratuity", "message", "source", "lang"] as const
 
 const asText = (v: unknown): string => {
   if (v == null) return ""

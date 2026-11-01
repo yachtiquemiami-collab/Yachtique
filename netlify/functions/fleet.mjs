@@ -83,6 +83,23 @@ function toYacht(p) {
     .filter((d) => d in best)
     .map((d) => ({ label: d, price: overrides[d] != null ? overrides[d] : markup(best[d]) }));
 
+  // Some yachts cost more from some marinas (Caprice: Haulover $1,765, Nassau $6,765 for 4 hours).
+  // departures: each pickup point with its price per duration, cheapest first. An override moves every
+  // marina by the same amount, so the differences between them stay.
+  const at = {};
+  if (locIdx >= 0) {
+    for (const v of p.variants) {
+      const dur = durIdx >= 0 ? v[`option${durIdx + 1}`] : "Charter";
+      const place = v[`option${locIdx + 1}`];
+      const price = parseFloat(v.price);
+      if (!price || !(dur in best)) continue;
+      (at[place] = at[place] || {})[dur] = overrides[dur] != null ? overrides[dur] + markup(price) - markup(best[dur]) : markup(price);
+    }
+  }
+  const departures = Object.keys(at)
+    .map((name) => ({ name, prices: at[name] }))
+    .sort((a, b) => Math.min(...Object.values(a.prices)) - Math.min(...Object.values(b.prices)));
+
   const text = decode(String(p.body_html || "").replace(/<\/(p|h\d|li)>/gi, "\n").replace(/<[^>]+>/g, " "))
     .split("\n").map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
   const guests = parseGuests(text.join(" "));
@@ -105,6 +122,7 @@ function toYacht(p) {
     durations,
     from: durations.length ? Math.min(...durations.map((d) => d.price)) : 0,
     locations: locIdx >= 0 ? p.options[locIdx].values : [],
+    departures,
   };
 }
 

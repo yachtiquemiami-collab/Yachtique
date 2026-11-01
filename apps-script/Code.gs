@@ -117,6 +117,9 @@ function doPost(e) {
       delete q.gratuity;
       // As text: Sheets would turn "20%" into the number 0.2
       if (q.gratuityChoice) sheet.getRange(row, COL.TIP_CHOICE).setNumberFormat("@").setValue(q.gratuityChoice);
+      // The marina the client picked; Nektarios can replace it with the exact address for the day-before email
+      q.departure = safe(q.departure);
+      if (q.departure) sheet.getRange(row, COL.DEPARTURE).setValue(q.departure);
     } finally {
       lock.releaseLock();
     }
@@ -188,7 +191,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.TIP_CHOICE).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.DEPARTURE).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -199,6 +202,7 @@ function findEnquiry(ref) {
         price: Number(v[COL.PRICE - 1]) || 0, total: Number(v[COL.TOTAL - 1]) || 0, gratuity: Number(v[COL.GRATUITY - 1]) || 0,
         gratuityChoice: typeof v[COL.TIP_CHOICE - 1] === "number" ? Math.round(v[COL.TIP_CHOICE - 1] * 100) + "%" : String(v[COL.TIP_CHOICE - 1] || ""),
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
+        departure: String(v[COL.DEPARTURE - 1] || "").trim(),
       } };
     }
   }
@@ -523,6 +527,7 @@ function factsBox(q, lang) {
     [es ? "Yate" : "Yacht", q.yacht && !/help me choose/i.test(q.yacht) ? q.yacht : (es ? "Le ayudamos a elegir" : "Help me choose")],
   ];
   if (q.gratuityChoice && !q.total) facts.push([es ? "Propina" : "Gratuity", /included/i.test(q.gratuityChoice) ? (es ? "Incluida con el yate" : "Included with the yacht") : q.gratuityChoice]);
+  if (q.departure) facts.push([es ? "Salida" : "Departure", q.departure]);
   if (q.extras) facts.push([es ? "También organizamos" : "Also arranging", q.extras]);
   let rows = "";
   for (let i = 0; i < facts.length; i += 2) {
@@ -627,7 +632,7 @@ function sendOwnerAlert(q, to, cc) {
     subject: (q.ref ? q.ref + " · " : "") + "New inquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
     htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
     body: "New inquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
-      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
+      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + (q.departure ? "\nDeparture: " + q.departure : "") + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
   }, to, cc);
 }
 
