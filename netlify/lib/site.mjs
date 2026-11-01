@@ -4,28 +4,29 @@ export const WA = "13058124721";
 
 // Charter areas: one landing page each at /yacht-charter/<slug>.
 // `match` is tested against each yacht's pickup locations; `bimini` also includes yachts offering a Bimini day.
+// photo: the area itself, for the Locations page (Unsplash License, free to use; see README)
 export const AREAS = [
-  { slug: "miami-beach", name: "Miami Beach & Downtown Miami", short: "Miami Beach",
+  { slug: "miami-beach", photo: "/assets/img/locations/miami-beach.jpg", photoAlt: "Aerial view of the Miami Beach coastline", name: "Miami Beach & Downtown Miami", short: "Miami Beach",
     match: /south beach|haulover|collins|island gardens|venetian|aventura|miami beach/i,
     intro: "Board in South Beach, at Haulover or in Downtown Miami and spend the day on Biscayne Bay: the Haulover sandbar, the islands off Star Island and the Miami Beach shoreline at sunset.",
     seo: "Private yacht charters from Miami Beach, Haulover and Downtown Miami with captain and crew. Live availability and prices." },
-  { slug: "coconut-grove-key-biscayne", name: "Coconut Grove & Key Biscayne", short: "Coconut Grove & Key Biscayne",
+  { slug: "coconut-grove-key-biscayne", photo: "/assets/img/locations/coconut-grove-key-biscayne.jpg", photoAlt: "Cape Florida lighthouse among the palms on Key Biscayne", name: "Coconut Grove & Key Biscayne", short: "Coconut Grove & Key Biscayne",
     match: /coconut grove|bayshore|key biscayne|no name harbor/i,
     intro: "Leave from Bayshore Landing in Coconut Grove or No Name Harbor on Key Biscayne, minutes from the Nixon sandbar, Stiltsville and the calm water of south Biscayne Bay.",
     seo: "Yacht charters from Coconut Grove and Key Biscayne: sandbar days, Stiltsville and sunset cruises. Live availability and prices." },
-  { slug: "fort-lauderdale", name: "Fort Lauderdale", short: "Fort Lauderdale",
+  { slug: "fort-lauderdale", photo: "/assets/img/locations/fort-lauderdale.jpg", photoAlt: "Fort Lauderdale canals with boats and the city skyline", name: "Fort Lauderdale", short: "Fort Lauderdale",
     match: /fort lauderdale|cox landing/i,
     intro: "Cruise the Intracoastal past the waterfront homes of Fort Lauderdale, anchor off the beach, or run north along the coast with captain and crew on board.",
     seo: "Private yacht charters in Fort Lauderdale with captain and crew. Intracoastal cruises, beach anchorages, live availability." },
-  { slug: "palm-beach-boca-raton", name: "Palm Beach & Boca Raton", short: "Palm Beach & Boca",
+  { slug: "palm-beach-boca-raton", photo: "/assets/img/locations/palm-beach-boca-raton.jpg", photoAlt: "Beach and fishing pier in Palm Beach County", name: "Palm Beach & Boca Raton", short: "Palm Beach & Boca",
     match: /palm beach|royal yacht club|boca/i,
     intro: "Charters from the Royal Yacht Club in Palm Beach and the Boca Resort, for days on Lake Worth Lagoon, Boca Inlet and the clear Atlantic water off Palm Beach County.",
     seo: "Yacht charters from Palm Beach and Boca Raton with captain and crew. Live availability and prices." },
-  { slug: "key-west", name: "Key West", short: "Key West",
+  { slug: "key-west", photo: "/assets/img/locations/key-west.jpg", photoAlt: "Sunset over the water in Key West with a schooner", name: "Key West", short: "Key West",
     match: /key west|stock island/i,
     intro: "Charters from Stock Island Marina in Key West: reef snorkelling, sandbars and the Key West sunset, with longer trips across the Florida Keys.",
     seo: "Private yacht charters in Key West from Stock Island Marina. Reefs, sandbars and sunset cruises with crew." },
-  { slug: "bahamas-bimini", name: "Bimini & the Bahamas", short: "Bahamas & Bimini",
+  { slug: "bahamas-bimini", photo: "/assets/img/locations/bahamas-bimini.jpg", photoAlt: "A boat crossing turquoise water off a Bahamas island", name: "Bimini & the Bahamas", short: "Bahamas & Bimini",
     match: /nassau|bahamas|bimini/i, bimini: true,
     intro: "Cross the Gulf Stream to Bimini for the day, or charter in Nassau from Paradise Island for the Exumas and the out islands, with captain and crew who know the waters.",
     seo: "Yacht charters to Bimini from Miami and in Nassau, Bahamas. Day trips and multi-day charters with crew, live availability." },
@@ -274,7 +275,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101l";
+export const V = "20261101m";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
