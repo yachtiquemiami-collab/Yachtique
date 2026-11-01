@@ -199,7 +199,6 @@ export function modelLine(y) {
 }
 
 export function simCard(y, extra = "") {
-  const first = y.durations[0];
   return `
         <article class="yacht" data-handle="${esc(y.handle)}"${extra ? ` ${extra}` : ""}>
           <div class="yacht__mediawrap">
@@ -209,9 +208,9 @@ export function simCard(y, extra = "") {
             ${saveBtn(y.handle)}
           </div>
           <div class="yacht__body">
-            <div class="yacht__row"><h3><a href="/yachts/${esc(y.handle)}">${esc(y.name)}</a></h3>
-            <span class="yacht__price"><span data-i18n="card.from">from</span> <b>${money(first.price)}</b> / ${esc(shortDur(first.label))}</span></div>
+            <div class="yacht__row"><h3><a href="/yachts/${esc(y.handle)}">${esc(y.name)}</a></h3></div>
             <p class="yacht__model">${modelLine(y)}</p>
+            <ul class="yacht__rates">${y.durations.slice(0, 3).map((d) => `<li><span data-dur>${esc(shortDur(d.label))}</span><b>${money(d.price)}</b></li>`).join("")}</ul>
             <div class="yacht__row yacht__row--foot"><span class="yacht__extra"></span><a class="yacht__link" href="/yachts/${esc(y.handle)}"><span data-i18n="btn.viewyacht">View yacht</span> <span aria-hidden="true">→</span></a></div>
           </div>
         </article>`;
@@ -275,7 +274,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101h";
+export const V = "20261101i";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {

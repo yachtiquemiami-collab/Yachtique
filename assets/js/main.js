@@ -62,7 +62,6 @@ var REVIEWS = [];
     var photo = y.images[0]
       ? '<img src="' + esc(sized(y.images[0], 900)) + '" alt="' + esc(label(y)) + '" loading="lazy">'
       : '<img src="/assets/img/logo-icon.png" alt="" loading="lazy">';
-    var first = y.durations[0];
     var bits = [yq.type(y.type), y.builder, y.feet + " ft"];
     if (y.guests) bits.push(y.guests + " " + t("card.guests", "guests"));
     else if (y.cabins) bits.push(cabins(y.cabins));
@@ -73,9 +72,12 @@ var REVIEWS = [];
           '<button type="button" class="save" data-save="' + esc(y.handle) + '" aria-pressed="false" aria-label="' + esc(t("save.add", "Save to shortlist")) + '">' + HEART + "</button>" +
         "</div>" +
         '<div class="yacht__body">' +
-          '<div class="yacht__row"><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3>" +
-          '<span class="yacht__price">' + t("card.from", "from") + " <b>" + money(first.price) + "</b> / " + esc(shortDur(first.label)) + "</span></div>" +
+          '<div class="yacht__row"><h3><a href="/yachts/' + esc(y.handle) + '">' + esc(y.name) + "</a></h3></div>" +
           '<p class="yacht__model">' + esc(bits.join(" · ")) + "</p>" +
+          // The first three durations side by side, cheapest marina
+          '<ul class="yacht__rates">' + y.durations.slice(0, 3).map(function (d) {
+            return "<li><span>" + esc(yq.dur(shortDur(d.label))) + "</span><b>" + money(d.price) + "</b></li>";
+          }).join("") + "</ul>" +
           '<div class="yacht__row yacht__row--foot"><span class="yacht__avail" hidden></span>' +
           '<a class="yacht__link" href="/yachts/' + esc(y.handle) + '">' + t("btn.viewyacht", "View yacht") + ' <span aria-hidden="true">→</span></a></div>' +
         "</div>" +
