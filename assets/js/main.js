@@ -146,6 +146,34 @@ var REVIEWS = [];
     if (trip.yacht) [].forEach.call(select.options, function (o) { if (o.textContent === trip.yacht) select.value = o.value || o.textContent; });
   }
 
+  // Departure: the chosen yacht's marinas, each with its price for the chosen duration
+  var depBox = document.querySelector("[data-departure]");
+  function fillDeparture() {
+    if (!depBox || !select) return;
+    var dep = depBox.querySelector("select"), keep = dep.value;
+    var opt = select.options[select.selectedIndex];
+    var handle = opt && opt.getAttribute("data-handle");
+    var y = fleet.filter(function (x) { return x.handle === handle; })[0];
+    var list = (y && y.departures) || [];
+    var durEl = select.form.querySelector('[name="duration"]');
+    var dur = durEl ? durEl.value : "";
+    dep.innerHTML = "";
+    list.forEach(function (p) {
+      var o = document.createElement("option");
+      o.value = p.name;
+      o.textContent = p.name + (p.prices[dur] ? " \u00b7 $" + Number(p.prices[dur]).toLocaleString("en-US") : "");
+      dep.appendChild(o);
+    });
+    if (keep && [].some.call(dep.options, function (o) { return o.value === keep; })) dep.value = keep;
+    depBox.hidden = !list.length;
+    dep.disabled = !list.length;
+  }
+  if (select) {
+    select.addEventListener("change", fillDeparture);
+    var durEl = select.form && select.form.querySelector('[name="duration"]');
+    if (durEl) durEl.addEventListener("change", fillDeparture);
+  }
+
   function fillStats() {
     var set = function (k, v) { var el = document.querySelector('[data-stat="' + k + '"]'); if (el) el.textContent = v; };
     var feet = fleet.map(function (y) { return y.feet; });
@@ -173,6 +201,7 @@ var REVIEWS = [];
         if (trip.guests) want.guests = +trip.guests || 0;
         renderFleet();
         fillSelect();
+        fillDeparture();
         fillStats();
         prefillShortlist();
       })
@@ -330,6 +359,7 @@ var REVIEWS = [];
         if (select) select.value = label(current);
         if (yq.trip) yq.trip.set({ yacht: label(current) });
         checkDate();
+        fillDeparture();
         dialog.close();
       }
       if (e.target.closest(".js-close") || e.target === dialog) dialog.close();

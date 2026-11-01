@@ -118,6 +118,28 @@
     dateInput.addEventListener("change", checkDate);
   }
 
+  // Departure: each marina shows its price for the chosen duration, and the card's price follows the choice
+  var form = document.querySelector(".ybook__form");
+  var depSel = document.getElementById("ybDeparture");
+  var durSel = form && form.querySelector('[name="duration"]');
+  var fromB = document.querySelector(".ybook__from b");
+  function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
+  function showPrices() {
+    if (!depSel || !durSel) return;
+    var dur = durSel.value;
+    [].forEach.call(depSel.options, function (o, i) {
+      var p = (y.departures[i] || {}).prices || {};
+      o.textContent = o.value + (p[dur] ? " \u00b7 " + money(p[dur]) : "");
+    });
+    var pick = (y.departures[depSel.selectedIndex] || {}).prices || {};
+    var fromDur = document.querySelector("[data-from-dur]");
+    if (fromB && pick[dur]) {
+      fromB.textContent = money(pick[dur]);
+      if (fromDur) fromDur.textContent = window.yq ? yq.dur(dur.replace(/ hours?$/, "h")) : dur.replace(/ hours?$/, "h");
+    }
+  }
+  if (depSel && durSel) { depSel.addEventListener("change", showPrices); durSel.addEventListener("change", showPrices); }
+
   // Phone bar "Request" button
   document.querySelectorAll(".js-tobook").forEach(function (a) {
     a.addEventListener("click", function (e) {

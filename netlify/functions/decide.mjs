@@ -59,7 +59,7 @@ export default async (req) => {
         <label>Charter price before tax
           <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${suggested || ""}" data-rate="${rate}">
         </label>
-        <p class="dhint">${suggested ? `Website price for ${esc(q.duration)}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice ? "" : " Leave it empty to send the quote yourself."}</p>
+        <p class="dhint">${suggested ? `Website price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice ? "" : " Leave it empty to send the quote yourself."}</p>
         <label>Gratuity${chose ? ` <em class="dchose">· client chose ${esc(/included/i.test(chose) ? "included" : chose)}</em>` : ""}
           <select name="gratuity" data-taxed="${r.taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : "None"}</option>`).join("")}</select>
         </label>
@@ -114,8 +114,12 @@ async function sitePrice(req, q) {
   if (!name || /help me choose/.test(name)) return { price: 0 };
   const fleet = await loadFleet(req).catch(() => null);
   const y = (fleet || []).find((x) => String(x.name).trim().toLowerCase() === name);
-  const d = y && y.durations.find((x) => x.label.toLowerCase() === String(q.duration || "").trim().toLowerCase());
-  return { price: d ? d.price : 0 };
+  const dur = String(q.duration || "").trim().toLowerCase();
+  const d = y && y.durations.find((x) => x.label.toLowerCase() === dur);
+  // The client's marina, when they picked one and it has its own price
+  const at = y && (y.departures || []).find((p) => p.name === q.departure);
+  const key = at && Object.keys(at.prices).find((k) => k.toLowerCase() === dur);
+  return { price: key ? at.prices[key] : d ? d.price : 0, at: key ? at.name : "" };
 }
 
 function prettyDate(iso) {
@@ -126,6 +130,7 @@ function prettyDate(iso) {
 
 function summary(q) {
   const facts = [["Date", prettyDate(q.date)], ["Guests", q.guests || "—"], ["Duration", q.duration || "—"], ["Yacht", q.yacht || "Help me choose"]];
+  if (q.departure) facts.push(["Departure", q.departure]);
   return `<ul class="yfacts dfacts">${facts.map(([k, v]) => `<li><b>${esc(v)}</b><span>${k}</span></li>`).join("")}</ul>
       <p class="dcontact">${[q.phone, q.email, q.lang === "es" ? "Spanish" : ""].filter(Boolean).map(esc).join(" · ")}</p>`;
 }
