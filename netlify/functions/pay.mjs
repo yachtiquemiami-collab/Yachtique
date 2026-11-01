@@ -7,14 +7,14 @@
 //                         The Stripe webhook (/api/stripe-webhook) does the same, in case the client closes the tab.
 //
 // Netlify environment variables: STRIPE_SECRET_KEY (plus SHEETS_WEBHOOK_URL and SHEETS_SECRET).
-import { WA, esc } from "../lib/site.mjs";
+import { WA, esc, payBadges } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage } from "../lib/card.mjs";
 
 const T = {
   en: {
     eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
     date: "Date", guests: "Guests", duration: "Duration", yacht: "Yacht", flexible: "Flexible", help: "To confirm",
-    tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
+    secure: "Secure checkout by Stripe", tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
     pay: (a) => `Pay ${a}`, safe: "Card, Apple Pay or Google Pay, processed securely by Stripe. Yachtique never sees your card number.",
     terms: "By paying you agree to our", termsLink: "booking terms",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
@@ -30,7 +30,7 @@ const T = {
   es: {
     eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
     date: "Fecha", guests: "Invitados", duration: "Duración", yacht: "Yate", flexible: "Flexible", help: "Por confirmar",
-    tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
+    secure: "Pago seguro con Stripe", tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
     pay: (a) => `Pagar ${a}`, safe: "Tarjeta, Apple Pay o Google Pay, procesado de forma segura por Stripe. Yachtique nunca ve el número de su tarjeta.",
     terms: "Al pagar acepta nuestras", termsLink: "condiciones de reserva",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
@@ -148,6 +148,7 @@ export default async (req, context) => {
         ${sum(q, S, r.taxRate)}
         <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>
+      ${payBadges(S.secure)}
       <p class="dhint dsafe">${S.safe}</p>
       <p class="dswitch">${S.terms} <a href="/terms.html${L === "es" ? "?lang=es" : ""}" target="_blank" rel="noopener">${S.termsLink}</a>.</p>`);
 };
