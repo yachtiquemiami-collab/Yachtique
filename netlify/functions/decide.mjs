@@ -8,6 +8,9 @@
 //   POST ref, a, t, price, gratuity            -> sets the Status in the Google Sheet and emails the client
 //        (in their language), through the Apps Script web app.
 //
+//   a=zelle                                     -> the client paid by Zelle: one confirm button marks the row Paid
+//        and sends the same emails as a card payment (price and gratuity asked first if there isn't a total yet).
+//
 // t is an HMAC of the ref with SHEETS_SECRET (the Apps Script builds the same code for the email buttons).
 import { esc, loadFleet } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage as page } from "../lib/card.mjs";
@@ -30,7 +33,7 @@ export default async (req) => {
     const q = new URL(req.url).searchParams;
     ref = String(q.get("ref") || ""); a = String(q.get("a") || ""); t = String(q.get("t") || "");
   }
-  if (!RX_REF.test(ref) || (a !== "accept" && a !== "decline") || !tokenOk(ref, t, secret)) {
+  if (!RX_REF.test(ref) || !["accept", "decline", "zelle"].includes(a) || !tokenOk(ref, t, secret)) {
     return page("Link not valid", `<h1>This link is not valid</h1><p>Open the inquiry from the email again, or change its Status in the Enquiries sheet.</p>`, 403);
   }
 
@@ -38,9 +41,10 @@ export default async (req) => {
     const r = await sheet({ type: "lookup", ref }).catch(() => null);
     if (!r || !r.ok) return page("Not found", `<h1>We couldn't find ${esc(ref)}</h1><p>Check the Enquiries sheet: the row may have been moved or deleted.</p>`, 404);
     const q = r.enquiry;
+    if (a === "zelle") return zellePage(q, t, Number(r.taxRate) || 0, r.taxGratuity, await sitePrice(req, q));
     // Accepted earlier without a price: Accept again to send the payment link
     const addPrice = a === "accept" && /^accepted$/i.test(q.status) && !q.total;
-    if (!addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true));
+    if (!addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
     const accept = a === "accept";
     const rate = Number(r.taxRate) || 0;
     const site = accept ? await sitePrice(req, q) : { price: 0 };
@@ -75,35 +79,18 @@ export default async (req) => {
         <button type="submit" class="btn ${accept ? "btn--gold" : "btn--decline"} btn--block">${addPrice ? "Send payment link" : `Confirm ${accept ? "accept" : "decline"}`}</button>
       </form>
       ${addPrice ? "" : `<p class="dswitch"><a href="?ref=${encodeURIComponent(ref)}&a=${accept ? "decline" : "accept"}&t=${encodeURIComponent(t)}">${accept ? "Decline instead" : "Accept instead"}</a></p>`}
-      ${accept ? `<script>
-        (function () {
-          var input = document.querySelector('[name="price"]'), tipSel = document.querySelector('[name="gratuity"]'), sum = document.querySelector(".dsum");
-          var rate = +input.getAttribute("data-rate") || 0, taxTip = tipSel.getAttribute("data-taxed") === "1";
-          function fmt(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-          function update() {
-            var p = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
-            var ok = p > 0;
-            sum.hidden = !ok;
-            document.querySelector("[data-paynote]").hidden = !ok;
-            document.querySelector("[data-quotenote]").hidden = ok;
-            if (!ok) return;
-            var pct = +tipSel.value || 0, g = Math.round(p * pct) / 100;
-            var total = Math.round((p + g + (taxTip ? p + g : p) * rate) * 100) / 100;
-            sum.querySelector('[data-row="grat"]').hidden = !g;
-            sum.querySelector('[data-sum="gratlabel"]').textContent = "Gratuity (" + pct + "%)";
-            sum.querySelector('[data-sum="price"]').textContent = fmt(p);
-            sum.querySelector('[data-sum="grat"]').textContent = fmt(g);
-            sum.querySelector('[data-sum="tax"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
-            sum.querySelector('[data-sum="total"]').textContent = fmt(total);
-          }
-          input.addEventListener("input", update); tipSel.addEventListener("change", update); update();
-        })();
-      </script>` : ""}`);
+      ${accept ? priceScript() : ""}`);
+  }
+
+  if (a === "zelle") {
+    const z = await sheet({ type: "manualpaid", ref, method: "Zelle", price: price.replace(/[^0-9.]/g, ""), gratuity: gratuity.replace(/[^0-9.]/g, "") }).catch(() => null);
+    if (!z || !z.ok) return page("Not saved", `<h1>That didn't go through</h1><p>Nothing was changed and no email was sent.${z && z.error === "no price" ? " Type the charter price first." : z && /^status/.test(z.error || "") ? ` The inquiry is ${esc(z.error.slice(7))}.` : " Try again, or set the Status in the Enquiries sheet."}</p>`, 502);
+    return page("Paid", decided(z.enquiry, z.already, true, t));
   }
 
   const r = await sheet({ type: "decide", ref, a, price: a === "accept" ? price.replace(/[^0-9.]/g, "") : "", gratuity: a === "accept" ? gratuity.replace(/[^0-9.]/g, "") : "" }).catch(() => null);
   if (!r || !r.ok) return page("Not saved", `<h1>That didn't go through</h1><p>Nothing was sent. Try again, or set the Status in the Enquiries sheet.</p>`, 502);
-  return page(r.enquiry.status, decided(r.enquiry, r.already, r.emailed));
+  return page(r.enquiry.status, decided(r.enquiry, r.already, r.emailed, t));
 };
 
 export const config = { path: "/api/decide" };
@@ -135,7 +122,7 @@ function summary(q) {
       <p class="dcontact">${[q.phone, q.email, q.lang === "es" ? "Spanish" : ""].filter(Boolean).map(esc).join(" · ")}</p>`;
 }
 
-function decided(q, already, emailed) {
+function decided(q, already, emailed, t) {
   const paid = /paid/i.test(q.status);
   const ok = paid || /accepted/i.test(q.status);
   const name = first(q) || "the client";
@@ -156,11 +143,76 @@ function decided(q, already, emailed) {
       ${summary(q)}
       ${money}
       <p class="dnote">${paid
-        ? `${esc(name)} paid ${usd(q.total)}. Next: reserve the yacht with YCN.`
+        ? `${esc(name)} paid ${usd(q.total)}${/^zelle$/i.test(q.payment || "") ? " by Zelle" : ""}. Next: reserve the yacht with YCN.`
         : already
           ? "Nothing changed and no email was sent again."
           : emailed ? `${esc(name)} has been emailed${es ? " in Spanish" : ""}${q.payUrl ? " with the payment link" : ""}. The Status in the sheet is now ${esc(q.status)}.`
             : `The Status in the sheet is now ${esc(q.status)}. No email was sent (no valid email address on the inquiry).`}</p>
       ${phone && !paid ? `<a class="btn btn--wa btn--block" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Message ${esc(name)} on WhatsApp</a>` : ""}
-      ${q.payUrl && !paid ? `<p class="dswitch"><a href="${esc(q.payUrl)}" target="_blank" rel="noopener">Open the client's payment page</a></p>` : ""}`;
+      ${q.payUrl && !paid ? `<p class="dswitch"><a href="${esc(q.payUrl)}" target="_blank" rel="noopener">Open the client's payment page</a></p>` : ""}
+      ${ok && !paid && t ? `<p class="dswitch"><a href="${zelleUrl(q.ref, t)}">Paid by Zelle? Mark it paid</a></p>` : ""}`;
+}
+
+function zelleUrl(ref, t) { return `/api/decide?ref=${encodeURIComponent(ref)}&a=zelle&t=${encodeURIComponent(t)}`; }
+
+// Mark paid by Zelle: shows what the client should have sent, and one confirm button
+function zellePage(q, t, rate, taxGratuity, site) {
+  if (/^paid$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
+  if (/^(declined|lost)$/i.test(q.status)) return page(q.status, `<h1>${esc(q.ref)} is ${esc(q.status.toLowerCase())}</h1><p class="dnote">Set the Status back to Accepted in the sheet first if the client is booking after all.</p>`);
+  const hasTotal = q.total > 0;
+  const chose = parseInt(String(q.gratuityChoice || ""), 10);
+  const tip = GRATUITY_OPTIONS.includes(chose) ? chose : GRATUITY;
+  return page("Paid by Zelle", `
+      <p class="eyebrow">${esc(q.ref)} · Zelle</p>
+      <h1>Did ${esc(first(q) || "the client")} pay by Zelle?</h1>
+      ${summary(q)}
+      <form method="POST" action="/api/decide" class="form dform">
+        <input type="hidden" name="ref" value="${esc(q.ref)}"><input type="hidden" name="a" value="zelle"><input type="hidden" name="t" value="${esc(t)}">
+        ${hasTotal
+          ? `<ul class="dsum"><li><span>Charter</span><b>${usd(q.price)}</b></li>${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>Should have arrived</span><b>${usd(q.total)}</b></li></ul>`
+          : `<label>Charter price before tax
+          <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${site.price || ""}" data-rate="${rate}" required>
+        </label>
+        <label>Gratuity
+          <select name="gratuity" data-taxed="${taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : "None"}</option>`).join("")}</select>
+        </label>
+        <ul class="dsum" hidden>
+          <li><span>Charter</span><b data-sum="price"></b></li>
+          <li data-row="grat"><span data-sum="gratlabel">Gratuity</span><b data-sum="grat"></b></li>
+          <li><span>Florida sales tax (${+(rate * 100).toFixed(2)}%)</span><b data-sum="tax"></b></li>
+          <li class="dsum__total"><span>Should have arrived</span><b data-sum="total"></b></li>
+        </ul>`}
+        <p class="dnote">Check your Yachtique bank account first: the full amount, with ${esc(q.ref)} in the memo. Confirming sets the sheet to <b>Paid</b> (Payment: Zelle) and emails ${esc(first(q) || "the client")} the payment confirmation with the calendar file, like a card payment. Florida sales tax is due the same as for a card.</p>
+        <button type="submit" class="btn btn--gold btn--block">Confirm Zelle payment received</button>
+      </form>
+      ${hasTotal ? "" : priceScript()}`);
+}
+
+// The live summary under the price box (Accept and Zelle pages): charter, gratuity, tax and total as Nektarios types
+function priceScript() {
+  return `<script>
+        (function () {
+          var input = document.querySelector('[name="price"]'), tipSel = document.querySelector('[name="gratuity"]'), sum = document.querySelector(".dsum");
+          var rate = +input.getAttribute("data-rate") || 0, taxTip = tipSel.getAttribute("data-taxed") === "1";
+          function fmt(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+          function update() {
+            var p = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
+            var ok = p > 0;
+            sum.hidden = !ok;
+            var pn = document.querySelector("[data-paynote]"), qn = document.querySelector("[data-quotenote]");
+            if (pn) pn.hidden = !ok;
+            if (qn) qn.hidden = ok;
+            if (!ok) return;
+            var pct = +tipSel.value || 0, g = Math.round(p * pct) / 100;
+            var total = Math.round((p + g + (taxTip ? p + g : p) * rate) * 100) / 100;
+            sum.querySelector('[data-row="grat"]').hidden = !g;
+            sum.querySelector('[data-sum="gratlabel"]').textContent = "Gratuity (" + pct + "%)";
+            sum.querySelector('[data-sum="price"]').textContent = fmt(p);
+            sum.querySelector('[data-sum="grat"]').textContent = fmt(g);
+            sum.querySelector('[data-sum="tax"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
+            sum.querySelector('[data-sum="total"]').textContent = fmt(total);
+          }
+          input.addEventListener("input", update); tipSel.addEventListener("change", update); update();
+        })();
+      </script>`;
 }
