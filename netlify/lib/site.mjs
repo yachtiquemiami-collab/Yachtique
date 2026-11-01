@@ -5,6 +5,9 @@ export const WA = "13058124721";
 // Charter areas: one landing page each at /yacht-charter/<slug>.
 // `match` is tested against each yacht's pickup locations; `bimini` also includes yachts offering a Bimini day.
 // photo: the area itself, for the Locations page (Unsplash License, free to use; see README)
+// Food on board: Yacht Bites' menu under Nektarios's partner link (the same link is in apps-script/Code.gs)
+export const FOOD_URL = "https://yachtbites.co/order.html?k=TkVLVEFSSU9TLTQ2MR9OZWt0YXJpb3MgUGFwYXN0YXZyb3U.13n2l6#menu";
+
 export const AREAS = [
   { slug: "miami-beach", photo: "/assets/img/locations/miami-beach.jpg", photoAlt: "Aerial view of the Miami Beach coastline", name: "Miami Beach & Downtown Miami", short: "Miami Beach",
     match: /south beach|haulover|collins|island gardens|venetian|aventura|miami beach/i,
@@ -275,7 +278,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101m";
+export const V = "20261101n";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
