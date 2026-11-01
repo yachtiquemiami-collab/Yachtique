@@ -95,6 +95,8 @@ Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → 
 
 Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. The page shows the charter, Florida sales tax and the total saved in the Sheet, then opens Stripe Checkout. The amount always comes from the Sheet, never from the browser.
 
+On the pay page the client can still switch the gratuity to 15, 18 or 20%. The Sheet works out the new Gratuity and Total (`setGratuity` in `apps-script/Code.gs`) before Stripe opens, and the Gratuity choice column shows what they picked.
+
 | Part | Where |
 |---|---|
 | Accept page with the price box | `netlify/functions/decide.mjs` |
