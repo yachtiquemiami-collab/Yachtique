@@ -925,4 +925,7 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .dsum__total span { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 .dsum__total b { font-size: 22px; }
 .dcard form .btn--block { width: 100%; }
+.dpay { display: grid; gap: 18px; text-align: left; }
+.dpay .dsum { margin: 0; }
+.dtips legend { text-align: left; }
 .dchose { font-style: normal; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--muted); }

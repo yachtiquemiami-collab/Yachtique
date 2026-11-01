@@ -93,6 +93,7 @@ function doPost(e) {
     if (body.type === "event") return json(saveEvent(body.event || {}));
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
     if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
+    if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
     if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
@@ -255,6 +256,30 @@ function decideEnquiry(ref, a, price, gratuityPct) {
     console.error("Decision email failed: " + err);
   }
   return { ok: true, enquiry: f.q, emailed: emailed };
+}
+
+// The client changes the gratuity on the payment page, before paying: the Gratuity, Total and choice in the
+// row are updated, so the Stripe payment, the reminders and the Monday summary all use the new amount. No email.
+const GRATUITY_CHOICES = [15, 18, 20];
+function setGratuity(ref, pct) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    if (!/^accepted$/i.test(f.q.status) || !(f.q.price > 0)) return { ok: false, error: "not payable" };
+    if (GRATUITY_CHOICES.indexOf(pct) < 0) return { ok: false, error: "bad gratuity" };
+    f.q.gratuity = cents(f.q.price * pct / 100) / 100;
+    const taxed = TAX_GRATUITY ? f.q.price + f.q.gratuity : f.q.price;
+    f.q.total = cents(f.q.price + f.q.gratuity + taxed * TAX_RATE) / 100;
+    f.q.gratuityChoice = pct + "%";
+    f.sheet.getRange(f.row, COL.TOTAL).setValue(f.q.total);
+    f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
+    f.sheet.getRange(f.row, COL.TIP_CHOICE).setNumberFormat("@").setValue(f.q.gratuityChoice);
+    return { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* =================== Payments ===================

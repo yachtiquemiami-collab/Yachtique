@@ -2,6 +2,7 @@
 //
 //   GET                -> the charter, the total with Florida sales tax, and one Pay button (in the client's language).
 //   POST               -> opens Stripe Checkout for the total saved in the Google Sheet (never an amount from the browser).
+//                         The client can switch the gratuity (15/18/20%) first: the Sheet recalculates and saves the total.
 //   GET ?session_id=   -> Stripe sends the client back here; we check the payment with Stripe and mark the enquiry Paid.
 //                         The Stripe webhook (/api/stripe-webhook) does the same, in case the client closes the tab.
 //
@@ -13,6 +14,7 @@ const T = {
   en: {
     eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
     date: "Date", guests: "Guests", duration: "Duration", yacht: "Yacht", flexible: "Flexible", help: "To confirm",
+    tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
     pay: (a) => `Pay ${a}`, safe: "Card, Apple Pay or Google Pay, processed securely by Stripe. Yachtique never sees your card number.",
     terms: "By paying you agree to our", termsLink: "booking terms",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
@@ -28,6 +30,7 @@ const T = {
   es: {
     eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
     date: "Fecha", guests: "Invitados", duration: "Duración", yacht: "Yate", flexible: "Flexible", help: "Por confirmar",
+    tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
     pay: (a) => `Pagar ${a}`, safe: "Tarjeta, Apple Pay o Google Pay, procesado de forma segura por Stripe. Yachtique nunca ve el número de su tarjeta.",
     terms: "Al pagar acepta nuestras", termsLink: "condiciones de reserva",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
@@ -41,6 +44,7 @@ const T = {
     product: (y) => "Alquiler de yate" + (y ? " · " + y : ""),
   },
 };
+const GRATUITY_CHOICES = [15, 18, 20];
 const ES_DAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const ES_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -92,6 +96,14 @@ export default async (req, context) => {
   if (!key) return say(S.off, S.offP, 503);
 
   if (req.method === "POST") {
+    // A different gratuity picked on the page: the Sheet works out and saves the new total first
+    const form = await req.formData().catch(() => null);
+    const pct = parseInt(form && form.get("gratuity"), 10);
+    if (GRATUITY_CHOICES.includes(pct) && pct !== gratPct(q)) {
+      const g = await sheet({ type: "gratuity", ref, gratuity: pct }).catch(() => null);
+      if (!g || !g.ok) return say(S.error, S.errorP, 502);
+      q = g.enquiry;
+    }
     const cents = (n) => Math.round(Number(n) * 100);
     const yacht = String(q.yacht || "").replace(/\s*\(.*$/, "").trim();
     const what = [/help me choose/i.test(yacht) ? "" : yacht, q.duration, prettyDate(q.date, "en")].filter(Boolean).join(" · ");
@@ -131,9 +143,10 @@ export default async (req, context) => {
       <p class="eyebrow">${S.eyebrow} · ${esc(ref)}</p>
       <h1>${S.head(esc(first(q)))}</h1>
       ${facts(q, S, L)}
-      ${sum(q, S, r.taxRate)}
-      <form method="POST" action="${esc(self)}">
-        <button type="submit" class="btn btn--gold btn--block">${S.pay(usd(q.total))}</button>
+      <form method="POST" action="${esc(self)}" class="dpay">
+        ${tipPicker(q, S, r)}
+        ${sum(q, S, r.taxRate)}
+        <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>
       <p class="dhint dsafe">${S.safe}</p>
       <p class="dswitch">${S.terms} <a href="/terms.html${L === "es" ? "?lang=es" : ""}" target="_blank" rel="noopener">${S.termsLink}</a>.</p>`);
@@ -180,8 +193,39 @@ function facts(q, S, L) {
 function sum(q, S, rate, paid) {
   return `<ul class="dsum">
         <li><span>${S.charter}</span><b>${usd(q.price)}</b></li>
-        ${q.gratuity > 0 ? `<li><span>${S.gratuity(gratPct(q))}</span><b>${usd(q.gratuity)}</b></li>` : ""}
-        ${q.total > q.price + (q.gratuity || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li>` : ""}
-        <li class="dsum__total"><span>${S.total}${paid ? " ✓" : ""}</span><b>${usd(q.total)}</b></li>
+        <li data-row="grat"${q.gratuity > 0 ? "" : " hidden"}><span data-sum="gratlabel">${S.gratuity(gratPct(q))}</span><b data-sum="grat">${usd(q.gratuity)}</b></li>
+        ${q.total > q.price + (q.gratuity || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b data-sum="tax">${usd(q.total - q.price - (q.gratuity || 0))}</b></li>` : ""}
+        <li class="dsum__total"><span>${S.total}${paid ? " ✓" : ""}</span><b data-sum="total">${usd(q.total)}</b></li>
       </ul>`;
+}
+
+// 15 / 18 / 20% pills (plus what Nektarios set, if it's something else). The page shows the new total at once;
+// the amount itself is worked out again in the Sheet when the client pays.
+function tipPicker(q, S, r) {
+  const now = gratPct(q);
+  const opts = [...new Set([...GRATUITY_CHOICES, now])].sort((a, b) => a - b);
+  const taxed = r.taxGratuity === false ? 0 : 1;
+  return `<fieldset class="form__tips dtips">
+        <legend>${S.tip}</legend>
+        <div class="tips" style="grid-template-columns:repeat(${opts.length},1fr)">${opts.map((p) => `<label><input type="radio" name="gratuity" value="${p}"${p === now ? " checked" : ""}><span>${p ? `${p}%` : S.none}</span></label>`).join("")}</div>
+        <small class="form__note">${S.tipNote}</small>
+      </fieldset>
+      <script>
+        (function () {
+          var price = ${Number(q.price) || 0}, rate = ${Number(r.taxRate) || 0}, taxTip = ${taxed}, f = document.currentScript.closest("form");
+          var label = ${JSON.stringify(S.gratuity("{p}"))}, payLabel = ${JSON.stringify(S.pay("{a}"))};
+          function fmt(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+          f.addEventListener("change", function () {
+            var pct = +(f.querySelector('[name="gratuity"]:checked') || {}).value || 0, g = Math.round(price * pct) / 100;
+            var total = Math.round((price + g + (taxTip ? price + g : price) * rate) * 100) / 100;
+            var row = f.querySelector('[data-row="grat"]'), tax = f.querySelector('[data-sum="tax"]');
+            row.hidden = !g;
+            f.querySelector('[data-sum="gratlabel"]').textContent = label.replace("{p}", pct);
+            f.querySelector('[data-sum="grat"]').textContent = fmt(g);
+            if (tax) tax.textContent = fmt(Math.round((total - price - g) * 100) / 100);
+            f.querySelector('[data-sum="total"]').textContent = fmt(total);
+            f.querySelector("[data-pay]").textContent = payLabel.replace("{a}", fmt(total));
+          });
+        })();
+      </script>`;
 }
