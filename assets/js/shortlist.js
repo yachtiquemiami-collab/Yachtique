@@ -90,7 +90,7 @@
       '<div class="slshare">' +
         '<a class="btn btn--wa js-send" target="_blank" rel="noopener" href="#"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>' + t("sl.send", "Send my shortlist on WhatsApp") + "</a>" +
         '<button type="button" class="btn btn--ghost js-share">' + t("sl.share", "Share with my group") + "</button>" +
-        '<a class="btn btn--gold js-enq" href="/?shortlist=' + encodeURIComponent(handles().join(",")) + '#contact">' + t("sl.enquire", "Enquire about these") + "</a>" +
+        '<a class="btn btn--gold js-enq" href="/?shortlist=' + encodeURIComponent(handles().join(",")) + '#contact">' + t("sl.enquire", "Inquire about these") + "</a>" +
       "</div>" +
       '<p class="slnote" id="slNote" hidden></p>';
 

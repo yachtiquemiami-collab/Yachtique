@@ -275,7 +275,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261101a";
+export const V = "20261101b";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
@@ -290,7 +290,7 @@ export function navHtml() {
       <a href="/#experiences" data-i18n="nav.experiences">Experiences</a>
       <a href="/#services" data-i18n="nav.concierge">Concierge</a>
       <a href="/#about" data-i18n="nav.about">About</a>
-      <a href="/#contact" class="btn btn--gold btn--sm" data-i18n="nav.enquire">Enquire</a>
+      <a href="/#contact" class="btn btn--gold btn--sm" data-i18n="nav.enquire">Inquire</a>
     </nav>
     <div class="lang" role="group" aria-label="Language" data-i18n-attr="aria-label:lang.label"><button type="button" data-lang="en">EN</button><button type="button" data-lang="es">ES</button></div>
     <button class="nav__toggle" id="navToggle" aria-label="Open menu" data-i18n-attr="aria-label:nav.menu" aria-expanded="false" aria-controls="navLinks">

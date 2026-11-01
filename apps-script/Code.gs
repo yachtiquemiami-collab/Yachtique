@@ -13,7 +13,7 @@ const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRE
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
   "Departure", "Start time", "Emails sent"];
-// Enquiries columns (1-based), used by the Accept / Decline links and payments
+// Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
   DEPARTURE: 23, START: 24, SENT: 25 };
@@ -41,7 +41,7 @@ function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.setSpreadsheetTimeZone("America/New_York");
 
-  // Enquiries
+  // Inquiries
   const enq = ss.getSheetByName("Enquiries") || ss.insertSheet("Enquiries", 0);
   enq.getRange(1, 1, 1, ENQUIRY_HEADERS.length).setValues([ENQUIRY_HEADERS]);
   {
@@ -85,7 +85,7 @@ function styleHeader(sheet, n) {
   sheet.setFrozenRows(1);
 }
 
-/** Netlify sends each new enquiry here. */
+/** Netlify sends each new inquiry here. */
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
@@ -119,7 +119,7 @@ function doPost(e) {
     } finally {
       lock.releaseLock();
     }
-    // Emails never block the sheet: a mail problem is logged, the enquiry is still saved
+    // Emails never block the sheet: a mail problem is logged, the inquiry is still saved
     try { sendOwnerAlert(q); } catch (err) { console.error("Owner alert failed: " + err); }
     if (SEND_CLIENT_CONFIRMATION) {
       try { sendClientConfirmation(q); } catch (err) { console.error("Client email failed: " + err); }
@@ -132,7 +132,7 @@ function doPost(e) {
 
 /* =================== Accept / Decline ===================
    The new-enquiry email has Accept and Decline buttons. They open yachtique.co/api/decide (netlify/functions/decide.mjs),
-   which shows the enquiry with ONE confirm button: email scanners open links on their own, so opening never decides.
+   which shows the inquiry with ONE confirm button: email scanners open links on their own, so opening never decides.
    The confirm calls this script; the Status becomes Accepted or Declined and the client gets the matching email,
    in their language. The link carries a code made from the ref and the shared secret, so it can't be guessed. */
 
@@ -326,7 +326,7 @@ function setupInsights() {
   sh.getRange("A2").setValue("Live from yachtique.co. Anonymous counts, updated with every visit.").setFontColor("#777777");
 
   const rows = [["Activity", "Last 7 days", "Last 30 days"],
-    ["Page views", "view"], ["WhatsApp taps", "whatsapp"], ["Enquiries sent", "enquiry"], ["Phone calls", "call"],
+    ["Page views", "view"], ["WhatsApp taps", "whatsapp"], ["Inquiries sent", "enquiry"], ["Phone calls", "call"],
     ["Emails", "email"], ["Yachts saved", "shortlist_add"], ["Shortlists sent", "shortlist_send"],
     ["Shortlists shared", "shortlist_share"], ["Date searches", "search"], ["Yacht quick views", "yacht_quickview"]];
   sh.getRange(4, 1, 1, 3).setValues([rows[0]]);
@@ -585,7 +585,7 @@ function sendOwnerAlert(q, to, cc) {
       '<div style="font-family:' + SANS + ';font-size:12px;line-height:1.6;color:' + C.muted + ';padding-top:4px">The client gets a branded email' + (q.lang === "es" ? " in Spanish" : "") + " the moment you confirm.</div></td></tr></table>"
     : "";
   const inner =
-    eyebrow("New charter enquiry" + (q.ref ? " &middot; " + esc(q.ref) : "")) +
+    eyebrow("New charter inquiry" + (q.ref ? " &middot; " + esc(q.ref) : "")) +
     heading(esc(q.name || "New client")) +
     (contact ? para(contact, "margin-bottom:22px") : "") +
     soon + rule() +
@@ -598,10 +598,10 @@ function sendOwnerAlert(q, to, cc) {
       button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false));
   sendAlert({
     replyTo: q.email || OWNER_EMAIL,
-    name: "Yachtique Enquiries",
-    subject: (q.ref ? q.ref + " · " : "") + "New enquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
+    name: "Yachtique Inquiries",
+    subject: (q.ref ? q.ref + " · " : "") + "New inquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
     htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
-    body: "New enquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
+    body: "New inquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) +
       "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
   }, to, cc);
 }
@@ -841,7 +841,7 @@ function installTriggers() {
   ScriptApp.newTrigger("weeklySummary").timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).inTimezone(TZ).create();
 }
 
-// Every enquiry row as an object, with the dates the automations need
+// Every inquiry row as an object, with the dates the automations need
 function allEnquiries() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
   addNewColumns(sheet);
@@ -999,7 +999,7 @@ function sendClientReview(q) {
   return clientMail(q, A.reviewSubject, A.reviewPre, inner, A.reviewHead(first) + "\n\n" + A.reviewP + "\n\n" + REVIEW_URL);
 }
 
-/** Short alert to Yachtique about one enquiry. */
+/** Short alert to Yachtique about one inquiry. */
 function sendOwnerNote(q, title, text, todo, to, cc) {
   const phone = String(q.phone || "").replace(/\D/g, "");
   const inner = eyebrow(esc(title) + " &middot; " + esc(q.ref)) + heading(esc(q.name || "Client")) + para(text, "margin-bottom:22px") + rule() +
@@ -1083,14 +1083,14 @@ function sendWeeklySummary(to, cc) {
     list("Not answered yet", fresh.map((q) => esc(q.name) + " &middot; " + esc(prettyDate(q.date)) + " &middot; " + esc(q.ref))) +
     list("Most viewed yachts", top.map((y) => esc(y) + " &middot; " + yachts[y] + (yachts[y] === 1 ? " view" : " views"))) +
     buttons(button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", true));
-  sendAlert({ name: "Yachtique", subject: "Your week at Yachtique · " + got.length + " enquiries · " + paid.length + " paid · " + usd(revenue).replace(/\.00$/, ""),
-    htmlBody: layout("Enquiries, payments and what's coming up.", inner),
-    body: "Enquiries " + got.length + ", paid " + paid.length + ", revenue " + usd(revenue) + ". Coming up: " + upcoming.length + ". Waiting to pay: " + unpaid.length + "." }, to, cc);
+  sendAlert({ name: "Yachtique", subject: "Your week at Yachtique · " + got.length + " inquiries · " + paid.length + " paid · " + usd(revenue).replace(/\.00$/, ""),
+    htmlBody: layout("Inquiries, payments and what's coming up.", inner),
+    body: "Inquiries " + got.length + ", paid " + paid.length + ", revenue " + usd(revenue) + ". Coming up: " + upcoming.length + ". Waiting to pay: " + unpaid.length + "." }, to, cc);
 }
 
 /**
  * TEST: run from the Apps Script editor (select testEmails, press Run).
- * Sends every email to TEST_TO only: the alerts (new enquiry, paid), then the client confirmation, accepted
+ * Sends every email to TEST_TO only: the alerts (new inquiry, paid), then the client confirmation, accepted
  * (without and with the Pay button), paid and declined emails in English and in Spanish. Nothing is added to the sheet and no client is emailed.
  */
 const TEST_TO = "yachtiquemiami@gmail.com";

@@ -88,7 +88,7 @@ function body(area, yachts, from, cover) {
       </div>
       <div class="acta__btns">
         <a href="${esc(wa)}" data-wa-es="${esc(`Hola Yachtique, me gustaría alquilar un yate en ${(AREAS_ES[area.slug] || area).name}.`)}" class="btn btn--wa" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg><span data-i18n="wa.chat">Chat on WhatsApp</span></a>
-        <a href="/#contact" class="btn btn--gold" data-i18n="btn.enquiry">Send an enquiry</a>
+        <a href="/#contact" class="btn btn--gold" data-i18n="btn.enquiry">Send an inquiry</a>
       </div>
     </section>
 
@@ -101,7 +101,7 @@ function body(area, yachts, from, cover) {
 
 <div class="mobilebar">
   <a href="${esc(wa)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>WhatsApp</a>
-  <a href="/#contact" class="mobilebar__gold" data-i18n="mb.enquire">Enquire</a>
+  <a href="/#contact" class="mobilebar__gold" data-i18n="mb.enquire">Inquire</a>
 </div>
 <script src="/assets/js/yacht.js?v=${V}" defer></script>`;
 }
