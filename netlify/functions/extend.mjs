@@ -13,6 +13,9 @@ import { WA, esc, loadFleet, payBadges } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage, stripe } from "../lib/card.mjs";
 
 const HOURS = [1, 2];
+// Off: YCN doesn't allow extensions on broker bookings (Nov 2026). The page then only points to WhatsApp.
+// true turns it back on; set EXTENSIONS_ON in apps-script/Code.gs too, for the emails.
+const EXTENSIONS_ON = false;
 const T = {
   en: {
     eyebrow: "More time on board", head: (n) => "Add more time" + (n ? ", " + n : ""),
@@ -27,6 +30,7 @@ const T = {
     notBooked: "This charter isn't confirmed yet", notBookedP: "Message us and we'll help you.",
     noPrice: "Let's arrange it together", noPriceP: "We can't price extra time for this yacht online. Message us and we'll check with the captain.",
     off: "Online payment is coming soon", offP: "Message us and we'll arrange the extra time.",
+    closed: "Extra time isn't available online", closedP: "Message us and we'll check with the captain what's possible.",
     bad: "This link is not valid", badP: "Open the link from your email again, or message us.",
     error: "Something went wrong", errorP: "Nothing was charged. Please try again in a moment, or message us.",
     chat: "Chat on WhatsApp", wa: (r) => `Hi Yachtique, we'd like more time on board (${r}).`,
@@ -45,6 +49,7 @@ const T = {
     notBooked: "Este alquiler aún no está confirmado", notBookedP: "Escríbanos y le ayudamos.",
     noPrice: "Organicémoslo juntos", noPriceP: "No podemos calcular en línea el tiempo extra para este yate. Escríbanos y lo consultamos con el capitán.",
     off: "El pago en línea llega pronto", offP: "Escríbanos y organizamos el tiempo extra.",
+    closed: "El tiempo extra no está disponible en línea", closedP: "Escríbanos y consultaremos con el capitán qué es posible.",
     bad: "Este enlace no es válido", badP: "Abra de nuevo el enlace de su correo o escríbanos.",
     error: "Algo salió mal", errorP: "No se cobró nada. Inténtelo de nuevo en un momento o escríbanos.",
     chat: "Chatear por WhatsApp", wa: (r) => `Hola Yachtique, queremos más tiempo a bordo (${r}).`,
@@ -62,6 +67,7 @@ export default async (req, context) => {
   const page = (title, inner, status) => cardPage(title, inner, status, L);
   const say = (title, p, status = 200) => page(title, `<p class="eyebrow">${T[L].eyebrow}</p><h1>${esc(title)}</h1><p class="dnote">${esc(p)}</p>${waBtn(ref)}`, status);
 
+  if (!EXTENSIONS_ON) return say(T[L].closed, T[L].closedP, 200);
   const secret = Netlify.env.get("SHEETS_SECRET");
   if (!secret || !Netlify.env.get("SHEETS_WEBHOOK_URL")) return say(T[L].off, T[L].offP, 503);
   if (!RX_REF.test(ref) || !tokenOk(ref, t, secret, "ext:")) return say(T[L].bad, T[L].badP, 403);

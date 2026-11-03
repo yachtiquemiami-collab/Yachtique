@@ -143,6 +143,16 @@ function yachtBody(y, others) {
               </div>
               <small class="form__note" data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
             </fieldset>
+            <fieldset class="form__checks ybook__extras">
+              <legend data-i18n="x.title">Add to your day</legend>
+              <label><input type="checkbox" name="extras" value="Food on board"> <span data-i18n="x.food">Food on board</span></label>
+              <label><input type="checkbox" name="extras" value="Transport"> <span data-i18n="x.transport">Transport to the marina</span></label>
+              <label><input type="checkbox" name="extras" value="Decorations"> <span data-i18n="x.decor">Decorations</span></label>
+              <label><input type="checkbox" name="extras" value="DJ"> <span data-i18n="x.dj">DJ</span></label>
+              <label><input type="checkbox" name="extras" value="Water toys"> <span data-i18n="x.toys">Water toys (jet ski, Seabob)</span></label>
+              <label><input type="checkbox" name="extras" value="Photographer"> <span data-i18n="x.photo">Photographer</span></label>
+              <label><input type="checkbox" name="extras" value="Security"> <span data-i18n="x.security">Security</span></label>
+            </fieldset>
             <label><span data-i18n="form.name">Name</span><input type="text" name="name" required autocomplete="name"></label>
             <label><span data-i18n="form.phone">Phone / WhatsApp</span><input type="tel" name="phone" required autocomplete="tel"></label>
             <label><span data-i18n="form.email">Email</span><input type="email" name="email" required autocomplete="email"></label>
