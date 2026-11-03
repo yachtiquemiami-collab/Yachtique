@@ -121,9 +121,8 @@ export default async (req, context) => {
       "payment_intent_data[description]": `${ref} · ${q.name} · ${what}`,
       success_url: `${self}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: self,
-      // The card stays with Stripe for this booking, so adding time on board is one tap (extend.mjs)
-      customer_creation: "always",
-      "payment_intent_data[setup_future_usage]": "off_session",
+      // While extensions are off (extend.mjs) the card isn't kept. To keep it again for one-tap extra time:
+      //   customer_creation: "always", "payment_intent_data[setup_future_usage]": "off_session",
     };
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.email)) p.customer_email = q.email;
     // Gratuity and sales tax as their own lines, so the receipt shows them
@@ -152,7 +151,7 @@ export default async (req, context) => {
         <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>
       ${payBadges(S.secure)}
-      <p class="dhint dsafe">${S.safe} ${S.saved}</p>
+      <p class="dhint dsafe">${S.safe}</p>
       <p class="dswitch">${S.terms} <a href="/terms.html${L === "es" ? "?lang=es" : ""}" target="_blank" rel="noopener">${S.termsLink}</a>.</p>`);
 };
 

@@ -35,6 +35,9 @@ const SEND_CLIENT_CONFIRMATION = true;              // false = don't email the c
 const WHATSAPP = "13058124721";
 const LOGO = "https://yachtique.co/assets/img/logo-stacked-notag.png";
 const SITE = "https://yachtique.co";
+// More time on board (extend.mjs): off, YCN doesn't allow extensions on broker bookings (Laurent, Nov 2026).
+// true turns the charter-day "add more time" emails back on; set EXTENSIONS_ON in netlify/functions/extend.mjs too.
+const EXTENSIONS_ON = false;
 // Food on board: Yacht Bites' menu, ordered under Nektarios's partner link (dockside delivery, order by 4pm the day before)
 const FOOD_URL = "https://yachtbites.co/order.html?k=TkVLVEFSSU9TLTQ2MR9OZWt0YXJpb3MgUGFwYXN0YXZyb3U.13n2l6#menu";
 
@@ -1044,6 +1047,14 @@ function installTriggers() {
 }
 
 // Every inquiry row as an object, with the dates the automations need
+// Test rows: "test" in the name, or one of our own addresses as the client's (Sotiris, Yachtique, Nektarios's personal;
+// typos like gmal.com included).
+// They get no reminders and stay out of the weekly summary.
+function isTest(q) {
+  const email = String(q.email || "").toLowerCase();
+  return /\btest\b/i.test(q.name) || /^(tsirkoudis7|yachtiquemiami|nektariospapa)@/.test(email);
+}
+
 function allEnquiries() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries");
   addNewColumns(sheet);
@@ -1095,7 +1106,7 @@ function hourly() {
     const now = new Date();
     const hour = Number(Utilities.formatDate(now, TZ, "H"));
     const daytime = hour >= 9 && hour < 20;
-    allEnquiries().forEach((q) => {
+    allEnquiries().filter((q) => !isTest(q)).forEach((q) => {
       try { runAutomations(q, now, daytime); } catch (err) { console.error(q.ref + ": " + err); }
     });
   } finally {
@@ -1154,14 +1165,14 @@ function runAutomations(q, now, daytime) {
   const hrs = parseInt(q.duration, 10);
   const startAt = q.start ? q.start.split(":").map(Number) : null;
   const mins = Number(Utilities.formatDate(now, TZ, "H")) * 60 + Number(Utilities.formatDate(now, TZ, "m"));
-  if (d === 0 && startAt && hrs > 0 && !has("ext0")) {
+  if (EXTENSIONS_ON && d === 0 && startAt && hrs > 0 && !has("ext0")) {
     const toStart = startAt[0] * 60 + startAt[1] - mins;
     if (toStart <= 90 && toStart >= 20) {
       sendClientExtendOffer(q, true);
       markSent(q, "ext0");
     }
   }
-  if (d === 0 && startAt && hrs > 0 && !has("ext")) {
+  if (EXTENSIONS_ON && d === 0 && startAt && hrs > 0 && !has("ext")) {
     const p = startAt;
     const left = p[0] * 60 + p[1] + hrs * 60 - mins;
     if (left <= 90 && left >= 20) {
@@ -1282,7 +1293,7 @@ function weeklySummary() { sendWeeklySummary(); }
 // `to`/`cc` are only changed by testAutomations()
 function sendWeeklySummary(to, cc) {
   const now = new Date(), weekAgo = new Date(now.getTime() - 7 * 86400000);
-  const rows = allEnquiries().filter((q) => !/^test\b/i.test(q.name));
+  const rows = allEnquiries().filter((q) => !isTest(q) && !/^lost$/i.test(q.status));
   const inWeek = (t) => t && t >= weekAgo && t <= now;
   const got = rows.filter((q) => inWeek(q.received));
   const decided = rows.filter((q) => inWeek(q.decidedAt));
