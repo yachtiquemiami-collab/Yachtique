@@ -176,6 +176,25 @@ export function yachtsIn(fleet, area) {
     (area.bimini && y.durations.some((d) => /bimini/i.test(d.label))));
 }
 
+// The website price and what YCN charges us for an inquiry's yacht, duration and marina (the marina's own
+// prices when it has them). From /api/fleet-private, for our own pages and emails only. null when there's none.
+export async function priceFor(origin, q) {
+  const name = String(q.yacht || "").replace(/\s*\(.*$/, "").trim().toLowerCase();
+  const dur = String(q.duration || "").trim().toLowerCase();
+  if (!name || /help me choose/.test(name) || !dur) return null;
+  const res = await fetch(new URL("/api/fleet-private", origin), {
+    headers: { "x-yachtique-key": Netlify.env.get("SHEETS_SECRET") || "" }, signal: AbortSignal.timeout(9000),
+  });
+  if (!res.ok) return null;
+  const y = ((await res.json()).yachts || []).find((x) => String(x.name).trim().toLowerCase() === name);
+  if (!y) return null;
+  const at = (y.departures || []).find((p) => p.name === q.departure);
+  const key = at && Object.keys(at.prices).find((k) => k.toLowerCase() === dur);
+  if (key) return { price: at.prices[key], cost: (at.costs || {})[key] || 0, at: at.name };
+  const d = y.durations.find((x) => x.label.toLowerCase() === dur);
+  return d ? { price: d.price, cost: d.cost || 0, at: "" } : null;
+}
+
 // The fleet can be slow on a cold start, so try twice before giving up
 export async function loadFleet(req) {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -278,7 +297,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261103a";
+export const V = "20261108a";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {

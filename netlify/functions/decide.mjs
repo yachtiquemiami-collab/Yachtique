@@ -14,7 +14,7 @@
 //        amount: Confirm charges the hold, Not possible releases it. The Sheet emails the client either way.
 //
 // t is an HMAC of the ref with SHEETS_SECRET (the Apps Script builds the same code for the email buttons).
-import { esc, loadFleet } from "../lib/site.mjs";
+import { esc, priceFor } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage as page, stripe } from "../lib/card.mjs";
 
 const GRATUITY = 18;                         // % preselected on the Accept page
@@ -75,7 +75,14 @@ export default async (req) => {
           <li data-row="grat"><span data-sum="gratlabel">Gratuity</span><b data-sum="grat"></b></li>
           <li><span>Florida sales tax (${+(rate * 100).toFixed(2)}%)</span><b data-sum="tax"></b></li>
           <li class="dsum__total"><span>Client pays</span><b data-sum="total"></b></li>
-        </ul>` : ""}
+        </ul>
+        ${site.cost ? `<ul class="dsum dsum--you" data-cost="${site.cost}" hidden>
+          <li class="dsum__head"><span>For you only</span></li>
+          <li><span>YCN charges you<small>Broker price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}</small></span><b>${usd(site.cost)}</b></li>
+          <li><span>Your margin<small>Charter price minus YCN's price</small></span><b data-sum="margin"></b></li>
+          <li><span>Gratuity<small>Passed to YCN for the crew</small></span><b data-sum="grat2"></b></li>
+          <li><span>Florida sales tax<small>Collected for the state, you pay it on your tax return</small></span><b data-sum="tax2"></b></li>
+        </ul>` : ""}` : ""}
         <p class="dnote">${accept
           ? `${esc(first(q) || "The client")} gets an email${q.lang === "es" ? " in Spanish" : ""} saying the day is available<span data-paynote hidden>, with a button to pay the total by card</span><span data-quotenote>, and that you'll send the final quote</span>.`
           : `${esc(first(q) || "The client")} gets an email${q.lang === "es" ? " in Spanish" : ""} saying it can't be confirmed, with a link to the yachts free that day.`}</p>
@@ -119,18 +126,11 @@ export default async (req) => {
 
 export const config = { path: "/api/decide" };
 
-// The website price for the yacht and duration on the inquiry (0 when there isn't one)
+// The website price for the yacht, duration and marina on the inquiry, and what YCN charges us for it
+// (price 0 when there isn't one)
 async function sitePrice(req, q) {
-  const name = String(q.yacht || "").replace(/\s*\(.*$/, "").trim().toLowerCase();
-  if (!name || /help me choose/.test(name)) return { price: 0 };
-  const fleet = await loadFleet(req).catch(() => null);
-  const y = (fleet || []).find((x) => String(x.name).trim().toLowerCase() === name);
-  const dur = String(q.duration || "").trim().toLowerCase();
-  const d = y && y.durations.find((x) => x.label.toLowerCase() === dur);
-  // The client's marina, when they picked one and it has its own price
-  const at = y && (y.departures || []).find((p) => p.name === q.departure);
-  const key = at && Object.keys(at.prices).find((k) => k.toLowerCase() === dur);
-  return { price: key ? at.prices[key] : d ? d.price : 0, at: key ? at.name : "" };
+  const p = await priceFor(req.url, q).catch(() => null);
+  return p ? p : { price: 0, cost: 0, at: "" };
 }
 
 function prettyDate(iso) {
@@ -249,6 +249,7 @@ function priceScript() {
             var p = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
             var ok = p > 0;
             sum.hidden = !ok;
+            var y0 = document.querySelector(".dsum--you"); if (y0 && !ok) y0.hidden = true;
             var pn = document.querySelector("[data-paynote]"), qn = document.querySelector("[data-quotenote]");
             if (pn) pn.hidden = !ok;
             if (qn) qn.hidden = ok;
@@ -261,6 +262,15 @@ function priceScript() {
             sum.querySelector('[data-sum="grat"]').textContent = fmt(g);
             sum.querySelector('[data-sum="tax"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
             sum.querySelector('[data-sum="total"]').textContent = fmt(total);
+            // For you only: YCN's price and the margin left after it
+            var you = document.querySelector(".dsum--you");
+            if (you) {
+              var c = +you.getAttribute("data-cost") || 0;
+              you.hidden = false;
+              you.querySelector('[data-sum="margin"]').textContent = fmt(Math.round((p - c) * 100) / 100) + (p ? " (" + Math.round((p - c) / p * 100) + "%)" : "");
+              you.querySelector('[data-sum="grat2"]').textContent = fmt(g);
+              you.querySelector('[data-sum="tax2"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
+            }
           }
           input.addEventListener("input", update); tipSel.addEventListener("change", update); update();
         })();

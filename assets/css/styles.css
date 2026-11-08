@@ -985,6 +985,11 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .dsum li { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 12px 18px; font-size: 15px; color: var(--text); }
 .dsum li + li { border-top: 1px solid var(--line); }
 .dsum li[hidden] { display: none; }
+/* Accept page: Nektarios's own numbers, set apart from what the client sees */
+.dsum--you { margin-top: 12px; border-style: dashed; }
+.dsum--you .dsum__head span { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.dsum--you li > span { display: grid; gap: 2px; }
+.dsum--you small { font-size: 12px; color: var(--muted); }
 .dsum b { font: 600 16px var(--serif); color: var(--white); white-space: nowrap; }
 .dsum__total span { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 .dsum__total b { font-size: 22px; }
