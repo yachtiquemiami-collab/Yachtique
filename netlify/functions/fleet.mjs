@@ -96,7 +96,11 @@ function toYacht(p) {
       const place = v[`option${locIdx + 1}`];
       const price = parseFloat(v.price);
       if (!price || !(dur in best)) continue;
-      (at[place] = at[place] || {})[dur] = overrides[dur] != null ? overrides[dur] + markup(price) - markup(best[dur]) : markup(price);
+      // YCN added a third option ("Hours/Days", Nov 2026) whose other values multiply the price: the real
+      // price for a duration and marina is the lowest of its variants, as for `best` above
+      const value = overrides[dur] != null ? overrides[dur] + markup(price) - markup(best[dur]) : markup(price);
+      const prices = (at[place] = at[place] || {});
+      if (!(dur in prices) || value < prices[dur]) prices[dur] = value;
     }
   }
   const departures = Object.keys(at)
