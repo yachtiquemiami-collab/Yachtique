@@ -794,6 +794,7 @@ function sendOwnerAlert(q, to, cc) {
     (contact ? para(contact, "margin-bottom:22px") : "") +
     soon + rule() +
     factsBox(q) +
+    ownerPriceBox(q) +
     messageBox("Their message", q.message) +
     decide +
     buttons(
@@ -806,8 +807,37 @@ function sendOwnerAlert(q, to, cc) {
     subject: (q.ref ? q.ref + " · " : "") + "New inquiry: " + (q.name || "client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""),
     htmlBody: layout((q.name || "A client") + " · " + prettyDate(q.date) + (q.guests ? " · " + q.guests + " guests" : ""), inner),
     body: "New inquiry from " + q.name + "\nPhone: " + q.phone + "\nEmail: " + q.email + "\nDate: " + prettyDate(q.date) + (q.start ? " at " + niceTime(q.start, "en") : "") +
-      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + (q.departure ? "\nDeparture: " + q.departure : "") + "\nAlso arranging: " + q.extras + "\n\n" + q.message,
+      "\nGuests: " + q.guests + "\nDuration: " + q.duration + "\nYacht: " + q.yacht + (q.departure ? "\nDeparture: " + q.departure : "") +
+      (Number(q.sitePrice) > 0 ? "\nWebsite price: " + usd(Number(q.sitePrice)) + (Number(q.ycnCost) ? " · YCN charges you " + usd(Number(q.ycnCost)) + " · margin " + usd(cents(Number(q.sitePrice) - Number(q.ycnCost)) / 100) : "") : "") +
+      "\nAlso arranging: " + q.extras + "\n\n" + q.message,
   }, to, cc);
+}
+
+// For Nektarios only, in the new-inquiry alert: the website price for the client's yacht, duration and marina,
+// what YCN charges for it, the margin, and the gratuity and tax the client adds (sitePrice and ycnCost come from
+// enquiry-to-sheet.mts). Nothing when the client hasn't picked a yacht and a duration.
+function ownerPriceBox(q) {
+  const price = Number(q.sitePrice) || 0, cost = Number(q.ycnCost) || 0;
+  if (!(price > 0)) return "";
+  const pct = parseInt(q.gratuityChoice, 10) || 0;
+  const grat = cents(price * pct / 100) / 100;
+  const tax = cents((TAX_GRATUITY ? price + grat : price) * TAX_RATE) / 100;
+  const total = cents(price + grat + tax) / 100;
+  const margin = cents(price - cost) / 100;
+  const row = (label, note, value, strong) =>
+    '<tr><td style="padding:' + (strong ? "14px" : "11px") + ' 18px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:14px;color:' + C.text + '">' +
+    (strong ? '<b style="color:' + C.white + '">' + label + "</b>" : label) +
+    (note ? '<div style="font-size:12px;color:' + C.muted + ';padding-top:2px">' + note + "</div>" : "") + "</td>" +
+    '<td align="right" valign="top" style="padding:' + (strong ? "14px" : "11px") + " 18px;border-top:1px solid " + C.line + ";font-family:" + SERIF + ";font-size:" + (strong ? "19px" : "15px") + ";font-weight:600;color:" + C.white + ';white-space:nowrap">' + value + "</td></tr>";
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
+    '<tr><td colspan="2" style="padding:14px 18px 6px;font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:' + C.gold + '">The numbers &middot; for you only</td></tr>' +
+    row("Website price", "YCN's public price + our 20%, for " + esc(q.duration) + (q.departure ? " from " + esc(q.departure) : ""), usd(price)) +
+    (cost ? row("YCN charges you", "Broker price: $500 deposit to reserve, the rest 72 hours before", usd(cost)) : "") +
+    (cost ? row("Your margin", Math.round(margin / price * 100) + "% of the charter price", usd(margin), true) : "") +
+    (pct ? row("Gratuity " + pct + "%", "The client's choice; passed to YCN for the crew", usd(grat)) : "") +
+    row("Florida sales tax " + +(TAX_RATE * 100).toFixed(2) + "%", "Collected for the state", usd(tax)) +
+    row("Client pays", "If you accept at the website price", usd(total), true) +
+    "</table>";
 }
 
 // Sends an alert to Yachtique, and the copy for ALERT_CC as its own email: a cc copy never arrived (checked 30 Oct 2026)

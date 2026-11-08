@@ -5,6 +5,9 @@
 
   - markup:         added to every YCN price. 0.20 = +20%.
   - roundTo:        prices are rounded UP to this step, e.g. 5 → $2,118 becomes $2,120.
+  - brokerShare:    what YCN charges us, as a share of its public price (its broker page shows
+                    public × 0.85; checked on all 101 prices, 8 Nov 2026). Used for the margin
+                    shown to Nektarios in the inquiry email and on the Accept page.
   - brokerListedOnly: true = only show yachts that are on YCN's broker page (the ones
                     YCN offers to brokers, with their live calendar).
   - featured:       the yachts shown first on the home page (up to 6), in this order. The rest
@@ -19,6 +22,7 @@
 export default {
   markup: 0.20,
   roundTo: 5,
+  brokerShare: 0.85,
   brokerListedOnly: true,
   featured: ["bimini-blue", "sea-suite", "dont-tell-mom", "orca", "makebighappen", "no-curfew"],
   hide: [],

@@ -9,7 +9,10 @@ const SKIP_TYPES = ["catering", "water toys"];
 const TZ = "America/New_York";
 const DAYS_AHEAD = 180;
 
-export default async () => {
+export default async (req) => {
+  // /api/fleet-private: prices with what YCN charges us (cost), for our own functions only (the inquiry email
+  // and the Accept page). It needs the shared secret and is never cached; /api/fleet never carries costs.
+  if (new URL(req.url).pathname === "/api/fleet-private") return costsOnly(req);
   try {
     const [products, cards] = await Promise.all([fetchProducts(), fetchBrokerCards()]);
     const hidden = new Set(settings.hide || []);
@@ -32,6 +35,11 @@ export default async () => {
       })
     );
 
+    // Costs stay private (see costsOnly)
+    yachts.forEach((y) => {
+      y.durations.forEach((d) => { delete d.cost; });
+      (y.departures || []).forEach((p) => { delete p.costs; });
+    });
     yachts.sort((a, b) => a.feet - b.feet || a.from - b.from);
     const featured = settings.featured || [];
     yachts.forEach((y) => { y.featured = featured.indexOf(y.handle); });
@@ -46,7 +54,21 @@ export default async () => {
   }
 };
 
-export const config = { path: "/api/fleet" };
+export const config = { path: ["/api/fleet", "/api/fleet-private"] };
+
+async function costsOnly(req) {
+  const secret = Netlify.env.get("SHEETS_SECRET");
+  if (!secret || req.headers.get("x-yachtique-key") !== secret) return json({ error: "Not found" }, 404, { "Cache-Control": "no-store" });
+  try {
+    const yachts = (await fetchProducts())
+      .filter((p) => !SKIP_TYPES.includes(String(p.product_type).toLowerCase()))
+      .map((p) => { const y = toYacht(p); return { handle: y.handle, name: y.name, durations: y.durations, departures: y.departures }; });
+    return json({ yachts }, 200, { "Cache-Control": "no-store", "Netlify-CDN-Cache-Control": "no-store" });
+  } catch (err) {
+    console.error(err);
+    return json({ error: "Fleet temporarily unavailable" }, 502, { "Cache-Control": "no-store" });
+  }
+}
 
 // ---------- YCN products ----------
 
@@ -84,12 +106,12 @@ function toYacht(p) {
   const order = durIdx >= 0 ? p.options[durIdx].values : Object.keys(best);
   const durations = order
     .filter((d) => d in best)
-    .map((d) => ({ label: d, price: overrides[d] != null ? overrides[d] : markup(best[d]) }));
+    .map((d) => ({ label: d, price: overrides[d] != null ? overrides[d] : markup(best[d]), cost: brokerCost(best[d]) }));
 
   // Some yachts cost more from some marinas (Caprice: Haulover $1,765, Nassau $6,765 for 4 hours).
   // departures: each pickup point with its price per duration, cheapest first. An override moves every
   // marina by the same amount, so the differences between them stay.
-  const at = {};
+  const at = {}, costs = {};
   if (locIdx >= 0) {
     for (const v of p.variants) {
       const dur = durIdx >= 0 ? v[`option${durIdx + 1}`] : "Charter";
@@ -100,11 +122,14 @@ function toYacht(p) {
       // price for a duration and marina is the lowest of its variants, as for `best` above
       const value = overrides[dur] != null ? overrides[dur] + markup(price) - markup(best[dur]) : markup(price);
       const prices = (at[place] = at[place] || {});
-      if (!(dur in prices) || value < prices[dur]) prices[dur] = value;
+      if (!(dur in prices) || value < prices[dur]) {
+        prices[dur] = value;
+        (costs[place] = costs[place] || {})[dur] = brokerCost(price);
+      }
     }
   }
   const departures = Object.keys(at)
-    .map((name) => ({ name, prices: at[name] }))
+    .map((name) => ({ name, prices: at[name], costs: costs[name] }))
     .sort((a, b) => Math.min(...Object.values(a.prices)) - Math.min(...Object.values(b.prices)));
 
   const text = decode(String(p.body_html || "").replace(/<\/(p|h\d|li)>/gi, "\n").replace(/<[^>]+>/g, " "))
@@ -144,6 +169,11 @@ function parseGuests(text) {
     if (n && n <= 150) return n;
   }
   return null;
+}
+
+// What YCN charges us: its broker price, a fixed share of the public price
+function brokerCost(price) {
+  return Math.round(price * (settings.brokerShare || 0.85) * 100) / 100;
 }
 
 function markup(price) {

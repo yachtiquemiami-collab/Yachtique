@@ -6,6 +6,7 @@
 //   SHEETS_SECRET       shared secret, identical to SECRET in the Apps Script
 
 import type { FormSubmittedEvent } from "@netlify/functions"
+import { priceFor } from "../lib/site.mjs"
 
 const FIELDS = ["name", "phone", "email", "date", "start", "guests", "duration", "yacht", "departure", "extras", "gratuity", "message", "source", "lang"] as const
 
@@ -27,6 +28,12 @@ export default {
     const data = (event.data ?? {}) as Record<string, unknown>
     const enquiry: Record<string, string> = {}
     for (const key of FIELDS) enquiry[key] = asText(data[key])
+    // For Nektarios's email only: the website price and what YCN charges us for this yacht, duration and marina
+    const quote = await priceFor("https://yachtique.co", enquiry).catch(() => null)
+    if (quote) {
+      enquiry.sitePrice = String(quote.price)
+      enquiry.ycnCost = String(quote.cost)
+    }
 
     const res = await fetch(url, {
       method: "POST",
