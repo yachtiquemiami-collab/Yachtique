@@ -54,6 +54,8 @@ export default async (req) => {
     const accept = a === "accept" || edit;
     const rate = Number(r.taxRate) || 0, fee = Number(r.serviceFee) || 0;
     const site = accept ? await sitePrice(req, q) : { price: 0 };
+    // Sent from a proposal with a discount (the form message names it): the Accept page starts with that discount
+    const prop = accept && !edit ? await proposalOff(q) : null;
     // Editing: the price before the discount, and the discount, as they are now
     const suggested = edit ? Math.round(((q.price || 0) + (q.discount || 0)) * 100) / 100 : site.price;
     const chose = String(q.gratuityChoice || "");
@@ -72,9 +74,9 @@ export default async (req) => {
         </label>
         <p class="dhint">${edit ? "The price before any discount. " : suggested ? `Website price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice || edit ? "" : " Leave it empty to send the quote yourself."}</p>
         <label>Discount <em class="dchose">· optional</em>
-          <input type="text" name="discount" inputmode="decimal" autocomplete="off" placeholder="e.g. 10% or 300" value="${edit && q.discount ? q.discount : ""}">
+          <input type="text" name="discount" inputmode="decimal" autocomplete="off" placeholder="e.g. 10% or 300" value="${edit && q.discount ? q.discount : prop ? esc(prop.discount) : ""}">
         </label>
-        <p class="dhint">A percentage or dollars off the charter. The client sees it as its own line, with the price before it.</p>
+        <p class="dhint">${prop ? `From proposal <a href="/p/${esc(prop.id)}" target="_blank" rel="noopener">${esc(prop.id)}</a>. ` : ""}A percentage or dollars off the charter. The client sees it as its own line, with the price before it.</p>
         <label>Gratuity${chose ? ` <em class="dchose">· client chose ${esc(/included/i.test(chose) ? "included" : chose)}</em>` : ""}
           <select name="gratuity" data-taxed="${r.taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : "None"}</option>`).join("")}</select>
         </label>
@@ -149,6 +151,20 @@ export const config = { path: "/api/decide" };
 
 // The website price for the yacht, duration and marina on the inquiry, and what YCN charges us for it
 // (price 0 when there isn't one)
+// The discount of the proposal named in the inquiry's message ("From my proposal: yachtique.co/p/catalin")
+async function proposalOff(q) {
+  const m = /\/p\/([a-z0-9-]+)/i.exec(String(q.message || ""));
+  if (!m) return null;
+  try {
+    const url = `${Netlify.env.get("SHEETS_WEBHOOK_URL")}?action=proposal&id=${encodeURIComponent(m[1].toLowerCase())}&secret=${encodeURIComponent(Netlify.env.get("SHEETS_SECRET"))}`;
+    const r = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(8000) }).then((x) => x.json());
+    const off = r && r.ok && r.proposal ? String(r.proposal.discount || "").trim() : "";
+    return off && off !== "0" ? { id: m[1].toLowerCase(), discount: off } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function sitePrice(req, q) {
   const p = await priceFor(req.url, q).catch(() => null);
   return p ? p : { price: 0, cost: 0, at: "" };

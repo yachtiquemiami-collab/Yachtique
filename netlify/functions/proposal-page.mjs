@@ -36,7 +36,7 @@ export default async (req, context) => {
     "pp.for": "Preparada para", "pp.date": "Fecha", "pp.group": "Grupo", "pp.time": "Horario", "pp.pickup": "Recogida",
     "pp.dateval": cap(dateEs), "pp.groupval": `${p.guests || "—"} invitados`, "pp.timeval": p.time_es || p.time || "Por confirmar",
     "pp.pickupval": p.pickup_es || p.pickup || "Por confirmar",
-    "pp.intro": `Seleccionamos ${options.length} yates para su grupo. Cada uno está confirmado en vivo con el calendario del yate. Elija el yate y la duración, y le respondemos para reservarlo.`,
+    "pp.intro": `Seleccionamos ${options.length} yates para su grupo. Cada uno está confirmado en vivo con el calendario del yate. Elija el yate y la duración, añada su nombre y le respondemos para reservarlo.`,
     "pp.choose": "Elegir", "pp.more": "Más fotos y detalles", "pp.terms": "Bueno saber",
     "pp.valid": p.validUntil ? `Propuesta válida hasta el ${cap(parseDate(p.validUntil).toLocaleDateString("es-US", { day: "numeric", month: "long", timeZone: "UTC" }))}.` : "",
     "pp.ready": "¿Listo para reservar?", "pp.ready.p": "Escríbanos por WhatsApp con el yate que eligió, o llámenos si prefiere hablarlo.",
@@ -169,7 +169,7 @@ function body(c, options) {
         <div class="pmarinas__list">${c.marinas.map((m, k) => `<label><input type="radio" name="marina" value="${k}"${k ? "" : " checked"}><span>${esc(m.split("(")[0].trim())}${/\(/.test(m) ? `<small>${esc(m.replace(/^[^(]*\(|\)$/g, ""))}</small>` : ""}</span></label>`).join("")}</div>
         <p class="pmarinas__note" data-i18n="pp.marina.p">Prices change with the marina. Pick the one closest to you.</p>
       </fieldset>` : ""}
-      <p class="lead phead__intro" data-i18n="pp.intro">We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, and we reply to reserve it.</p>
+      <p class="lead phead__intro" data-i18n="pp.intro">We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, add your name and we reply to reserve it.</p>
     </header>
 
     <div class="popts">
@@ -223,12 +223,17 @@ function optionCard(o, i, c) {
     : y.durations.filter((d) => /hour/i.test(d.label)).slice(0, 3);
   const photos = y.images.slice(0, 3);
   const link = `${SITE}/p/${c.id}`;
+  // Choose opens the yacht's request form with the day, group, length of day, marina and this proposal filled in
   const rowsFor = (list, from) => list.map((d) => {
     const now = discounted(d.price, c.off);
-    const en = `Hi Nektarios, I'd like to reserve ${y.name} for ${d.label}${c.short ? ` on ${c.short}` : ""}${from ? ` from ${from}` : ""} (${money(now)}${c.off ? `, was ${money(d.price)}` : ""}). Proposal: ${link}`;
-    const es = `Hola Nektarios, me gustaría reservar ${y.name} por ${durEs(d.label)}${c.dateEs ? ` el ${c.dateEs}` : ""}${from ? ` desde ${from}` : ""} (${money(now)}${c.off ? `, antes ${money(d.price)}` : ""}). Propuesta: ${link}`;
+    const q = new URLSearchParams({ proposal: c.id });
+    if (c.d) q.set("date", String(c.p.date).slice(0, 10));
+    if (/^\d{1,3}$/.test(String(c.p.guests || ""))) q.set("guests", String(c.p.guests));
+    q.set("duration", d.label);
+    if (from) q.set("departure", from);
+    if (c.off) q.set("off", c.off.pct ? `${c.off.pct}%` : money(c.off.amount));
     return `<li><span data-dur>${esc(d.label)}</span><b>${c.off && now < d.price ? `<s class="pprice__was">${money(d.price)}</s> ` : ""}${money(now)}</b>
-          <a class="btn btn--gold btn--sm" href="https://wa.me/${WA}?text=${encodeURIComponent(en)}" data-wa-es="${esc(es)}" data-yacht="${esc(y.handle)}" data-track="proposal-choose" target="_blank" rel="noopener" data-i18n="pp.choose">Choose</a></li>`;
+          <a class="btn btn--gold btn--sm" href="/yachts/${esc(y.handle)}?${esc(q.toString())}#book" data-yacht="${esc(y.handle)}" data-track="proposal-choose" data-i18n="pp.choose">Choose</a></li>`;
   }).join("");
   // With a marina choice: one price list per marina, the picker shows one at a time
   const priceBlock = c.marinas.length

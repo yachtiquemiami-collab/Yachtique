@@ -180,6 +180,22 @@
     showPrices();
   }
 
+  // Arriving from a proposal's Choose button (?proposal=id&departure=…, with the date, guests and duration):
+  // the marina and the proposal are filled in, so the client only adds their name, phone and email
+  var qs = new URLSearchParams(location.search);
+  var fromProposal = (qs.get("proposal") || "").replace(/[^a-z0-9-]/gi, "");
+  if (form && fromProposal) {
+    var dep = qs.get("departure");
+    if (depSel && dep) [].forEach.call(depSel.options, function (o, i) { if (o.value === dep) depSel.selectedIndex = i; });
+    var dur = qs.get("duration");
+    var durIn = dur && [].filter.call(form.querySelectorAll('[name="duration"]'), function (r) { return r.value === dur; })[0];
+    if (durIn) durIn.checked = true;
+    var msg = form.querySelector('[name="message"]');
+    if (msg && !msg.value) msg.value = T("y.fromprop", "From my proposal: yachtique.co/p/{id}", { id: fromProposal }) + (qs.get("off") ? " (" + qs.get("off") + " off)" : "") + ". ";
+    showPrices();
+    if (dateInput) checkDate();
+  }
+
   // Phone bar "Request" button
   document.querySelectorAll(".js-tobook").forEach(function (a) {
     a.addEventListener("click", function (e) {

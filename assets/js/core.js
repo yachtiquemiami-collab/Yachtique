@@ -30,6 +30,7 @@
     "f.upto": "Hasta",
     "y.rates": "Tarifas", "y.onboard": "A bordo", "y.availability": "Disponibilidad", "y.theyacht": "El yate",
     "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida", "y.tipchoice": "15, 18 o 20 %, a su elección",
+    "y.fromprop": "De mi propuesta: yachtique.co/p/{id}",
     "y.ratesnote": "Tarifas desde el punto de salida más económico. Se aplican la propina, un cargo por servicio del 3% y los impuestos. Su cotización final se confirma con la solicitud.",
     "y.popnote": "Tarifas desde. Se aplican la propina, un cargo por servicio del 3% y los impuestos. Su cotización final se confirma con la solicitud.",
     "y.apa": "En alquileres de 24 horas o más se cobra por adelantado un fondo de aprovisionamiento (APA) del 35% del precio del alquiler para combustible, amarres, comida y bebida. Lo que no se use se devuelve.",
@@ -300,7 +301,7 @@
 
   /* ---------------- The visitor's plan: date, guests, duration ----------------
      Chosen once (hero search, a calendar, a form), then filled in on every page they open next.
-     Kept in this browser only; a date in the past is forgotten. ?date=YYYY-MM-DD&guests=8 in a link also sets it. */
+     Kept in this browser only; a date in the past is forgotten. ?date=YYYY-MM-DD&guests=8&duration=4%20hours in a link also sets it. */
   var TRIP = "yq_trip";
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function todayKey() { var d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
@@ -319,6 +320,8 @@
     var d = params.get("date"), g = params.get("guests");
     if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) tripSet({ date: d });
     if (g && /^\d{1,3}$/.test(g)) tripSet({ guests: g });
+    var du = params.get("duration");
+    if (du && /^\d{1,2} hours?$/.test(du)) tripSet({ duration: du });
   })();
   // Remember what they pick, wherever they pick it
   document.addEventListener("change", function (e) {
