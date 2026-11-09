@@ -95,6 +95,8 @@ Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → 
 
 **Service fee (3%).** Every booking adds a service fee of 3% of the charter (after any discount) plus gratuity, whatever the payment method (card or Zelle). It covers Stripe's card fees and shows as its own line on the Accept page, the client emails, the pay page and the Stripe receipt; Florida sales tax is charged on it too. The Sheet keeps it in **Service fee**. Change or switch it off with `SERVICE_FEE` in `apps-script/Code.gs` (and the wording on the yacht pages, FAQ and terms).
 
+**Marina choice on a proposal.** Put several marinas in the Pickup cell, separated by `;` (for example `Venetian Marina (Downtown Miami); Miami Beach Marina (South Beach)`): the page shows them as buttons and every yacht shows its own price from the chosen marina, live from the fleet (the 4/6/8 hours columns then only choose which lengths of day show). A yacht that doesn't leave from that marina says where it boards instead.
+
 **Discounts and price changes.** On the Accept page, type a Discount (`10%` or dollars): the client's email, payment page and Stripe receipt show the price, the discount as its own line, and the new total (gratuity and tax on the discounted price). After accepting, **Edit price or discount** (on the Accept page link, before the client pays) changes the quote and emails the client the update; the payment link stays the same. The Sheet keeps Price = after the discount and Discount = dollars off.
 
 Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. The page shows the charter, Florida sales tax and the total saved in the Sheet, then opens Stripe Checkout. The amount always comes from the Sheet, never from the browser.

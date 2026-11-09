@@ -1,5 +1,7 @@
 // GET /p/:id
 // A private proposal for one client: their date, group and pickup, then the yachts Nektarios picked with his prices.
+// Several marinas in Pickup (separated by ";" or new lines) let the client pick one: every yacht then shows its own
+// price from that marina (live from the fleet), or says where it boards instead.
 // Proposals come from the Proposals tab of the Google Sheet (one row per yacht option, see README),
 // or from netlify/lib/proposals.mjs. Photos, specs and live availability come from the fleet.
 // Not listed anywhere and marked noindex: only people with the link see it.
@@ -16,14 +18,16 @@ export default async (req, context) => {
   if (!p) return respond(page({ title: "Proposal not found | Yachtique", body: notFound(), canonical: `${SITE}/p/${id}`, robots: "noindex",
     es: { "pp.nf": "No encontramos esta propuesta", "pp.nf.p": "Puede que el enlace esté incompleto o que la propuesta haya vencido. Escríbanos y le enviaremos una nueva." } }), 404, 0);
 
-  const options = (p.options || []).map((o) => ({ ...o, y: findYacht(fleet, o.yacht) })).filter((o) => o.y);
+  const marinas = marinaList(p.pickup);
+  const options = (p.options || []).map((o) => ({ ...o, y: findYacht(fleet, o.yacht) })).filter((o) => o.y)
+    .map((o) => ({ ...o, byMarina: marinas.map((m) => fromMarina(o.y, m, o)) }));
   const d = parseDate(p.date);
   const dayEn = d ? d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }) : "";
   const dayEs = d ? d.toLocaleDateString("es-US", { weekday: "long", timeZone: "UTC" }) : "";
   const dateEn = d ? d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }) : "To confirm";
   const dateEs = d ? d.toLocaleDateString("es-US", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : "Por confirmar";
   const off = parseDiscount(p.discount);
-  const ctx = { id, p, d, dayEn, dayEs, dateEn, dateEs, off, short: d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "" };
+  const ctx = { id, p, d, dayEn, dayEs, dateEn, dateEs, off, marinas, short: d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "" };
 
   const es = {
     _title: `Propuesta privada${dayEs ? ` · ${cap(dayEs)}` : ""} | Yachtique`,
@@ -37,6 +41,7 @@ export default async (req, context) => {
     "pp.valid": p.validUntil ? `Propuesta válida hasta el ${cap(parseDate(p.validUntil).toLocaleDateString("es-US", { day: "numeric", month: "long", timeZone: "UTC" }))}.` : "",
     "pp.ready": "¿Listo para reservar?", "pp.ready.p": "Escríbanos por WhatsApp con el yate que eligió, o llámenos si prefiere hablarlo.",
     "pp.call": "Llamar",
+    "pp.marina": "Elija su puerto de salida", "pp.marina.p": "El precio cambia según el puerto. Elija el que le quede más cerca.", "pp.pickupchoice": "A su elección, abajo",
     "pp.off": off ? (off.pct ? `Precio especial: ${off.pct}% de descuento en todos los yates` : `Precio especial: ${money(off.amount)} de descuento en cada yate`) : "",
     ...Object.fromEntries((p.terms_es || []).map((t, i) => [`pp.t${i}`, t])),
   };
@@ -46,6 +51,7 @@ export default async (req, context) => {
     if (o.note_es) es[`pp.o${i}.note`] = o.note_es;
     es[`pp.o${i}.state`] = stateText(st, dayEs, true);
     es[`pp.o${i}.spec`] = specLine(o.y, true);
+    o.byMarina.forEach((b, k) => { if (!b.here) es[`pp.o${i}.m${k}`] = elsewhere(marinas[k], b.dep, true); });
   });
 
   return respond(page({
@@ -97,6 +103,29 @@ function discounted(price, off) {
   return Math.max(0, Math.round(off.pct ? price * (1 - off.pct / 100) : price - off.amount));
 }
 
+// "Venetian Marina (Downtown Miami); Miami Beach Marina (South Beach)" -> a choice of marinas (one marina: no choice)
+function marinaList(pickup) {
+  const list = String(pickup || "").split(/\s*[;\n]\s*/).map((s) => s.trim()).filter(Boolean);
+  return list.length > 1 ? list : [];
+}
+function marinaKey(s) { return String(s).split("(")[0].toLowerCase().replace(/[^a-z0-9]/g, ""); }
+// A yacht's prices from one marina, for the lengths of day in the proposal. A yacht that doesn't leave from it shows
+// its prices from the first of its own marinas instead, with a line saying where it boards.
+function fromMarina(y, marina, o) {
+  const labels = o.prices && Object.keys(o.prices).length
+    ? Object.entries(o.prices).filter(([, v]) => Number(v) > 0).map(([label]) => label)
+    : ["4 hours", "6 hours", "8 hours"];
+  const deps = y.departures || [];
+  const here = deps.find((d) => marinaKey(d.name) === marinaKey(marina));
+  const dep = here || deps.find((d) => !/private house/i.test(d.name)) || deps[0];
+  const prices = dep ? labels.filter((l) => dep.prices[l] > 0).map((label) => ({ label, price: dep.prices[label] })) : [];
+  return { here: !!here, dep: dep ? dep.name : "", prices };
+}
+function elsewhere(marina, dep, es) {
+  const m = marina.split("(")[0].trim();
+  return es ? `No sale de ${m}. Embarque en ${dep}.` : `Doesn't leave from ${m}. Boards at ${dep}.`;
+}
+
 function parseDate(s) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
   return m ? new Date(Date.UTC(+m[1], m[2] - 1, +m[3])) : null;
@@ -122,7 +151,7 @@ function body(c, options) {
     ["pp.date", "Date", "pp.dateval", c.dateEn],
     ["pp.group", "Group", "pp.groupval", p.guests ? `${p.guests} guests` : "To confirm"],
     ["pp.time", "Time", "pp.timeval", p.time || "To confirm"],
-    p.pickup ? ["pp.pickup", "Pickup", "pp.pickupval", p.pickup] : null,
+    c.marinas.length ? ["pp.pickup", "Pickup", "pp.pickupchoice", "Your choice, below"] : p.pickup ? ["pp.pickup", "Pickup", "pp.pickupval", p.pickup] : null,
   ].filter(Boolean);
   const waAll = `https://wa.me/${WA}?text=${encodeURIComponent(`Hi Nektarios, about my charter proposal ${link}`)}`;
   return `
@@ -135,12 +164,29 @@ function body(c, options) {
       ${p.client ? `<p class="phead__for"><span data-i18n="pp.for">Prepared for</span> ${esc(p.client)}</p>` : ""}
       <ul class="yfacts phead__facts">${facts.map(([lk, l, vk, v]) => `<li><b data-i18n="${vk}">${esc(v)}</b><span data-i18n="${lk}">${l}</span></li>`).join("")}</ul>
       ${c.off ? `<p class="phead__off" data-i18n="pp.off">${c.off.pct ? `Special price: ${c.off.pct}% off every yacht` : `Special price: ${esc(money(c.off.amount))} off each yacht`}</p>` : ""}
+      ${c.marinas.length ? `<fieldset class="pmarinas">
+        <legend data-i18n="pp.marina">Choose your marina</legend>
+        <div class="pmarinas__list">${c.marinas.map((m, k) => `<label><input type="radio" name="marina" value="${k}"${k ? "" : " checked"}><span>${esc(m.split("(")[0].trim())}${/\(/.test(m) ? `<small>${esc(m.replace(/^[^(]*\(|\)$/g, ""))}</small>` : ""}</span></label>`).join("")}</div>
+        <p class="pmarinas__note" data-i18n="pp.marina.p">Prices change with the marina. Pick the one closest to you.</p>
+      </fieldset>` : ""}
       <p class="lead phead__intro" data-i18n="pp.intro">We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, and we reply to reserve it.</p>
     </header>
 
     <div class="popts">
       ${options.map((o, i) => optionCard(o, i, c)).join("")}
     </div>
+    ${c.marinas.length ? `<script>
+      (function () {
+        // Marina picker: show each yacht's prices from the chosen marina
+        var radios = document.querySelectorAll('.pmarinas input');
+        function show() {
+          var k = (document.querySelector('.pmarinas input:checked') || {}).value || "0";
+          document.querySelectorAll("[data-marina]").forEach(function (el) { el.hidden = el.getAttribute("data-marina") !== k; });
+        }
+        radios.forEach(function (r) { r.addEventListener("change", show); });
+        show();
+      })();
+    </script>` : ""}
 
     <section class="pterms">
       <p class="eyebrow" data-i18n="pp.terms">Good to know</p>
@@ -177,13 +223,19 @@ function optionCard(o, i, c) {
     : y.durations.filter((d) => /hour/i.test(d.label)).slice(0, 3);
   const photos = y.images.slice(0, 3);
   const link = `${SITE}/p/${c.id}`;
-  const rows = prices.map((d) => {
+  const rowsFor = (list, from) => list.map((d) => {
     const now = discounted(d.price, c.off);
-    const en = `Hi Nektarios, I'd like to reserve ${y.name} for ${d.label}${c.short ? ` on ${c.short}` : ""} (${money(now)}${c.off ? `, was ${money(d.price)}` : ""}). Proposal: ${link}`;
-    const es = `Hola Nektarios, me gustaría reservar ${y.name} por ${durEs(d.label)}${c.dateEs ? ` el ${c.dateEs}` : ""} (${money(now)}${c.off ? `, antes ${money(d.price)}` : ""}). Propuesta: ${link}`;
+    const en = `Hi Nektarios, I'd like to reserve ${y.name} for ${d.label}${c.short ? ` on ${c.short}` : ""}${from ? ` from ${from}` : ""} (${money(now)}${c.off ? `, was ${money(d.price)}` : ""}). Proposal: ${link}`;
+    const es = `Hola Nektarios, me gustaría reservar ${y.name} por ${durEs(d.label)}${c.dateEs ? ` el ${c.dateEs}` : ""}${from ? ` desde ${from}` : ""} (${money(now)}${c.off ? `, antes ${money(d.price)}` : ""}). Propuesta: ${link}`;
     return `<li><span data-dur>${esc(d.label)}</span><b>${c.off && now < d.price ? `<s class="pprice__was">${money(d.price)}</s> ` : ""}${money(now)}</b>
           <a class="btn btn--gold btn--sm" href="https://wa.me/${WA}?text=${encodeURIComponent(en)}" data-wa-es="${esc(es)}" data-yacht="${esc(y.handle)}" data-track="proposal-choose" target="_blank" rel="noopener" data-i18n="pp.choose">Choose</a></li>`;
   }).join("");
+  // With a marina choice: one price list per marina, the picker shows one at a time
+  const priceBlock = c.marinas.length
+    ? o.byMarina.map((b, k) => `<div data-marina="${k}"${k ? " hidden" : ""}>
+          ${b.here ? "" : `<p class="pprices__from" data-i18n="pp.o${i}.m${k}">${esc(elsewhere(c.marinas[k], b.dep, false))}</p>`}
+          <ul class="ydlg__prices pprices">${rowsFor(b.prices, b.dep)}</ul></div>`).join("")
+    : `<ul class="ydlg__prices pprices">${rowsFor(prices, "")}</ul>`;
   return `
       <article class="popt" id="option-${i + 1}">
         <div class="popt__media">
@@ -198,7 +250,7 @@ function optionCard(o, i, c) {
           <h2 class="popt__name">${esc(y.name)}</h2>
           <p class="popt__spec" data-i18n="pp.o${i}.spec">${esc(specLine(y, false))}</p>
           ${o.note ? `<p class="popt__note" data-i18n="pp.o${i}.note">${esc(o.note)}</p>` : ""}
-          <ul class="ydlg__prices pprices">${rows}</ul>
+          ${priceBlock}
           <a href="/yachts/${esc(y.handle)}" class="yacht__link"><span data-i18n="pp.more">More photos & details</span> <span aria-hidden="true">→</span></a>
         </div>
       </article>`;
