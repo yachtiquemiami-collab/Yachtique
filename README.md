@@ -93,6 +93,8 @@ Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → 
 
 ## Payments (Stripe)
 
+**Discounts and price changes.** On the Accept page, type a Discount (`10%` or dollars): the client's email, payment page and Stripe receipt show the price, the discount as its own line, and the new total (gratuity and tax on the discounted price). After accepting, **Edit price or discount** (on the Accept page link, before the client pays) changes the quote and emails the client the update; the payment link stays the same. The Sheet keeps Price = after the discount and Discount = dollars off.
+
 Clients pay on **yachtique.co/pay/YQ-####**, linked from the "Accepted" email. The page shows the charter, Florida sales tax and the total saved in the Sheet, then opens Stripe Checkout. The amount always comes from the Sheet, never from the browser.
 
 Paid by Zelle instead? Nektarios taps **Paid by Zelle?** (on his Accept page, or in the unpaid reminder emails), checks the amount arrived in the Yachtique account and confirms: the row turns Paid (Payment: Zelle) and the client gets the same confirmation and calendar file as a card payment (`markPaidManual` in `apps-script/Code.gs`). Sales tax is owed the same as for a card.
@@ -161,6 +163,7 @@ A private page per client request, instead of a PDF. Not in Google, not in the s
 2. Add **one row per yacht option**, all with the same **ID** (short and hard to guess, e.g. `oct24-k9m4`).
    - First row: client name (optional), date (YYYY-MM-DD), guests, time, pickup, terms (one per line), valid until, language (`es` opens it in Spanish).
    - Every row: yacht (`kilauea`, `Kilauea` or its yachtique.co link), label (e.g. "Best value"), a short note, and prices for 4, 6 and 8 hours (blank = website rates).
+   - **Discount** (first row, column P): `10%` or a dollar amount like `300`. The page shows each price crossed out next to the new one, with a "Special price" badge. Clear the cell to remove it.
 3. Send the client **yachtique.co/p/ID**. Photos, specs and live availability come from the fleet automatically; edits show within a minute.
 
 Each "Choose" button opens WhatsApp with the yacht, length and price written. Opens and choices are counted in the Insights tab.
