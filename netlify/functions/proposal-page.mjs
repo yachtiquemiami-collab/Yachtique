@@ -22,7 +22,8 @@ export default async (req, context) => {
   const dayEs = d ? d.toLocaleDateString("es-US", { weekday: "long", timeZone: "UTC" }) : "";
   const dateEn = d ? d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }) : "To confirm";
   const dateEs = d ? d.toLocaleDateString("es-US", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : "Por confirmar";
-  const ctx = { id, p, d, dayEn, dayEs, dateEn, dateEs, short: d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "" };
+  const off = parseDiscount(p.discount);
+  const ctx = { id, p, d, dayEn, dayEs, dateEn, dateEs, off, short: d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) : "" };
 
   const es = {
     _title: `Propuesta privada${dayEs ? ` · ${cap(dayEs)}` : ""} | Yachtique`,
@@ -36,6 +37,7 @@ export default async (req, context) => {
     "pp.valid": p.validUntil ? `Propuesta válida hasta el ${cap(parseDate(p.validUntil).toLocaleDateString("es-US", { day: "numeric", month: "long", timeZone: "UTC" }))}.` : "",
     "pp.ready": "¿Listo para reservar?", "pp.ready.p": "Escríbanos por WhatsApp con el yate que eligió, o llámenos si prefiere hablarlo.",
     "pp.call": "Llamar",
+    "pp.off": off ? (off.pct ? `Precio especial: ${off.pct}% de descuento en todos los yates` : `Precio especial: ${money(off.amount)} de descuento en cada yate`) : "",
     ...Object.fromEntries((p.terms_es || []).map((t, i) => [`pp.t${i}`, t])),
   };
   options.forEach((o, i) => {
@@ -83,6 +85,18 @@ function findYacht(fleet, ref) {
   return fleet.find((y) => y.handle === key) || fleet.find((y) => flat(y.name) === flat(key)) || fleet.find((y) => flat(y.handle) === flat(key));
 }
 
+// Discount on a proposal: "10%" off every price, or a dollar amount ("300") off each
+function parseDiscount(v) {
+  const s = String(v == null ? "" : v).trim();
+  const n = Number(s.replace(/[^0-9.]/g, "")) || 0;
+  if (!(n > 0)) return null;
+  return /%/.test(s) ? { pct: Math.min(n, 90) } : { amount: n };
+}
+function discounted(price, off) {
+  if (!off) return price;
+  return Math.max(0, Math.round(off.pct ? price * (1 - off.pct / 100) : price - off.amount));
+}
+
 function parseDate(s) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ""));
   return m ? new Date(Date.UTC(+m[1], m[2] - 1, +m[3])) : null;
@@ -120,6 +134,7 @@ function body(c, options) {
       <h1 class="ypage__title" data-i18n="pp.title">${c.dayEn ? `Your ${esc(c.dayEn)} on the water` : "Your day on the water"}</h1>
       ${p.client ? `<p class="phead__for"><span data-i18n="pp.for">Prepared for</span> ${esc(p.client)}</p>` : ""}
       <ul class="yfacts phead__facts">${facts.map(([lk, l, vk, v]) => `<li><b data-i18n="${vk}">${esc(v)}</b><span data-i18n="${lk}">${l}</span></li>`).join("")}</ul>
+      ${c.off ? `<p class="phead__off" data-i18n="pp.off">${c.off.pct ? `Special price: ${c.off.pct}% off every yacht` : `Special price: ${esc(money(c.off.amount))} off each yacht`}</p>` : ""}
       <p class="lead phead__intro" data-i18n="pp.intro">We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, and we reply to reserve it.</p>
     </header>
 
@@ -163,9 +178,10 @@ function optionCard(o, i, c) {
   const photos = y.images.slice(0, 3);
   const link = `${SITE}/p/${c.id}`;
   const rows = prices.map((d) => {
-    const en = `Hi Nektarios, I'd like to reserve ${y.name} for ${d.label}${c.short ? ` on ${c.short}` : ""} (${money(d.price)}). Proposal: ${link}`;
-    const es = `Hola Nektarios, me gustaría reservar ${y.name} por ${durEs(d.label)}${c.dateEs ? ` el ${c.dateEs}` : ""} (${money(d.price)}). Propuesta: ${link}`;
-    return `<li><span data-dur>${esc(d.label)}</span><b>${money(d.price)}</b>
+    const now = discounted(d.price, c.off);
+    const en = `Hi Nektarios, I'd like to reserve ${y.name} for ${d.label}${c.short ? ` on ${c.short}` : ""} (${money(now)}${c.off ? `, was ${money(d.price)}` : ""}). Proposal: ${link}`;
+    const es = `Hola Nektarios, me gustaría reservar ${y.name} por ${durEs(d.label)}${c.dateEs ? ` el ${c.dateEs}` : ""} (${money(now)}${c.off ? `, antes ${money(d.price)}` : ""}). Propuesta: ${link}`;
+    return `<li><span data-dur>${esc(d.label)}</span><b>${c.off && now < d.price ? `<s class="pprice__was">${money(d.price)}</s> ` : ""}${money(now)}</b>
           <a class="btn btn--gold btn--sm" href="https://wa.me/${WA}?text=${encodeURIComponent(en)}" data-wa-es="${esc(es)}" data-yacht="${esc(y.handle)}" data-track="proposal-choose" target="_blank" rel="noopener" data-i18n="pp.choose">Choose</a></li>`;
   }).join("");
   return `

@@ -916,6 +916,9 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .phead { text-align: center; max-width: 860px; margin: 0 auto 50px; }
 .phead__logo { width: 170px; margin: 0 auto 26px; opacity: .95; }
 .phead .ypage__title { margin-bottom: 10px; }
+/* Proposal discount: a gold badge, and the old price struck through beside the new one */
+.phead__off { display: inline-block; margin: 6px 0 0; padding: 8px 18px; border-radius: var(--pill); background: var(--gold-grad); color: var(--navy) !important; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+.pprice__was { font-family: var(--sans); font-size: 14px; font-weight: 400; color: var(--muted); text-decoration-thickness: 1px; margin-right: 4px; }
 .phead__for { color: var(--gold-light); font-family: var(--serif); font-size: 19px; font-style: italic; margin: 0 0 6px; }
 .phead__facts { margin: 26px 0 22px; }
 .phead__facts b { font-size: 18px; }

@@ -12,11 +12,11 @@
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
-  "Departure", "Start time", "Emails sent", "Extension", "Extension payment"];
+  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount"];
 // Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
-  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27 };
+  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -97,7 +97,8 @@ function doPost(e) {
     if (!SECRET || body.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
     if (body.type === "event") return json(saveEvent(body.event || {}));
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
-    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
+    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0));
+    if (body.type === "reprice") return json(repriceEnquiry(String(body.ref || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0));
     if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
     if (body.type === "manualpaid") return json(markPaidManual(String(body.ref || ""), String(body.method || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "extension") return json(recordExtension(String(body.ref || ""), String(body.state || ""), Number(body.hours) || 0, Number(body.amount) || 0, String(body.payment || "")));
@@ -211,7 +212,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.EXT_PAY).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.DISCOUNT).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -224,6 +225,7 @@ function findEnquiry(ref) {
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
         departure: String(v[COL.DEPARTURE - 1] || "").trim(), payment: String(v[COL.PAYMENT - 1] || ""), start: startTime(v[COL.START - 1]),
         extension: String(v[COL.EXT - 1] || ""), extPayment: String(v[COL.EXT_PAY - 1] || ""),
+        discount: Number(v[COL.DISCOUNT - 1]) || 0,
       } };
     }
   }
@@ -243,7 +245,7 @@ function withPayUrl(q) {
 // price: the charter price before tax typed on the Accept page (0 = Nektarios sends the quote himself).
 // gratuityPct: the gratuity picked on the Accept page (18 by default, 0 = none or included with the yacht).
 // With a price the client's email gets a Pay button for the total, gratuity and Florida sales tax included.
-function decideEnquiry(ref, a, price, gratuityPct) {
+function decideEnquiry(ref, a, price, gratuityPct, discount) {
   if (a !== "accept" && a !== "decline") return { ok: false, error: "bad action" };
   price = a === "accept" && price > 0 ? cents(price) / 100 : 0;
   const lock = LockService.getScriptLock();
@@ -261,16 +263,7 @@ function decideEnquiry(ref, a, price, gratuityPct) {
     f.sheet.getRange(f.row, COL.STATUS).setValue(status);
     f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
     f.q.status = status;
-    if (price) {
-      const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
-      f.q.price = price;
-      f.q.gratuity = cents(price * pct / 100) / 100;
-      const taxed = TAX_GRATUITY ? price + f.q.gratuity : price;
-      f.q.total = cents(price + f.q.gratuity + taxed * TAX_RATE) / 100;
-      f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
-      f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
-      withPayUrl(f.q);
-    }
+    if (price) setQuote(f, price, gratuityPct, discount);
   } finally {
     lock.releaseLock();
   }
@@ -305,6 +298,44 @@ function setGratuity(ref, pct) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// The quote on a row. listPrice: the charter price before any discount; discount: dollars off (shown to the client).
+// Price = the charter after the discount; the gratuity is a % of that, and Florida sales tax is added on top.
+function setQuote(f, listPrice, gratuityPct, discount) {
+  listPrice = cents(listPrice) / 100;
+  const off = Math.min(Math.max(cents(Number(discount) || 0) / 100, 0), listPrice);
+  const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
+  f.q.price = cents(listPrice - off) / 100;
+  f.q.discount = off;
+  f.q.gratuity = cents(f.q.price * pct / 100) / 100;
+  const taxed = TAX_GRATUITY ? f.q.price + f.q.gratuity : f.q.price;
+  f.q.total = cents(f.q.price + f.q.gratuity + taxed * TAX_RATE) / 100;
+  f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
+  f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
+  f.sheet.getRange(f.row, COL.DISCOUNT).setValue(off || "");
+  withPayUrl(f.q);
+}
+
+// Edit price or discount: an accepted quote the client hasn't paid yet. The client gets the updated quote with the
+// same payment link (the payment page always reads the total from here).
+function repriceEnquiry(ref, listPrice, gratuityPct, discount) {
+  if (!(listPrice > 0)) return { ok: false, error: "no price" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let f;
+  try {
+    f = findEnquiry(ref);
+    if (!f) return { ok: false, error: "not found" };
+    addNewColumns(f.sheet);
+    if (!/^accepted$/i.test(f.q.status)) return { ok: false, error: "status " + f.q.status };
+    setQuote(f, listPrice, gratuityPct, discount);
+  } finally {
+    lock.releaseLock();
+  }
+  let emailed = false;
+  try { emailed = sendClientAccepted(f.q); } catch (err) { console.error("Updated quote email failed: " + err); }
+  return { ok: true, enquiry: f.q, emailed: emailed };
 }
 
 /* =================== Payments ===================
@@ -572,7 +603,8 @@ function styleBlock(sh, row, col, n) {
    Yacht: its web address (yachtique.co/yachts/kilauea), handle (kilauea) or name (Kilauea).
    Prices: leave blank to use the website rates. Changes show on the page within a minute. */
 
-const PROPOSAL_HEADERS = ["ID", "Client", "Date", "Guests", "Time", "Pickup", "Yacht", "Label", "Note", "4 hours", "6 hours", "8 hours", "Terms", "Valid until", "Language"];
+// Discount (first row of an ID): "10%" or a dollar amount, taken off every price on the page and shown to the client
+const PROPOSAL_HEADERS = ["ID", "Client", "Date", "Guests", "Time", "Pickup", "Yacht", "Label", "Note", "4 hours", "6 hours", "8 hours", "Terms", "Valid until", "Language", "Discount"];
 
 function proposalsSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -588,6 +620,10 @@ function proposalsSheet() {
     sh.getRange(2, 1, 1, 13).setValues([["example-x1", "", "2026-12-12", 10, "Sunset charter", "Miami Beach Marina", "kilauea", "Best value",
       "Example row: copy it, change the ID and the details, and send the client yachtique.co/p/<ID>.", 2690, 3390, 4240,
       "Prices exclude Florida sales tax and gratuity. A deposit holds your yacht and date."]]);
+  }
+  if (!sh.getRange(1, PROPOSAL_HEADERS.length).getValue()) {
+    sh.getRange(1, PROPOSAL_HEADERS.length).setValue(PROPOSAL_HEADERS[PROPOSAL_HEADERS.length - 1]);
+    styleHeader(sh, PROPOSAL_HEADERS.length);
   }
   return sh;
 }
@@ -614,6 +650,7 @@ function getProposal(id) {
     client: String(first[1] || "").trim(), date: ymd(first[2]), guests: num(first[3]) || "",
     time: String(first[4] || "").trim(), pickup: String(first[5] || "").trim(),
     options: options, terms: terms, validUntil: valid, lang: String(first[14] || "").toLowerCase().indexOf("es") === 0 ? "es" : "en",
+    discount: typeof first[15] === "number" && first[15] > 0 && first[15] < 1 ? Math.round(first[15] * 100) + "%" : String(first[15] || "").trim(),
   } };
 }
 
@@ -864,7 +901,7 @@ const TXT = {
     accPPay: (y, d) => (y ? "<b>" + y + "</b> is available" : "Your yacht is available") + (d ? " on " + d : "") + ". Secure your date with the payment below: we reserve your yacht with the captain as soon as it's received.",
     accStepsPay: [["Pay securely.", "Card, Apple Pay or Google Pay through Stripe. Gratuity and Florida sales tax included."], ["We reserve your yacht.", "Confirmed with the captain right after your payment."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
     accSubjectPay: (d) => "Your charter" + (d ? " on " + d : "") + " is available: secure your date · Yachtique", accPrePay: "Your yacht is available. Pay securely to reserve it.",
-    charter: "Charter", gratuity: (p) => "Gratuity (" + p + "%)", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
+    charter: "Charter", discount: (p) => "Discount" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Gratuity (" + p + "%)", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
     paidP: (a) => "We received <b>" + a + "</b> for your charter. We're reserving your yacht with the captain now, and you'll receive the final confirmation shortly.",
     paidSteps: [["We reserve your yacht.", "Confirmed with the captain, usually within a few hours."], ["Your boarding details.", "Marina, time and what to bring, the day before you sail."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
@@ -889,7 +926,7 @@ const TXT = {
     accPPay: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Su yate está disponible") + (d ? " el " + d : "") + ". Reserve su fecha con el pago a continuación: reservamos su yate con el capitán en cuanto lo recibamos.",
     accStepsPay: [["Pague de forma segura.", "Tarjeta, Apple Pay o Google Pay a través de Stripe. Propina e impuesto de ventas de Florida incluidos."], ["Reservamos su yate.", "Confirmado con el capitán justo después de su pago."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
     accSubjectPay: (d) => "Su alquiler" + (d ? " del " + d : "") + " está disponible: reserve su fecha · Yachtique", accPrePay: "Su yate está disponible. Pague de forma segura para reservarlo.",
-    charter: "Alquiler", gratuity: (p) => "Propina (" + p + "%)", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
+    charter: "Alquiler", discount: (p) => "Descuento" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Propina (" + p + "%)", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
     paidP: (a) => "Recibimos <b>" + a + "</b> por su alquiler. Ahora estamos reservando su yate con el capitán y en breve recibirá la confirmación final.",
     paidSteps: [["Reservamos su yate.", "Confirmado con el capitán, normalmente en pocas horas."], ["Sus detalles de embarque.", "Marina, hora y qué llevar, el día antes de navegar."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
@@ -951,7 +988,10 @@ function sendClientAccepted(q) {
 // Charter, sales tax and total, in the same rounded box as the facts
 function priceBox(q, lang) {
   const T = TXT[lang === "es" ? "es" : "en"];
-  const rows = [[T.charter, usd(q.price), false]];
+  const off = Number(q.discount) || 0;
+  const rows = off > 0
+    ? [[T.charter, usd(q.price + off), false], [T.discount(Math.round(off / (q.price + off) * 100)), "&minus;" + usd(off), false]]
+    : [[T.charter, usd(q.price), false]];
   const grat = q.gratuity || 0;
   if (cents(grat) > 0) rows.push([T.gratuity(Math.round(grat / q.price * 100)), usd(grat), false]);
   if (cents(q.total) > cents(q.price + grat)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat), false]);

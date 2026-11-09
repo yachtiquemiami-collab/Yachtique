@@ -4,7 +4,7 @@
 //
 // Fields: date (YYYY-MM-DD), guests, time, pickup, client (optional, shown as "Prepared for"),
 // options: [{ yacht: handle, label, note, prices: { "4 hours": 2690, ... } (optional, else website rates), label_es, note_es }],
-// terms: [sentences], terms_es, validUntil (YYYY-MM-DD, optional).
+// terms: [sentences], terms_es, validUntil (YYYY-MM-DD, optional), discount ("10%" or dollars off each price, optional).
 // This repo is public: never put client names, phone numbers or addresses here. Use the Sheet for those.
 export const PROPOSALS = {
   "oct24-k9m4": {

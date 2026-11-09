@@ -26,16 +26,16 @@ export default async (req) => {
   }
   const secret = Netlify.env.get("SHEETS_SECRET");
 
-  let ref, a, t, price = "", gratuity = "";
+  let ref, a, t, price = "", gratuity = "", discount = "";
   if (req.method === "POST") {
     const f = await req.formData();
     ref = String(f.get("ref") || ""); a = String(f.get("a") || ""); t = String(f.get("t") || "");
-    price = String(f.get("price") || ""); gratuity = String(f.get("gratuity") || "");
+    price = String(f.get("price") || ""); gratuity = String(f.get("gratuity") || ""); discount = String(f.get("discount") || "");
   } else {
     const q = new URL(req.url).searchParams;
     ref = String(q.get("ref") || ""); a = String(q.get("a") || ""); t = String(q.get("t") || "");
   }
-  if (!RX_REF.test(ref) || !["accept", "decline", "zelle", "extok", "extno"].includes(a) || !tokenOk(ref, t, secret)) {
+  if (!RX_REF.test(ref) || !["accept", "decline", "zelle", "extok", "extno", "edit"].includes(a) || !tokenOk(ref, t, secret)) {
     return page("Link not valid", `<h1>This link is not valid</h1><p>Open the inquiry from the email again, or change its Status in the Enquiries sheet.</p>`, 403);
   }
 
@@ -45,20 +45,24 @@ export default async (req) => {
     const q = r.enquiry;
     if (a === "zelle") return zellePage(q, t, Number(r.taxRate) || 0, r.taxGratuity, await sitePrice(req, q));
     if (a === "extok" || a === "extno") return extensionPage(q, a, t);
+    // Edit price or discount: an accepted quote the client hasn't paid yet
+    const edit = a === "edit";
+    if (edit && !(/^accepted$/i.test(q.status) && q.total > 0)) return page(q.status, decided(q, true, false, t));
     // Accepted earlier without a price: Accept again to send the payment link
     const addPrice = a === "accept" && /^accepted$/i.test(q.status) && !q.total;
-    if (!addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
-    const accept = a === "accept";
+    if (!edit && !addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
+    const accept = a === "accept" || edit;
     const rate = Number(r.taxRate) || 0;
     const site = accept ? await sitePrice(req, q) : { price: 0 };
-    const suggested = site.price;
-    // The client's pick on the form wins, otherwise the default
+    // Editing: the price before the discount, and the discount, as they are now
+    const suggested = edit ? Math.round(((q.price || 0) + (q.discount || 0)) * 100) / 100 : site.price;
     const chose = String(q.gratuityChoice || "");
-    const picked = parseInt(chose, 10);
-    const tip = GRATUITY_OPTIONS.includes(picked) ? picked : GRATUITY;
+    const picked = edit ? Math.round((q.gratuity || 0) / (q.price || 1) * 100) : parseInt(chose, 10);
+    // The client's pick on the form wins, otherwise the default (editing: the gratuity on the quote)
+    const tip = GRATUITY_OPTIONS.includes(picked) ? picked : edit ? GRATUITY_OPTIONS.reduce((b, o) => Math.abs(o - picked) < Math.abs(b - picked) ? o : b) : GRATUITY;
     return page(accept ? "Accept inquiry" : "Decline inquiry", `
-      <p class="eyebrow">${esc(ref)} · ${addPrice ? "Payment link" : accept ? "Accept" : "Decline"}</p>
-      <h1>${addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${accept ? "Accept" : "Decline"} ${esc(q.name || "this inquiry")}?`}</h1>
+      <p class="eyebrow">${esc(ref)} · ${edit ? "Edit the quote" : addPrice ? "Payment link" : accept ? "Accept" : "Decline"}</p>
+      <h1>${edit ? `Change ${esc(first(q) || "the client")}'s price?` : addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${a === "accept" ? "Accept" : "Decline"} ${esc(q.name || "this inquiry")}?`}</h1>
       ${summary(q)}
       <form method="POST" action="/api/decide" class="form dform">
         <input type="hidden" name="ref" value="${esc(ref)}"><input type="hidden" name="a" value="${a}"><input type="hidden" name="t" value="${esc(t)}">
@@ -66,12 +70,17 @@ export default async (req) => {
         <label>Charter price before tax
           <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${suggested || ""}" data-rate="${rate}">
         </label>
-        <p class="dhint">${suggested ? `Website price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice ? "" : " Leave it empty to send the quote yourself."}</p>
+        <p class="dhint">${edit ? "The price before any discount. " : suggested ? `Website price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice || edit ? "" : " Leave it empty to send the quote yourself."}</p>
+        <label>Discount <em class="dchose">· optional</em>
+          <input type="text" name="discount" inputmode="decimal" autocomplete="off" placeholder="e.g. 10% or 300" value="${edit && q.discount ? q.discount : ""}">
+        </label>
+        <p class="dhint">A percentage or dollars off the charter. The client sees it as its own line, with the price before it.</p>
         <label>Gratuity${chose ? ` <em class="dchose">· client chose ${esc(/included/i.test(chose) ? "included" : chose)}</em>` : ""}
           <select name="gratuity" data-taxed="${r.taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : "None"}</option>`).join("")}</select>
         </label>
         <ul class="dsum" hidden>
           <li><span>Charter</span><b data-sum="price"></b></li>
+          <li data-row="off" hidden><span data-sum="offlabel">Discount</span><b data-sum="off"></b></li>
           <li data-row="grat"><span data-sum="gratlabel">Gratuity</span><b data-sum="grat"></b></li>
           <li><span>Florida sales tax (${+(rate * 100).toFixed(2)}%)</span><b data-sum="tax"></b></li>
           <li class="dsum__total"><span>Client pays</span><b data-sum="total"></b></li>
@@ -83,12 +92,14 @@ export default async (req) => {
           <li><span>Gratuity<small>Passed to YCN for the crew</small></span><b data-sum="grat2"></b></li>
           <li><span>Florida sales tax<small>Collected for the state, you pay it on your tax return</small></span><b data-sum="tax2"></b></li>
         </ul>` : ""}` : ""}
-        <p class="dnote">${accept
+        <p class="dnote">${edit
+          ? `${esc(first(q) || "The client")} gets the updated quote by email${q.lang === "es" ? " in Spanish" : ""}, with the same payment link.`
+          : accept
           ? `${esc(first(q) || "The client")} gets an email${q.lang === "es" ? " in Spanish" : ""} saying the day is available<span data-paynote hidden>, with a button to pay the total by card</span><span data-quotenote>, and that you'll send the final quote</span>.`
           : `${esc(first(q) || "The client")} gets an email${q.lang === "es" ? " in Spanish" : ""} saying it can't be confirmed, with a link to the yachts free that day.`}</p>
-        <button type="submit" class="btn ${accept ? "btn--gold" : "btn--decline"} btn--block">${addPrice ? "Send payment link" : `Confirm ${accept ? "accept" : "decline"}`}</button>
+        <button type="submit" class="btn ${accept ? "btn--gold" : "btn--decline"} btn--block">${edit ? "Save and send the updated quote" : addPrice ? "Send payment link" : `Confirm ${accept ? "accept" : "decline"}`}</button>
       </form>
-      ${addPrice ? "" : `<p class="dswitch"><a href="?ref=${encodeURIComponent(ref)}&a=${accept ? "decline" : "accept"}&t=${encodeURIComponent(t)}">${accept ? "Decline instead" : "Accept instead"}</a></p>`}
+      ${addPrice || edit ? "" : `<p class="dswitch"><a href="?ref=${encodeURIComponent(ref)}&a=${accept ? "decline" : "accept"}&t=${encodeURIComponent(t)}">${accept ? "Decline instead" : "Accept instead"}</a></p>`}
       ${accept ? priceScript() : ""}`);
   }
 
@@ -119,7 +130,15 @@ export default async (req) => {
     return page("Paid", decided(z.enquiry, z.already, true, t));
   }
 
-  const r = await sheet({ type: "decide", ref, a, price: a === "accept" ? price.replace(/[^0-9.]/g, "") : "", gratuity: a === "accept" ? gratuity.replace(/[^0-9.]/g, "") : "" }).catch(() => null);
+  const listPrice = Number(price.replace(/[^0-9.]/g, "")) || 0;
+  const off = discountDollars(discount, listPrice);
+  if (a === "edit") {
+    if (!(listPrice > 0)) return page("Not saved", `<h1>Type the price first</h1><p class="dnote">Nothing was changed.</p>`, 400);
+    const e = await sheet({ type: "reprice", ref, price: listPrice, gratuity: gratuity.replace(/[^0-9.]/g, ""), discount: off }).catch(() => null);
+    if (!e || !e.ok) return page("Not saved", `<h1>That didn't go through</h1><p class="dnote">${e && /^status/.test(e.error || "") ? `The inquiry is ${esc(e.error.slice(7))}, so its price can't change.` : "Nothing was changed. Try again."}</p>`, 502);
+    return page("Updated", decided(e.enquiry, false, e.emailed, t, true));
+  }
+  const r = await sheet({ type: "decide", ref, a, price: a === "accept" ? listPrice || "" : "", gratuity: a === "accept" ? gratuity.replace(/[^0-9.]/g, "") : "", discount: a === "accept" ? off : 0 }).catch(() => null);
   if (!r || !r.ok) return page("Not saved", `<h1>That didn't go through</h1><p>Nothing was sent. Try again, or set the Status in the Enquiries sheet.</p>`, 502);
   return page(r.enquiry.status, decided(r.enquiry, r.already, r.emailed, t));
 };
@@ -146,7 +165,16 @@ function summary(q) {
       <p class="dcontact">${[q.phone, q.email, q.lang === "es" ? "Spanish" : ""].filter(Boolean).map(esc).join(" · ")}</p>`;
 }
 
-function decided(q, already, emailed, t) {
+// "10%" or "300" (dollars) off a price, as dollars
+function discountDollars(input, price) {
+  const s = String(input || "").trim();
+  if (!s || !(price > 0)) return 0;
+  const n = Number(s.replace(/[^0-9.]/g, "")) || 0;
+  const off = /%/.test(s) ? price * n / 100 : n;
+  return Math.min(Math.max(Math.round(off * 100) / 100, 0), price);
+}
+
+function decided(q, already, emailed, t, updated) {
   const paid = /paid/i.test(q.status);
   const ok = paid || /accepted/i.test(q.status);
   const name = first(q) || "the client";
@@ -158,22 +186,24 @@ function decided(q, already, emailed, t) {
       ? (es ? `Hola ${first(q)}, soy Nektarios de Yachtique. Su día está disponible. El total es ${usd(q.total)} con impuestos incluidos. Puede pagar aquí de forma segura: ${q.payUrl}` : `Hi ${first(q)}, this is Nektarios from Yachtique. Your day is available. The total is ${usd(q.total)} including tax. You can pay securely here: ${q.payUrl}`)
       : (es ? `Hola ${first(q)}, soy Nektarios de Yachtique. Su día está disponible. Le envío ahora la cotización final.` : `Hi ${first(q)}, this is Nektarios from Yachtique. Your day is available. Sending you the final quote now.`);
   const money = q.total
-    ? `<ul class="dsum"><li><span>Charter</span><b>${usd(q.price)}</b></li>${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>${paid ? "Paid" : "Client pays"}</span><b>${usd(q.total)}</b></li></ul>`
+    ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>${paid ? "Paid" : "Client pays"}</span><b>${usd(q.total)}</b></li></ul>`
     : "";
   return `
       <p class="eyebrow">${esc(q.ref)}</p>
       <div class="dicon ${ok ? "is-ok" : "is-no"}">${ok ? "✓" : "✕"}</div>
-      <h1>${already && !paid ? `Already ${esc(q.status.toLowerCase())}` : esc(q.status)}</h1>
+      <h1>${updated ? "Quote updated" : already && !paid ? `Already ${esc(q.status.toLowerCase())}` : esc(q.status)}</h1>
       ${summary(q)}
       ${money}
       <p class="dnote">${paid
         ? `${esc(name)} paid ${usd(q.total)}${/^zelle$/i.test(q.payment || "") ? " by Zelle" : ""}. Next: reserve the yacht with YCN.`
         : already
           ? "Nothing changed and no email was sent again."
+          : updated ? `${esc(name)} ${emailed ? "has been emailed the updated quote" : "has no valid email: send the new total on WhatsApp"}. The payment link stays the same and now asks for ${usd(q.total)}.`
           : emailed ? `${esc(name)} has been emailed${es ? " in Spanish" : ""}${q.payUrl ? " with the payment link" : ""}. The Status in the sheet is now ${esc(q.status)}.`
             : `The Status in the sheet is now ${esc(q.status)}. No email was sent (no valid email address on the inquiry).`}</p>
       ${phone && !paid ? `<a class="btn btn--wa btn--block" href="https://wa.me/${phone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#icon-wa"/></svg>Message ${esc(name)} on WhatsApp</a>` : ""}
       ${q.payUrl && !paid ? `<p class="dswitch"><a href="${esc(q.payUrl)}" target="_blank" rel="noopener">Open the client's payment page</a></p>` : ""}
+      ${ok && !paid && t && q.total ? `<p class="dswitch"><a href="/api/decide?ref=${encodeURIComponent(q.ref)}&a=edit&t=${encodeURIComponent(t)}">Edit price or discount</a></p>` : ""}
       ${ok && !paid && t ? `<p class="dswitch"><a href="${zelleUrl(q.ref, t)}">Paid by Zelle? Mark it paid</a></p>` : ""}`;
 }
 
@@ -219,7 +249,7 @@ function zellePage(q, t, rate, taxGratuity, site) {
       <form method="POST" action="/api/decide" class="form dform">
         <input type="hidden" name="ref" value="${esc(q.ref)}"><input type="hidden" name="a" value="zelle"><input type="hidden" name="t" value="${esc(t)}">
         ${hasTotal
-          ? `<ul class="dsum"><li><span>Charter</span><b>${usd(q.price)}</b></li>${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>Should have arrived</span><b>${usd(q.total)}</b></li></ul>`
+          ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>Should have arrived</span><b>${usd(q.total)}</b></li></ul>`
           : `<label>Charter price before tax
           <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${site.price || ""}" data-rate="${rate}" required>
         </label>
@@ -243,10 +273,15 @@ function priceScript() {
   return `<script>
         (function () {
           var input = document.querySelector('[name="price"]'), tipSel = document.querySelector('[name="gratuity"]'), sum = document.querySelector(".dsum");
+          var offIn = document.querySelector('[name="discount"]');
           var rate = +input.getAttribute("data-rate") || 0, taxTip = tipSel.getAttribute("data-taxed") === "1";
           function fmt(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
           function update() {
-            var p = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
+            var list = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
+            // Discount: "10%" or dollars, never more than the price (the same rule as the server)
+            var raw = offIn ? offIn.value.trim() : "", n = parseFloat(raw.replace(/[^0-9.]/g, "")) || 0;
+            var off = list > 0 && raw ? Math.min(Math.max(Math.round((/%/.test(raw) ? list * n / 100 : n) * 100) / 100, 0), list) : 0;
+            var p = Math.round((list - off) * 100) / 100;
             var ok = p > 0;
             sum.hidden = !ok;
             var y0 = document.querySelector(".dsum--you"); if (y0 && !ok) y0.hidden = true;
@@ -258,7 +293,13 @@ function priceScript() {
             var total = Math.round((p + g + (taxTip ? p + g : p) * rate) * 100) / 100;
             sum.querySelector('[data-row="grat"]').hidden = !g;
             sum.querySelector('[data-sum="gratlabel"]').textContent = "Gratuity (" + pct + "%)";
-            sum.querySelector('[data-sum="price"]').textContent = fmt(p);
+            sum.querySelector('[data-sum="price"]').textContent = fmt(list);
+            var offRow = sum.querySelector('[data-row="off"]');
+            if (offRow) {
+              offRow.hidden = !off;
+              sum.querySelector('[data-sum="offlabel"]').textContent = "Discount (" + Math.round(off / list * 100) + "%)";
+              sum.querySelector('[data-sum="off"]').textContent = "\u2212" + fmt(off);
+            }
             sum.querySelector('[data-sum="grat"]').textContent = fmt(g);
             sum.querySelector('[data-sum="tax"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
             sum.querySelector('[data-sum="total"]').textContent = fmt(total);
@@ -272,7 +313,9 @@ function priceScript() {
               you.querySelector('[data-sum="tax2"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
             }
           }
-          input.addEventListener("input", update); tipSel.addEventListener("change", update); update();
+          input.addEventListener("input", update); tipSel.addEventListener("change", update);
+          if (offIn) offIn.addEventListener("input", update);
+          update();
         })();
       </script>`;
 }
