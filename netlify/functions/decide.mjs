@@ -43,7 +43,7 @@ export default async (req) => {
     const r = await sheet({ type: "lookup", ref }).catch(() => null);
     if (!r || !r.ok) return page("Not found", `<h1>We couldn't find ${esc(ref)}</h1><p>Check the Enquiries sheet: the row may have been moved or deleted.</p>`, 404);
     const q = r.enquiry;
-    if (a === "zelle") return zellePage(q, t, Number(r.taxRate) || 0, r.taxGratuity, await sitePrice(req, q));
+    if (a === "zelle") return zellePage(q, t, Number(r.taxRate) || 0, r.taxGratuity, await sitePrice(req, q), Number(r.serviceFee) || 0);
     if (a === "extok" || a === "extno") return extensionPage(q, a, t);
     // Edit price or discount: an accepted quote the client hasn't paid yet
     const edit = a === "edit";
@@ -52,7 +52,7 @@ export default async (req) => {
     const addPrice = a === "accept" && /^accepted$/i.test(q.status) && !q.total;
     if (!edit && !addPrice && /^(accepted|declined|paid)$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
     const accept = a === "accept" || edit;
-    const rate = Number(r.taxRate) || 0;
+    const rate = Number(r.taxRate) || 0, fee = Number(r.serviceFee) || 0;
     const site = accept ? await sitePrice(req, q) : { price: 0 };
     // Editing: the price before the discount, and the discount, as they are now
     const suggested = edit ? Math.round(((q.price || 0) + (q.discount || 0)) * 100) / 100 : site.price;
@@ -68,7 +68,7 @@ export default async (req) => {
         <input type="hidden" name="ref" value="${esc(ref)}"><input type="hidden" name="a" value="${a}"><input type="hidden" name="t" value="${esc(t)}">
         ${accept ? `
         <label>Charter price before tax
-          <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${suggested || ""}" data-rate="${rate}">
+          <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${suggested || ""}" data-rate="${rate}" data-fee="${fee}">
         </label>
         <p class="dhint">${edit ? "The price before any discount. " : suggested ? `Website price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}. ` : ""}Include anything extra you agreed (catering, transport).${addPrice || edit ? "" : " Leave it empty to send the quote yourself."}</p>
         <label>Discount <em class="dchose">· optional</em>
@@ -82,6 +82,7 @@ export default async (req) => {
           <li><span>Charter</span><b data-sum="price"></b></li>
           <li data-row="off" hidden><span data-sum="offlabel">Discount</span><b data-sum="off"></b></li>
           <li data-row="grat"><span data-sum="gratlabel">Gratuity</span><b data-sum="grat"></b></li>
+          <li data-row="fee" hidden><span data-sum="feelabel">Service fee</span><b data-sum="fee"></b></li>
           <li><span>Florida sales tax (${+(rate * 100).toFixed(2)}%)</span><b data-sum="tax"></b></li>
           <li class="dsum__total"><span>Client pays</span><b data-sum="total"></b></li>
         </ul>
@@ -90,6 +91,7 @@ export default async (req) => {
           <li><span>YCN charges you<small>Broker price for ${esc(q.duration)}${site.at ? ` from ${esc(site.at)}` : ""}</small></span><b>${usd(site.cost)}</b></li>
           <li><span>Your margin<small>Charter price minus YCN's price</small></span><b data-sum="margin"></b></li>
           <li><span>Gratuity<small>Passed to YCN for the crew</small></span><b data-sum="grat2"></b></li>
+          <li data-row="fee2" hidden><span>Service fee<small>Covers Stripe's card fees (about 2.9% + 30¢)</small></span><b data-sum="fee2"></b></li>
           <li><span>Florida sales tax<small>Collected for the state, you pay it on your tax return</small></span><b data-sum="tax2"></b></li>
         </ul>` : ""}` : ""}
         <p class="dnote">${edit
@@ -186,7 +188,7 @@ function decided(q, already, emailed, t, updated) {
       ? (es ? `Hola ${first(q)}, soy Nektarios de Yachtique. Su día está disponible. El total es ${usd(q.total)} con impuestos incluidos. Puede pagar aquí de forma segura: ${q.payUrl}` : `Hi ${first(q)}, this is Nektarios from Yachtique. Your day is available. The total is ${usd(q.total)} including tax. You can pay securely here: ${q.payUrl}`)
       : (es ? `Hola ${first(q)}, soy Nektarios de Yachtique. Su día está disponible. Le envío ahora la cotización final.` : `Hi ${first(q)}, this is Nektarios from Yachtique. Your day is available. Sending you the final quote now.`);
   const money = q.total
-    ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>${paid ? "Paid" : "Client pays"}</span><b>${usd(q.total)}</b></li></ul>`
+    ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}${q.fee ? `<li><span>Service fee</span><b>${usd(q.fee)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0) - (q.fee || 0))}</b></li><li class="dsum__total"><span>${paid ? "Paid" : "Client pays"}</span><b>${usd(q.total)}</b></li></ul>`
     : "";
   return `
       <p class="eyebrow">${esc(q.ref)}</p>
@@ -236,7 +238,7 @@ function extensionPage(q, a, t) {
 function zelleUrl(ref, t) { return `/api/decide?ref=${encodeURIComponent(ref)}&a=zelle&t=${encodeURIComponent(t)}`; }
 
 // Mark paid by Zelle: shows what the client should have sent, and one confirm button
-function zellePage(q, t, rate, taxGratuity, site) {
+function zellePage(q, t, rate, taxGratuity, site, fee) {
   if (/^paid$/i.test(q.status)) return page(q.status, decided(q, true, false, t));
   if (/^(declined|lost)$/i.test(q.status)) return page(q.status, `<h1>${esc(q.ref)} is ${esc(q.status.toLowerCase())}</h1><p class="dnote">Set the Status back to Accepted in the sheet first if the client is booking after all.</p>`);
   const hasTotal = q.total > 0;
@@ -249,9 +251,9 @@ function zellePage(q, t, rate, taxGratuity, site) {
       <form method="POST" action="/api/decide" class="form dform">
         <input type="hidden" name="ref" value="${esc(q.ref)}"><input type="hidden" name="a" value="zelle"><input type="hidden" name="t" value="${esc(t)}">
         ${hasTotal
-          ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0))}</b></li><li class="dsum__total"><span>Should have arrived</span><b>${usd(q.total)}</b></li></ul>`
+          ? `<ul class="dsum"><li><span>Charter</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>${q.discount ? `<li><span>Discount</span><b>&minus;${usd(q.discount)}</b></li>` : ""}${q.gratuity ? `<li><span>Gratuity</span><b>${usd(q.gratuity)}</b></li>` : ""}${q.fee ? `<li><span>Service fee</span><b>${usd(q.fee)}</b></li>` : ""}<li><span>Sales tax</span><b>${usd(q.total - q.price - (q.gratuity || 0) - (q.fee || 0))}</b></li><li class="dsum__total"><span>Should have arrived</span><b>${usd(q.total)}</b></li></ul>`
           : `<label>Charter price before tax
-          <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${site.price || ""}" data-rate="${rate}" required>
+          <input type="text" name="price" inputmode="decimal" autocomplete="off" placeholder="e.g. 2,690" value="${site.price || ""}" data-rate="${rate}" data-fee="${fee}" required>
         </label>
         <label>Gratuity
           <select name="gratuity" data-taxed="${taxGratuity === false ? 0 : 1}">${GRATUITY_OPTIONS.map((p) => `<option value="${p}"${p === tip ? " selected" : ""}>${p ? `${p}%` : "None"}</option>`).join("")}</select>
@@ -259,6 +261,7 @@ function zellePage(q, t, rate, taxGratuity, site) {
         <ul class="dsum" hidden>
           <li><span>Charter</span><b data-sum="price"></b></li>
           <li data-row="grat"><span data-sum="gratlabel">Gratuity</span><b data-sum="grat"></b></li>
+          <li data-row="fee" hidden><span data-sum="feelabel">Service fee</span><b data-sum="fee"></b></li>
           <li><span>Florida sales tax (${+(rate * 100).toFixed(2)}%)</span><b data-sum="tax"></b></li>
           <li class="dsum__total"><span>Should have arrived</span><b data-sum="total"></b></li>
         </ul>`}
@@ -268,13 +271,13 @@ function zellePage(q, t, rate, taxGratuity, site) {
       ${hasTotal ? "" : priceScript()}`);
 }
 
-// The live summary under the price box (Accept and Zelle pages): charter, gratuity, tax and total as Nektarios types
+// The live summary under the price box (Accept and Zelle pages): charter, gratuity, service fee, tax and total as Nektarios types
 function priceScript() {
   return `<script>
         (function () {
           var input = document.querySelector('[name="price"]'), tipSel = document.querySelector('[name="gratuity"]'), sum = document.querySelector(".dsum");
           var offIn = document.querySelector('[name="discount"]');
-          var rate = +input.getAttribute("data-rate") || 0, taxTip = tipSel.getAttribute("data-taxed") === "1";
+          var rate = +input.getAttribute("data-rate") || 0, feeRate = +input.getAttribute("data-fee") || 0, taxTip = tipSel.getAttribute("data-taxed") === "1";
           function fmt(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
           function update() {
             var list = Math.round(parseFloat(input.value.replace(/[^0-9.]/g, "")) * 100) / 100;
@@ -290,7 +293,14 @@ function priceScript() {
             if (qn) qn.hidden = ok;
             if (!ok) return;
             var pct = +tipSel.value || 0, g = Math.round(p * pct) / 100;
-            var total = Math.round((p + g + (taxTip ? p + g : p) * rate) * 100) / 100;
+            // The same math as quoteTotals in Code.gs
+            var fee = Math.round((p + g) * feeRate * 100) / 100;
+            var tax = Math.round(((taxTip ? p + g : p) + fee) * rate * 100) / 100;
+            var total = Math.round((p + g + fee + tax) * 100) / 100;
+            var feeRow = sum.querySelector('[data-row="fee"]');
+            feeRow.hidden = !fee;
+            sum.querySelector('[data-sum="feelabel"]').textContent = "Service fee (" + +(feeRate * 100).toFixed(2) + "%)";
+            sum.querySelector('[data-sum="fee"]').textContent = fmt(fee);
             sum.querySelector('[data-row="grat"]').hidden = !g;
             sum.querySelector('[data-sum="gratlabel"]').textContent = "Gratuity (" + pct + "%)";
             sum.querySelector('[data-sum="price"]').textContent = fmt(list);
@@ -301,7 +311,7 @@ function priceScript() {
               sum.querySelector('[data-sum="off"]').textContent = "\u2212" + fmt(off);
             }
             sum.querySelector('[data-sum="grat"]').textContent = fmt(g);
-            sum.querySelector('[data-sum="tax"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
+            sum.querySelector('[data-sum="tax"]').textContent = fmt(tax);
             sum.querySelector('[data-sum="total"]').textContent = fmt(total);
             // For you only: YCN's price and the margin left after it
             var you = document.querySelector(".dsum--you");
@@ -310,7 +320,9 @@ function priceScript() {
               you.hidden = false;
               you.querySelector('[data-sum="margin"]').textContent = fmt(Math.round((p - c) * 100) / 100) + (p ? " (" + Math.round((p - c) / p * 100) + "%)" : "");
               you.querySelector('[data-sum="grat2"]').textContent = fmt(g);
-              you.querySelector('[data-sum="tax2"]').textContent = fmt(Math.round((total - p - g) * 100) / 100);
+              you.querySelector('[data-row="fee2"]').hidden = !fee;
+              you.querySelector('[data-sum="fee2"]').textContent = fmt(fee);
+              you.querySelector('[data-sum="tax2"]').textContent = fmt(tax);
             }
           }
           input.addEventListener("input", update); tipSel.addEventListener("change", update);

@@ -85,7 +85,7 @@ function yachtBody(y, others) {
         <section class="ysection">
           <h2 data-i18n="y.rates">Rates</h2>
           <ul class="ydlg__prices yrates">${y.durations.map((d) => `<li><span data-dur>${esc(d.label)}</span><b>${money(d.price)}</b></li>`).join("")}</ul>
-          <p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. Sales tax and gratuity may apply. Your final quote is confirmed on inquiry.</p>
+          <p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. Gratuity, a 3% service fee and sales tax apply. Your final quote is confirmed on inquiry.</p>
           ${y.durations.some((d) => /(^|\D)(2[4-9]|[3-9]\d|\d{3,}) hours|week/i.test(d.label)) ? `<p class="muted ydlg__small" data-i18n="y.apa">For charters of 24 hours or more, an Advance Provisioning Allowance (APA) of 35% of the charter price is collected in advance for fuel, docking, food and drinks. Anything unused is returned.</p>` : ""}
         </section>
 

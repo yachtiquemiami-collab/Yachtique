@@ -12,11 +12,11 @@
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
-  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount"];
+  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount", "Service fee"];
 // Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
-  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28 };
+  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28, FEE: 29 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -27,6 +27,17 @@ const TAX_RATE = 0.07;
 // The gratuity (a % of the charter price, picked on the Accept page) is added before tax: in Florida a gratuity
 // added to the bill is generally taxable. Confirm with the accountant; if it isn't, set this to false.
 const TAX_GRATUITY = true;
+// Service fee on every booking (covers card processing), a % of charter + gratuity, shown as its own line.
+// Florida sales tax is charged on it too (to confirm with the accountant). 0 turns it off.
+const SERVICE_FEE = 0.03;
+
+// Fee, tax and total for a charter price (after any discount) and its gratuity
+function quoteTotals(price, grat) {
+  const fee = cents((price + grat) * SERVICE_FEE) / 100;
+  const taxed = (TAX_GRATUITY ? price + grat : price) + fee;
+  const tax = cents(taxed * TAX_RATE) / 100;
+  return { fee: fee, tax: tax, total: cents(price + grat + fee + tax) / 100 };
+}
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
@@ -212,7 +223,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.DISCOUNT).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, COL.FEE).getValues()[0];
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -225,7 +236,7 @@ function findEnquiry(ref) {
         paid: v[COL.PAID - 1] ? String(v[COL.PAID - 1]) : "",
         departure: String(v[COL.DEPARTURE - 1] || "").trim(), payment: String(v[COL.PAYMENT - 1] || ""), start: startTime(v[COL.START - 1]),
         extension: String(v[COL.EXT - 1] || ""), extPayment: String(v[COL.EXT_PAY - 1] || ""),
-        discount: Number(v[COL.DISCOUNT - 1]) || 0,
+        discount: Number(v[COL.DISCOUNT - 1]) || 0, fee: Number(v[COL.FEE - 1]) || 0,
       } };
     }
   }
@@ -234,7 +245,7 @@ function findEnquiry(ref) {
 
 function lookupEnquiry(ref) {
   const f = findEnquiry(ref);
-  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY } : { ok: false, error: "not found" };
+  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY, serviceFee: SERVICE_FEE } : { ok: false, error: "not found" };
 }
 
 function withPayUrl(q) {
@@ -288,20 +299,22 @@ function setGratuity(ref, pct) {
     if (!/^accepted$/i.test(f.q.status) || !(f.q.price > 0)) return { ok: false, error: "not payable" };
     if (GRATUITY_CHOICES.indexOf(pct) < 0) return { ok: false, error: "bad gratuity" };
     f.q.gratuity = cents(f.q.price * pct / 100) / 100;
-    const taxed = TAX_GRATUITY ? f.q.price + f.q.gratuity : f.q.price;
-    f.q.total = cents(f.q.price + f.q.gratuity + taxed * TAX_RATE) / 100;
+    const t = quoteTotals(f.q.price, f.q.gratuity);
+    f.q.fee = t.fee;
+    f.q.total = t.total;
     f.q.gratuityChoice = pct + "%";
     f.sheet.getRange(f.row, COL.TOTAL).setValue(f.q.total);
+    f.sheet.getRange(f.row, COL.FEE).setValue(f.q.fee || "");
     f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
     f.sheet.getRange(f.row, COL.TIP_CHOICE).setNumberFormat("@").setValue(f.q.gratuityChoice);
-    return { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY };
+    return { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY, serviceFee: SERVICE_FEE };
   } finally {
     lock.releaseLock();
   }
 }
 
 // The quote on a row. listPrice: the charter price before any discount; discount: dollars off (shown to the client).
-// Price = the charter after the discount; the gratuity is a % of that, and Florida sales tax is added on top.
+// Price = the charter after the discount; the gratuity is a % of that, then the service fee, and Florida sales tax on top.
 function setQuote(f, listPrice, gratuityPct, discount) {
   listPrice = cents(listPrice) / 100;
   const off = Math.min(Math.max(cents(Number(discount) || 0) / 100, 0), listPrice);
@@ -309,8 +322,10 @@ function setQuote(f, listPrice, gratuityPct, discount) {
   f.q.price = cents(listPrice - off) / 100;
   f.q.discount = off;
   f.q.gratuity = cents(f.q.price * pct / 100) / 100;
-  const taxed = TAX_GRATUITY ? f.q.price + f.q.gratuity : f.q.price;
-  f.q.total = cents(f.q.price + f.q.gratuity + taxed * TAX_RATE) / 100;
+  const t = quoteTotals(f.q.price, f.q.gratuity);
+  f.q.fee = t.fee;
+  f.q.total = t.total;
+  f.sheet.getRange(f.row, COL.FEE).setValue(t.fee || "");
   f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
   f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
   f.sheet.getRange(f.row, COL.DISCOUNT).setValue(off || "");
@@ -390,10 +405,12 @@ function markPaidManual(ref, method, price, gratuityPct) {
       if (!(price > 0)) return { ok: false, error: "no price" };
       const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
       const grat = cents(price * pct / 100) / 100;
-      const taxed = TAX_GRATUITY ? price + grat : price;
-      f.q.total = cents(price + grat + taxed * TAX_RATE) / 100;
+      const t = quoteTotals(price, grat);
+      f.q.total = t.total;
+      f.q.fee = t.fee;
       f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[price, f.q.total]]);
       f.sheet.getRange(f.row, COL.GRATUITY).setValue(grat);
+      f.sheet.getRange(f.row, COL.FEE).setValue(t.fee || "");
     }
     if (!f.sheet.getRange(f.row, COL.DECIDED).getValue()) f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
     total = f.q.total;
@@ -858,8 +875,8 @@ function ownerPriceBox(q) {
   if (!(price > 0)) return "";
   const pct = parseInt(q.gratuityChoice, 10) || 0;
   const grat = cents(price * pct / 100) / 100;
-  const tax = cents((TAX_GRATUITY ? price + grat : price) * TAX_RATE) / 100;
-  const total = cents(price + grat + tax) / 100;
+  const t = quoteTotals(price, grat);
+  const tax = t.tax, fee = t.fee, total = t.total;
   const margin = cents(price - cost) / 100;
   const row = (label, note, value, strong) =>
     '<tr><td style="padding:' + (strong ? "14px" : "11px") + ' 18px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:14px;color:' + C.text + '">' +
@@ -872,6 +889,7 @@ function ownerPriceBox(q) {
     (cost ? row("YCN charges you", "Broker price: $500 deposit to reserve, the rest 72 hours before", usd(cost)) : "") +
     (cost ? row("Your margin", Math.round(margin / price * 100) + "% of the charter price", usd(margin), true) : "") +
     (pct ? row("Gratuity " + pct + "%", "The client's choice; passed to YCN for the crew", usd(grat)) : "") +
+    (fee ? row("Service fee " + +(SERVICE_FEE * 100).toFixed(2) + "%", "Of charter + gratuity; covers Stripe's card fees", usd(fee)) : "") +
     row("Florida sales tax " + +(TAX_RATE * 100).toFixed(2) + "%", "Collected for the state", usd(tax)) +
     row("Client pays", "If you accept at the website price", usd(total), true) +
     "</table>";
@@ -901,7 +919,7 @@ const TXT = {
     accPPay: (y, d) => (y ? "<b>" + y + "</b> is available" : "Your yacht is available") + (d ? " on " + d : "") + ". Secure your date with the payment below: we reserve your yacht with the captain as soon as it's received.",
     accStepsPay: [["Pay securely.", "Card, Apple Pay or Google Pay through Stripe. Gratuity and Florida sales tax included."], ["We reserve your yacht.", "Confirmed with the captain right after your payment."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
     accSubjectPay: (d) => "Your charter" + (d ? " on " + d : "") + " is available: secure your date · Yachtique", accPrePay: "Your yacht is available. Pay securely to reserve it.",
-    charter: "Charter", discount: (p) => "Discount" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Gratuity (" + p + "%)", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
+    charter: "Charter", fee: (p) => "Service fee (" + p + "%)", discount: (p) => "Discount" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Gratuity (" + p + "%)", tax: (r) => "Florida sales tax (" + r + "%)", total: "Total", payBtn: (a) => "Pay " + a + " securely", question: "Questions first? Message Nektarios.",
     paidEyebrow: "Payment received", paidHead: (n) => "Thank you" + (n ? ", " + n : "") + ".",
     paidP: (a) => "We received <b>" + a + "</b> for your charter. We're reserving your yacht with the captain now, and you'll receive the final confirmation shortly.",
     paidSteps: [["We reserve your yacht.", "Confirmed with the captain, usually within a few hours."], ["Your boarding details.", "Marina, time and what to bring, the day before you sail."], ["Step aboard.", "Captain and crew ready at the marina. We handle the rest."]],
@@ -926,7 +944,7 @@ const TXT = {
     accPPay: (y, d) => (y ? "<b>" + y + "</b> está disponible" : "Su yate está disponible") + (d ? " el " + d : "") + ". Reserve su fecha con el pago a continuación: reservamos su yate con el capitán en cuanto lo recibamos.",
     accStepsPay: [["Pague de forma segura.", "Tarjeta, Apple Pay o Google Pay a través de Stripe. Propina e impuesto de ventas de Florida incluidos."], ["Reservamos su yate.", "Confirmado con el capitán justo después de su pago."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
     accSubjectPay: (d) => "Su alquiler" + (d ? " del " + d : "") + " está disponible: reserve su fecha · Yachtique", accPrePay: "Su yate está disponible. Pague de forma segura para reservarlo.",
-    charter: "Alquiler", discount: (p) => "Descuento" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Propina (" + p + "%)", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
+    charter: "Alquiler", fee: (p) => "Cargo por servicio (" + p + "%)", discount: (p) => "Descuento" + (p ? " (" + p + "%)" : ""), gratuity: (p) => "Propina (" + p + "%)", tax: (r) => "Impuesto de ventas de Florida (" + r + "%)", total: "Total", payBtn: (a) => "Pagar " + a + " de forma segura", question: "¿Tiene preguntas? Escriba a Nektarios.",
     paidEyebrow: "Pago recibido", paidHead: (n) => "Gracias" + (n ? ", " + n : "") + ".",
     paidP: (a) => "Recibimos <b>" + a + "</b> por su alquiler. Ahora estamos reservando su yate con el capitán y en breve recibirá la confirmación final.",
     paidSteps: [["Reservamos su yate.", "Confirmado con el capitán, normalmente en pocas horas."], ["Sus detalles de embarque.", "Marina, hora y qué llevar, el día antes de navegar."], ["Suba a bordo.", "Capitán y tripulación listos en la marina. Nosotros nos ocupamos del resto."]],
@@ -994,7 +1012,9 @@ function priceBox(q, lang) {
     : [[T.charter, usd(q.price), false]];
   const grat = q.gratuity || 0;
   if (cents(grat) > 0) rows.push([T.gratuity(Math.round(grat / q.price * 100)), usd(grat), false]);
-  if (cents(q.total) > cents(q.price + grat)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat), false]);
+  const fee = Number(q.fee) || 0;
+  if (cents(fee) > 0) rows.push([T.fee(+(fee / (q.price + grat) * 100).toFixed(1).replace(/\.0$/, "")), usd(fee), false]);
+  if (cents(q.total) > cents(q.price + grat + fee)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat - fee), false]);
   rows.push([T.total, usd(q.total), true]);
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
     rows.map((r, i) => '<tr><td style="padding:' + (r[2] ? "16px" : "12px") + ' 20px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:' + (r[2] ? "12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:" + C.gold : "15px;color:" + C.text) + '">' + esc(r[0]) + "</td>" +

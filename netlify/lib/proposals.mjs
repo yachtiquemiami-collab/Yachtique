@@ -31,7 +31,7 @@ export const PROPOSALS = {
         prices: { "4 hours": 4240, "6 hours": 5655, "8 hours": 7060 } },
     ],
     terms: [
-      "Prices are per charter and already include pickup and drop-off at your private dock. They exclude Florida sales tax and gratuity.",
+      "Prices are per charter and already include pickup and drop-off at your private dock. They exclude gratuity, the 3% service fee and Florida sales tax.",
       "We confirm the dock details once we have your address. A deposit holds your yacht and date.",
     ],
     terms_es: [
