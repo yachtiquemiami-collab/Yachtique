@@ -12,7 +12,7 @@ import { RX_REF, tokenOk, sheet, first, usd, cardPage, stripe } from "../lib/car
 
 const T = {
   en: {
-    eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
+    eyebrow: "Secure payment", head: (n) => "Your charter" + (n ? ", " + n : ""), charter: "Charter", discount: (p) => `Discount${p ? ` (${p}%)` : ""}`, offNote: (a) => ` · discount of ${a} applied`, gratuity: (p) => `Gratuity (${p}%)`, tax: (r) => `Florida sales tax (${r}%)`, total: "Total",
     date: "Date", guests: "Guests", duration: "Duration", yacht: "Yacht", flexible: "Flexible", help: "To confirm",
     secure: "Secure checkout by Stripe", saved: "Your card is kept securely by Stripe for this booking, so you can add time on board with one tap.", tip: "Gratuity", tipNote: "Change it if you like. It goes to the crew, so there is nothing to settle on board.", none: "None",
     pay: (a) => `Pay ${a}`, safe: "Card, Apple Pay or Google Pay, processed securely by Stripe. Yachtique never sees your card number.",
@@ -28,7 +28,7 @@ const T = {
     product: (y) => "Yacht charter" + (y ? " · " + y : ""),
   },
   es: {
-    eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
+    eyebrow: "Pago seguro", head: (n) => "Su alquiler" + (n ? ", " + n : ""), charter: "Alquiler", discount: (p) => `Descuento${p ? ` (${p}%)` : ""}`, offNote: (a) => ` · descuento de ${a} aplicado`, gratuity: (p) => `Propina (${p}%)`, tax: (r) => `Impuesto de ventas de Florida (${r}%)`, total: "Total",
     date: "Fecha", guests: "Invitados", duration: "Duración", yacht: "Yate", flexible: "Flexible", help: "Por confirmar",
     secure: "Pago seguro con Stripe", saved: "Stripe guarda su tarjeta de forma segura para esta reserva, así puede añadir tiempo a bordo con un toque.", tip: "Propina", tipNote: "Puede cambiarla si lo desea. Es para la tripulación, así que no hay nada que pagar a bordo.", none: "Sin propina",
     pay: (a) => `Pagar ${a}`, safe: "Tarjeta, Apple Pay o Google Pay, procesado de forma segura por Stripe. Yachtique nunca ve el número de su tarjeta.",
@@ -115,7 +115,7 @@ export default async (req, context) => {
       "line_items[0][price_data][currency]": "usd",
       "line_items[0][price_data][unit_amount]": cents(q.price),
       "line_items[0][price_data][product_data][name]": S.product(/help me choose/i.test(yacht) ? "" : yacht),
-      "line_items[0][price_data][product_data][description]": `${ref} · ${[durLabel(q.duration, L), prettyDate(q.date, L)].filter(Boolean).join(" · ")}`,
+      "line_items[0][price_data][product_data][description]": `${ref} · ${[durLabel(q.duration, L), prettyDate(q.date, L)].filter(Boolean).join(" · ")}${q.discount > 0 ? S.offNote(usd(q.discount)) : ""}`,
       "metadata[ref]": ref,
       "payment_intent_data[metadata][ref]": ref,
       "payment_intent_data[description]": `${ref} · ${q.name} · ${what}`,
@@ -184,7 +184,8 @@ function facts(q, S, L) {
 
 function sum(q, S, rate, paid) {
   return `<ul class="dsum">
-        <li><span>${S.charter}</span><b>${usd(q.price)}</b></li>
+        <li><span>${S.charter}</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>
+        ${q.discount > 0 ? `<li><span>${S.discount(Math.round(q.discount / (q.price + q.discount) * 100))}</span><b>&minus;${usd(q.discount)}</b></li>` : ""}
         <li data-row="grat"${q.gratuity > 0 ? "" : " hidden"}><span data-sum="gratlabel">${S.gratuity(gratPct(q))}</span><b data-sum="grat">${usd(q.gratuity)}</b></li>
         ${q.total > q.price + (q.gratuity || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b data-sum="tax">${usd(q.total - q.price - (q.gratuity || 0))}</b></li>` : ""}
         <li class="dsum__total"><span>${S.total}${paid ? " ✓" : ""}</span><b data-sum="total">${usd(q.total)}</b></li>
