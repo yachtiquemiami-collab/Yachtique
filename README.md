@@ -93,6 +93,8 @@ Website form → Netlify Forms → `netlify/functions/enquiry-to-sheet.mts` → 
 
 ## Payments (Stripe)
 
+**Gratuity (since Nov 10, 2026): not included.** The forms no longer ask for it, the pay page has no gratuity switch (`TIP_PICKER` in pay.mjs) and the Accept page starts at None (`GRATUITY` in decide.mjs); Nektarios can still add one there. The site, FAQ and terms say the gratuity for the crew is not included, unless the yacht shows it as included.
+
 **Service fee (3%).** Every booking adds a service fee of 3% of the charter (after any discount) plus gratuity, whatever the payment method (card or Zelle). It covers Stripe's card fees and shows as its own line on the Accept page, the client emails, the pay page and the Stripe receipt; Florida sales tax is charged on it too. The Sheet keeps it in **Service fee**. Change or switch it off with `SERVICE_FEE` in `apps-script/Code.gs` (and the wording on the yacht pages, FAQ and terms).
 
 **Marina choice on a proposal.** Put several marinas in the Pickup cell, separated by `;` (for example `Venetian Marina (Downtown Miami); Miami Beach Marina (South Beach)`): the page shows them as buttons and every yacht shows its own price from the chosen marina, live from the fleet (the 4/6/8 hours columns then only choose which lengths of day show). A yacht that doesn't leave from that marina says where it boards instead. **Choose** opens that yacht's request form with the date, guests, length of day, marina and the proposal already filled in; the client adds name, phone and email and sends a normal inquiry. Its Accept page then starts with the proposal's Discount.

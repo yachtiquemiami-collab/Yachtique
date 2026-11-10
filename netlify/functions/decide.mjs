@@ -17,7 +17,7 @@
 import { esc, priceFor } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage as page, stripe } from "../lib/card.mjs";
 
-const GRATUITY = 18;                         // % preselected on the Accept page
+const GRATUITY = 0;                          // % preselected on the Accept page (gratuity isn't included since Nov 2026)
 const GRATUITY_OPTIONS = [0, 15, 18, 20];
 
 export default async (req) => {

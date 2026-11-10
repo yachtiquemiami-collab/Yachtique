@@ -331,7 +331,7 @@ var REVIEWS = [];
         "</ul>" +
         (y.summary ? '<p class="ydlg__summary">' + esc(y.summary) + "</p>" : "") +
         "<h4>" + t("y.rates", "Rates") + '</h4><ul class="ydlg__prices">' + prices + "</ul>" +
-        '<p class="muted ydlg__small">' + t("y.popnote", "Starting rates. Gratuity, a 3% service fee and sales tax apply. Your final quote is confirmed on inquiry.") + "</p>" +
+        '<p class="muted ydlg__small">' + t("y.popnote", "Starting rates. A 3% service fee and sales tax apply; gratuity is not included. Your final quote is confirmed on inquiry.") + "</p>" +
         '<dl class="ydlg__meta">' +
           "<dt>" + t("y.departs", "Departs from") + "</dt><dd>" + list(y.locations) + "</dd>" +
           "<dt>" + t("f.crew", "Crew") + "</dt><dd>" + list(y.crew) + "</dd>" +

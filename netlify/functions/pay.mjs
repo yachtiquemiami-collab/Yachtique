@@ -45,6 +45,8 @@ const T = {
   },
 };
 const GRATUITY_CHOICES = [15, 18, 20];
+// The client switching the gratuity on this page: off since Nov 2026 (gratuity isn't included)
+const TIP_PICKER = false;
 const ES_DAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const ES_MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -147,7 +149,7 @@ export default async (req, context) => {
       <h1>${S.head(esc(first(q)))}</h1>
       ${facts(q, S, L)}
       <form method="POST" action="${esc(self)}" class="dpay">
-        ${tipPicker(q, S, r)}
+        ${TIP_PICKER ? tipPicker(q, S, r) : ""}
         ${sum(q, S, r.taxRate)}
         <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>

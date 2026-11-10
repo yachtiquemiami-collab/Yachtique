@@ -85,7 +85,7 @@ function yachtBody(y, others) {
         <section class="ysection">
           <h2 data-i18n="y.rates">Rates</h2>
           <ul class="ydlg__prices yrates">${y.durations.map((d) => `<li><span data-dur>${esc(d.label)}</span><b>${money(d.price)}</b></li>`).join("")}</ul>
-          <p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. Gratuity, a 3% service fee and sales tax apply. Your final quote is confirmed on inquiry.</p>
+          <p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. A 3% service fee and sales tax apply; gratuity is not included. Your final quote is confirmed on inquiry.</p>
           ${y.durations.some((d) => /(^|\D)(2[4-9]|[3-9]\d|\d{3,}) hours|week/i.test(d.label)) ? `<p class="muted ydlg__small" data-i18n="y.apa">For charters of 24 hours or more, an Advance Provisioning Allowance (APA) of 35% of the charter price is collected in advance for fuel, docking, food and drinks. Anything unused is returned.</p>` : ""}
         </section>
 
@@ -95,7 +95,7 @@ function yachtBody(y, others) {
             <dt data-i18n="y.departs">Departs from</dt><dd>${list(y.locations)}</dd>
             <dt data-i18n="f.crew">Crew</dt><dd>${list(y.crew)}</dd>
             <dt data-i18n="y.toys">Toys</dt><dd>${list(y.toys)}</dd>
-            <dt data-i18n="y.gratuity">Gratuity</dt><dd data-i18n="y.tipchoice">15, 18 or 20%, your choice</dd>
+            <dt data-i18n="y.gratuity">Gratuity</dt>${y.gratuityIncluded ? `<dd data-i18n="y.included">Included</dd>` : `<dd data-i18n="y.notincluded">Not included</dd>`}
           </dl>
         </section>
 
@@ -132,16 +132,6 @@ function yachtBody(y, others) {
             <fieldset class="ydurs">
               <legend data-i18n="form.duration">Duration</legend>
               <div class="ydurs__grid">${y.durations.map((d, i) => `<label class="ydur"><input type="radio" name="duration" value="${esc(d.label)}"${i ? "" : " checked"}><span><i data-dur>${esc(d.label)}</i><b data-dur-price="${esc(d.label)}">${money(d.price)}</b></span></label>`).join("")}<label class="ydur ydur--unsure"><input type="radio" name="duration" value="Not sure yet"><span><i data-i18n="form.notsure">Not sure yet</i></span></label></div>
-            </fieldset>
-
-            <fieldset class="form__tips">
-              <legend data-i18n="form.tip">Gratuity</legend>
-              <div class="tips">
-                <label><input type="radio" name="gratuity" value="15%"><span>15%</span></label>
-                <label><input type="radio" name="gratuity" value="18%" checked><span>18%</span></label>
-                <label><input type="radio" name="gratuity" value="20%"><span>20%</span></label>
-              </div>
-              <small class="form__note" data-i18n="form.tip.note">Added to your total, so there is nothing to settle on board.</small>
             </fieldset>
             <fieldset class="form__checks ybook__extras">
               <legend data-i18n="x.title">Add to your day</legend>
