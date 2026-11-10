@@ -29,9 +29,11 @@ export default async (req) => {
         const cal = y.calendar || (settings.calendars || {})[y.handle];
         delete y.calendar;
         const cal2 = cal ? await fetchBusy(cal) : null;
-        y.busy = cal2 ? cal2.busy : null;
+        // A calendar with no bookings at all is most likely not kept up to date: treat it as no live calendar
+        const kept = cal2 && Object.keys(cal2.busy).length;
+        y.busy = kept ? cal2.busy : null;
         // Partly booked days: when the yacht is taken, as [from, to] minutes after midnight in Miami
-        y.busyHours = cal2 ? cal2.hours : null;
+        y.busyHours = kept ? cal2.hours : null;
       })
     );
 

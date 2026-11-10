@@ -14,7 +14,7 @@
 //        amount: Confirm charges the hold, Not possible releases it. The Sheet emails the client either way.
 //
 // t is an HMAC of the ref with SHEETS_SECRET (the Apps Script builds the same code for the email buttons).
-import { esc, priceFor } from "../lib/site.mjs";
+import { esc, priceFor, loadFleet } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage as page, stripe } from "../lib/card.mjs";
 
 const GRATUITY = 0;                          // % preselected on the Accept page (gratuity isn't included since Nov 2026)
@@ -56,6 +56,7 @@ export default async (req) => {
     const site = accept ? await sitePrice(req, q) : { price: 0 };
     // Sent from a proposal with a discount (the form message names it): the Accept page starts with that discount
     const prop = accept && !edit ? await proposalOff(q) : null;
+    const avail = accept && !edit ? await availability(req, q) : null;
     // Editing: the price before the discount, and the discount, as they are now
     const suggested = edit ? Math.round(((q.price || 0) + (q.discount || 0)) * 100) / 100 : site.price;
     const chose = String(q.gratuityChoice || "");
@@ -66,6 +67,7 @@ export default async (req) => {
       <p class="eyebrow">${esc(ref)} · ${edit ? "Edit the quote" : addPrice ? "Payment link" : accept ? "Accept" : "Decline"}</p>
       <h1>${edit ? `Change ${esc(first(q) || "the client")}'s price?` : addPrice ? `Send ${esc(first(q) || "the client")} the payment link?` : `${a === "accept" ? "Accept" : "Decline"} ${esc(q.name || "this inquiry")}?`}</h1>
       ${summary(q)}
+      ${avail ? `<p class="davail davail--${avail.kind}">${avail.text}</p>` : ""}
       <form method="POST" action="/api/decide" class="form dform">
         <input type="hidden" name="ref" value="${esc(ref)}"><input type="hidden" name="a" value="${a}"><input type="hidden" name="t" value="${esc(t)}">
         ${accept ? `
@@ -151,6 +153,29 @@ export const config = { path: "/api/decide" };
 
 // The website price for the yacht, duration and marina on the inquiry, and what YCN charges us for it
 // (price 0 when there isn't one)
+// The yacht's calendar on the charter date, shown above the Accept form: free, partly booked, booked,
+// or no live calendar (Nektarios confirms with YCN before accepting)
+async function availability(req, q) {
+  const name = String(q.yacht || "").replace(/\s*\(.*$/, "").trim().toLowerCase();
+  if (!name || /help me choose/.test(name) || !/^\d{4}-\d{2}-\d{2}$/.test(String(q.date || ""))) return null;
+  const fleet = await loadFleet(req).catch(() => null);
+  const y = fleet && fleet.find((x) => String(x.name).trim().toLowerCase() === name);
+  if (!y) return null;
+  const yacht = esc(y.name);
+  if (!y.busy) return { kind: "unknown", text: `<b>Check with YCN first.</b> ${yacht} has no live calendar, so the website can't tell if ${esc(prettyDate(q.date))} is free.` };
+  const st = y.busy[q.date];
+  if (st === "full") return { kind: "booked", text: `<b>Booked on its calendar.</b> ${yacht}'s calendar shows ${esc(prettyDate(q.date))} as taken. Confirm with YCN or offer another yacht.` };
+  if (st === "partial") {
+    const hrs = ((y.busyHours || {})[q.date] || []).map((r) => r[1] != null ? `${clock(r[0])}–${clock(r[1])}` : `from ${clock(r[0])}`).join(", ");
+    return { kind: "partial", text: `<b>Another charter that day${hrs ? ` (${hrs})` : ""}.</b> Check the start time with YCN before accepting.` };
+  }
+  return { kind: "free", text: `<b>Free on ${yacht}'s calendar</b> for ${esc(prettyDate(q.date))}.` };
+}
+function clock(min) {
+  const h = Math.floor(min / 60) % 24, m = min % 60;
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+}
+
 // The discount of the proposal named in the inquiry's message ("From my proposal: yachtique.co/p/catalin")
 async function proposalOff(q) {
   const m = /\/p\/([a-z0-9-]+)/i.exec(String(q.message || ""));

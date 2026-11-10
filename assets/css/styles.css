@@ -937,6 +937,10 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .popt__spec { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 .popt__note { color: var(--text); font-size: 15px; line-height: 1.7; margin: 0 0 20px; }
 .pprices { margin-bottom: 18px; }
+.davail { margin: 0 0 18px; padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(201, 165, 100, .3); font-size: 14px; line-height: 1.55; text-align: left; }
+.davail--free { border-color: rgba(120, 190, 140, .5); }
+.davail--unknown, .davail--partial { border-color: rgba(230, 180, 90, .7); background: rgba(230, 180, 90, .08); }
+.davail--booked { border-color: rgba(220, 110, 100, .8); background: rgba(220, 110, 100, .1); }
 .pprices__from { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
 .pmarinas { margin: 22px auto 4px; padding: 0; border: 0; max-width: 760px; }
 .pmarinas legend { margin: 0 auto 12px; padding: 0; color: var(--gold); font: 700 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; }
