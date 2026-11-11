@@ -29,7 +29,7 @@ const TAX_RATE = 0.07;
 const TAX_GRATUITY = true;
 // Service fee on every booking (covers card processing), a % of charter + gratuity, shown as its own line.
 // Florida sales tax is charged on it too (to confirm with the accountant). 0 turns it off.
-const SERVICE_FEE = 0.03;
+const SERVICE_FEE = 0.04;
 
 // Fee, tax and total for a charter price (after any discount) and its gratuity
 function quoteTotals(price, grat) {
