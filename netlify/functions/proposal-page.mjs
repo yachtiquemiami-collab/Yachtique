@@ -36,7 +36,9 @@ export default async (req, context) => {
     "pp.for": "Preparada para", "pp.date": "Fecha", "pp.group": "Grupo", "pp.time": "Horario", "pp.pickup": "Recogida",
     "pp.dateval": cap(dateEs), "pp.groupval": `${p.guests || "—"} invitados`, "pp.timeval": p.time_es || p.time || "Por confirmar",
     "pp.pickupval": p.pickup_es || p.pickup || "Por confirmar",
-    "pp.intro": `Seleccionamos ${options.length} yates para su grupo. Cada uno está confirmado en vivo con el calendario del yate. Elija el yate y la duración, añada su nombre y le respondemos para reservarlo.`,
+    "pp.intro": options.length === 1
+      ? `Elegimos este yate para su grupo, confirmado en vivo con el calendario del yate. Elija la duración, añada su nombre y le respondemos para reservarlo.`
+      : `Seleccionamos ${options.length} yates para su grupo. Cada uno está confirmado en vivo con el calendario del yate. Elija el yate y la duración, añada su nombre y le respondemos para reservarlo.`,
     "pp.choose": "Elegir", "pp.more": "Más fotos y detalles", "pp.terms": "Bueno saber",
     "pp.valid": p.validUntil ? `Propuesta válida hasta el ${cap(parseDate(p.validUntil).toLocaleDateString("es-US", { day: "numeric", month: "long", timeZone: "UTC" }))}.` : "",
     "pp.ready": "¿Listo para reservar?", "pp.ready.p": "Escríbanos por WhatsApp con el yate que eligió, o llámenos si prefiere hablarlo.",
@@ -169,7 +171,7 @@ function body(c, options) {
         <div class="pmarinas__list">${c.marinas.map((m, k) => `<label><input type="radio" name="marina" value="${k}"${k ? "" : " checked"}><span>${esc(m.split("(")[0].trim())}${/\(/.test(m) ? `<small>${esc(m.replace(/^[^(]*\(|\)$/g, ""))}</small>` : ""}</span></label>`).join("")}</div>
         <p class="pmarinas__note" data-i18n="pp.marina.p">Prices change with the marina. Pick the one closest to you.</p>
       </fieldset>` : ""}
-      <p class="lead phead__intro" data-i18n="pp.intro">We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, add your name and we reply to reserve it.</p>
+      <p class="lead phead__intro" data-i18n="pp.intro">${options.length === 1 ? "We picked this yacht for your group, checked live against the yacht's own calendar. Choose a length of day, add your name and we reply to reserve it." : `We picked ${options.length} yachts for your group, each checked live against the yacht's own calendar. Choose a yacht and a length of day, add your name and we reply to reserve it.`}</p>
     </header>
 
     <div class="popts">
