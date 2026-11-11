@@ -31,11 +31,11 @@ export const PROPOSALS = {
         prices: { "4 hours": 4240, "6 hours": 5655, "8 hours": 7060 } },
     ],
     terms: [
-      "Prices are per charter and already include pickup and drop-off at your private dock. They exclude the 3% service fee and Florida sales tax; gratuity is not included.",
+      "Prices are per charter and already include pickup and drop-off at your private dock. They exclude the 4% service fee and Florida sales tax; gratuity is not included.",
       "We confirm the dock details once we have your address. A deposit holds your yacht and date.",
     ],
     terms_es: [
-      "Los precios son por alquiler e incluyen la recogida y el regreso en su muelle privado. No incluyen el cargo por servicio del 3% ni el impuesto sobre las ventas de Florida; la propina no está incluida.",
+      "Los precios son por alquiler e incluyen la recogida y el regreso en su muelle privado. No incluyen el cargo por servicio del 4% ni el impuesto sobre las ventas de Florida; la propina no está incluida.",
       "Confirmamos los detalles del muelle cuando tengamos su dirección. Un depósito reserva su yate y su fecha.",
     ],
   },
