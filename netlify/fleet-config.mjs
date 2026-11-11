@@ -16,6 +16,9 @@
                     ycn.yachts/products/... link), e.g. "bimini-blue".
   - priceOverrides: a fixed price for one yacht and duration, used instead of the markup.
                     e.g. "bimini-blue": { "4 hours": 2400 }
+  - onboard:        what YCN tells brokers on WhatsApp but doesn't put on its website, per yacht handle:
+                    included (amenities on board), toys (replaces YCN's toy list), baths.
+                    Paste from YCN's WhatsApp listing; never put YCN's prices here (they're our costs).
   - calendars:      backup list of each yacht's Google Calendar. The site reads the current
                     list from YCN's broker page first and only falls back to this.
 */
@@ -27,6 +30,14 @@ export default {
   featured: ["bimini-blue", "sea-suite", "dont-tell-mom", "orca", "makebighappen", "no-curfew"],
   hide: [],
   priceOverrides: {},
+  onboard: {
+    // YCN WhatsApp listing, 11 Nov 2026
+    "moltopiaciuto": {
+      included: ["Cooler and ice", "Sodas and water", "Towels", "LED lights", "Starlink Wi-Fi"],
+      toys: ["Floating mat", "Snorkeling gear", "Tender (50hp dinghy)"],
+      baths: 2,
+    },
+  },
   calendars: {
     "four-keeps": "benmiamirealestate@gmail.com",
     "let-it-be-3": "c_af5fcedb4925302075af8b9c04a47f4bce50b130814bf0ba8834ca228769f96e@group.calendar.google.com",

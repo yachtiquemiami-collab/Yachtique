@@ -1016,3 +1016,9 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .dpay .dsum { margin: 0; }
 .dtips legend { text-align: left; }
 .dchose { font-style: normal; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--muted); }
+
+/* Accept page: "Add another extra" */
+.dmore { margin: 2px 0 6px; }
+.dmore summary { cursor: pointer; font-size: 13px; color: var(--gold, #C9A564); padding: 4px 0; }
+.dmore[open] summary { margin-bottom: 8px; }
+.dmore label { display: block; margin-bottom: 10px; }

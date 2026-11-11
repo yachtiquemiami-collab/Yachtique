@@ -21,7 +21,7 @@ export default async (req) => {
       .filter((p) => !SKIP_TYPES.includes(String(p.product_type).toLowerCase()))
       .filter((p) => !hidden.has(p.handle))
       .filter((p) => !settings.brokerListedOnly || p.handle in cards)
-      .map((p) => ({ ...toYacht(p), ...(cards[p.handle] || {}) }))
+      .map((p) => ({ ...toYacht(p), ...(cards[p.handle] || {}), ...onboard(p.handle) }))
       .filter((y) => y.durations.length);
 
     await Promise.all(
@@ -386,4 +386,15 @@ function json(body, status, headers) {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8", ...headers },
   });
+}
+
+// What YCN sends brokers on WhatsApp but doesn't publish (fleet-config.mjs "onboard"): amenities, toys, baths
+function onboard(handle) {
+  const o = (settings.onboard || {})[handle];
+  if (!o) return {};
+  const out = {};
+  if (Array.isArray(o.included) && o.included.length) out.included = o.included;
+  if (Array.isArray(o.toys) && o.toys.length) out.toys = o.toys;
+  if (o.baths) out.baths = o.baths;
+  return out;
 }

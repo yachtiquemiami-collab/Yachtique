@@ -335,6 +335,7 @@ var REVIEWS = [];
         '<dl class="ydlg__meta">' +
           "<dt>" + t("y.departs", "Departs from") + "</dt><dd>" + list(y.locations) + "</dd>" +
           "<dt>" + t("f.crew", "Crew") + "</dt><dd>" + list(y.crew) + "</dd>" +
+          (y.included && y.included.length ? "<dt>" + t("y.onboardinc", "Included") + "</dt><dd>" + list(y.included) + "</dd>" : "") +
           "<dt>" + t("y.toys", "Toys") + "</dt><dd>" + list(y.toys) + "</dd>" +
         "</dl>" +
         "<h4>" + t("y.availability", "Availability") + '</h4><div class="ydlg__cal">' + calendarHtml(y) + "</div>" +

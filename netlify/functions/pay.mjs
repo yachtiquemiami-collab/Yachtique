@@ -90,7 +90,7 @@ export default async (req, context) => {
       <div class="dicon is-ok">✓</div>
       <h1>${S.paidHead(esc(first(q)))}</h1>
       ${facts(q, S, L)}
-      ${sum(q, S, r.taxRate, true)}
+      ${sum(q, S, r.taxRate, true, L)}
       <p class="dnote">${S.paidP}</p>
       ${waBtn(ref)}`);
   }
@@ -130,8 +130,9 @@ export default async (req, context) => {
     // Gratuity, service fee and sales tax as their own lines, so the receipt shows them
     const extra = [];
     if (cents(q.gratuity || 0) > 0) extra.push([S.gratuity(gratPct(q)), cents(q.gratuity)]);
+    (q.extraItems || []).forEach((x) => extra.push([xName(x.name, L), cents(x.amount)]));
     if (cents(q.fee || 0) > 0) extra.push([S.fee(feePct(q)), cents(q.fee)]);
-    const tax = cents(q.total) - cents(q.price) - cents(q.gratuity || 0) - cents(q.fee || 0);
+    const tax = cents(q.total) - cents(q.price) - cents(q.gratuity || 0) - cents(q.extrasTotal || 0) - cents(q.fee || 0);
     if (tax > 0) extra.push([S.tax(rateLabel(r.taxRate)), tax]);
     extra.forEach(([name, amount], i) => Object.assign(p, {
       [`line_items[${i + 1}][quantity]`]: 1,
@@ -150,7 +151,7 @@ export default async (req, context) => {
       ${facts(q, S, L)}
       <form method="POST" action="${esc(self)}" class="dpay">
         ${TIP_PICKER ? tipPicker(q, S, r) : ""}
-        ${sum(q, S, r.taxRate)}
+        ${sum(q, S, r.taxRate, false, L)}
         <button type="submit" class="btn btn--gold btn--block" data-pay>${S.pay(usd(q.total))}</button>
       </form>
       ${payBadges(S.secure)}
@@ -163,7 +164,10 @@ export const config = { path: "/pay/:ref" };
 function rateLabel(rate) { return +((Number(rate) || 0) * 100).toFixed(2); }
 function gratPct(q) { return Math.round((Number(q.gratuity) || 0) / q.price * 100); }
 // The service fee as a % of charter + gratuity (3 for 3%)
-function feePct(q) { return +((Number(q.fee) || 0) / (q.price + (Number(q.gratuity) || 0)) * 100).toFixed(1); }
+function feePct(q) { return +((Number(q.fee) || 0) / (q.price + (Number(q.gratuity) || 0) + (Number(q.extrasTotal) || 0)) * 100).toFixed(1); }
+// Extras (DJ, decorations...) in the client's language
+const XTRA_ES = { "Transport": "Transporte", "Decorations": "Decoración", "DJ": "DJ", "Water toys": "Juguetes acuáticos", "Photographer": "Fotógrafo", "Security": "Seguridad" };
+function xName(n, L) { return L === "es" && XTRA_ES[n] ? XTRA_ES[n] : n; }
 
 function prettyDate(iso, L) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
@@ -187,13 +191,14 @@ function facts(q, S, L) {
   return `<ul class="yfacts dfacts">${f.map(([k, v]) => `<li><b>${esc(v)}</b><span>${esc(k)}</span></li>`).join("")}</ul>`;
 }
 
-function sum(q, S, rate, paid) {
+function sum(q, S, rate, paid, L) {
   return `<ul class="dsum">
         <li><span>${S.charter}</span><b>${usd((q.price || 0) + (q.discount || 0))}</b></li>
         ${q.discount > 0 ? `<li><span>${S.discount(Math.round(q.discount / (q.price + q.discount) * 100))}</span><b>&minus;${usd(q.discount)}</b></li>` : ""}
         <li data-row="grat"${q.gratuity > 0 ? "" : " hidden"}><span data-sum="gratlabel">${S.gratuity(gratPct(q))}</span><b data-sum="grat">${usd(q.gratuity)}</b></li>
+        ${(q.extraItems || []).map((x) => `<li><span>${esc(xName(x.name, L))}</span><b>${usd(x.amount)}</b></li>`).join("")}
         <li data-row="fee"${q.fee > 0 ? "" : " hidden"}><span data-sum="feelabel">${S.fee(feePct(q))}</span><b data-sum="fee">${usd(q.fee || 0)}</b></li>
-        ${q.total > q.price + (q.gratuity || 0) + (q.fee || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b data-sum="tax">${usd(q.total - q.price - (q.gratuity || 0) - (q.fee || 0))}</b></li>` : ""}
+        ${q.total > q.price + (q.gratuity || 0) + (q.extrasTotal || 0) + (q.fee || 0) ? `<li><span>${S.tax(rateLabel(rate))}</span><b data-sum="tax">${usd(q.total - q.price - (q.gratuity || 0) - (q.extrasTotal || 0) - (q.fee || 0))}</b></li>` : ""}
         <li class="dsum__total"><span>${S.total}${paid ? " ✓" : ""}</span><b data-sum="total">${usd(q.total)}</b></li>
       </ul>`;
 }

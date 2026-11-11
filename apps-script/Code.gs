@@ -12,11 +12,11 @@
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
-  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount", "Service fee"];
+  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount", "Service fee", "Extras price"];
 // Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
-  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28, FEE: 29 };
+  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28, FEE: 29, XTRA: 30 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -31,13 +31,30 @@ const TAX_GRATUITY = true;
 // Florida sales tax is charged on it too (to confirm with the accountant). 0 turns it off.
 const SERVICE_FEE = 0.04;
 
-// Fee, tax and total for a charter price (after any discount) and its gratuity
-function quoteTotals(price, grat) {
-  const fee = cents((price + grat) * SERVICE_FEE) / 100;
-  const taxed = (TAX_GRATUITY ? price + grat : price) + fee;
+// Extras the client added (DJ, decorations, security, transport...): Nektarios asks the vendor for a quote, types the
+// price on the Accept page and it goes on the client's payment as its own line; Yachtique pays the vendor.
+// Sales tax on them too (decorations and rentals are taxable in Florida; DJ, security and transport may not be).
+// To confirm with the accountant; false = no tax on extras.
+const TAX_EXTRAS = true;
+
+// Fee, tax and total for a charter price (after any discount), its gratuity and the extras
+function quoteTotals(price, grat, extras) {
+  extras = Number(extras) || 0;
+  const fee = cents((price + grat + extras) * SERVICE_FEE) / 100;
+  const taxed = (TAX_GRATUITY ? price + grat : price) + (TAX_EXTRAS ? extras : 0) + fee;
   const tax = cents(taxed * TAX_RATE) / 100;
-  return { fee: fee, tax: tax, total: cents(price + grat + fee + tax) / 100 };
+  return { fee: fee, tax: tax, total: cents(price + grat + extras + fee + tax) / 100 };
 }
+
+// The Extras price cell: "DJ: 800; Decorations: 450" -> [{ name, amount }]
+function parseExtras(text) {
+  return String(text || "").split(/[;\n]+/).map(function (part) {
+    const m = part.trim().match(/^(.*?)[:\s]+\$?\s*([\d,]+(?:\.\d+)?)\s*$/);
+    return m ? { name: m[1].trim(), amount: cents(Number(m[2].replace(/,/g, ""))) / 100 } : null;
+  }).filter(function (x) { return x && x.name && x.amount > 0; });
+}
+function extrasText(items) { return items.map(function (x) { return x.name + ": " + x.amount; }).join("; "); }
+function extrasSum(items) { return cents(items.reduce(function (t, x) { return t + x.amount; }, 0)) / 100; }
 
 // Branded emails
 const OWNER_EMAIL = "yachtiquemiami@gmail.com";   // where new-enquiry alerts go
@@ -108,8 +125,8 @@ function doPost(e) {
     if (!SECRET || body.secret !== SECRET) return json({ ok: false, error: "unauthorized" });
     if (body.type === "event") return json(saveEvent(body.event || {}));
     if (body.type === "lookup") return json(lookupEnquiry(String(body.ref || "")));
-    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0));
-    if (body.type === "reprice") return json(repriceEnquiry(String(body.ref || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0));
+    if (body.type === "decide") return json(decideEnquiry(String(body.ref || ""), String(body.a || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0, String(body.extras || "")));
+    if (body.type === "reprice") return json(repriceEnquiry(String(body.ref || ""), Number(body.price) || 0, Number(body.gratuity) || 0, Number(body.discount) || 0, String(body.extras || "")));
     if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
     if (body.type === "manualpaid") return json(markPaidManual(String(body.ref || ""), String(body.method || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "extension") return json(recordExtension(String(body.ref || ""), String(body.state || ""), Number(body.hours) || 0, Number(body.amount) || 0, String(body.payment || "")));
@@ -173,6 +190,7 @@ function decideUrl(ref, a) {
 
 // Older sheets lack the newer columns: add their headers (and the newer statuses) once
 function addNewColumns(sheet) {
+  if (sheet.getMaxColumns() < ENQUIRY_HEADERS.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), ENQUIRY_HEADERS.length - sheet.getMaxColumns());
   if (sheet.getRange(1, ENQUIRY_HEADERS.length).getValue() === ENQUIRY_HEADERS[ENQUIRY_HEADERS.length - 1]) return;
   const hadPaid = sheet.getRange(1, COL.PAYMENT).getValue() === "Payment";
   sheet.getRange(1, COL.SOURCE, 1, ENQUIRY_HEADERS.length - COL.SOURCE + 1).setValues([ENQUIRY_HEADERS.slice(COL.SOURCE - 1)])
@@ -223,7 +241,8 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, COL.FEE).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, Math.min(COL.XTRA, sheet.getMaxColumns())).getValues()[0];
+      const items = parseExtras(v[COL.XTRA - 1]);
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
         ref: ref, status: String(v[COL.STATUS - 1] || "New"), name: String(v[COL.NAME - 1] || ""), phone: String(v[COL.PHONE - 1] || ""),
@@ -237,6 +256,7 @@ function findEnquiry(ref) {
         departure: String(v[COL.DEPARTURE - 1] || "").trim(), payment: String(v[COL.PAYMENT - 1] || ""), start: startTime(v[COL.START - 1]),
         extension: String(v[COL.EXT - 1] || ""), extPayment: String(v[COL.EXT_PAY - 1] || ""),
         discount: Number(v[COL.DISCOUNT - 1]) || 0, fee: Number(v[COL.FEE - 1]) || 0,
+        extraItems: items, extrasTotal: extrasSum(items),
       } };
     }
   }
@@ -245,7 +265,7 @@ function findEnquiry(ref) {
 
 function lookupEnquiry(ref) {
   const f = findEnquiry(ref);
-  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY, serviceFee: SERVICE_FEE } : { ok: false, error: "not found" };
+  return f ? { ok: true, enquiry: withPayUrl(f.q), taxRate: TAX_RATE, taxGratuity: TAX_GRATUITY, taxExtras: TAX_EXTRAS, serviceFee: SERVICE_FEE } : { ok: false, error: "not found" };
 }
 
 function withPayUrl(q) {
@@ -256,7 +276,7 @@ function withPayUrl(q) {
 // price: the charter price before tax typed on the Accept page (0 = Nektarios sends the quote himself).
 // gratuityPct: the gratuity picked on the Accept page (18 by default, 0 = none or included with the yacht).
 // With a price the client's email gets a Pay button for the total, gratuity and Florida sales tax included.
-function decideEnquiry(ref, a, price, gratuityPct, discount) {
+function decideEnquiry(ref, a, price, gratuityPct, discount, extras) {
   if (a !== "accept" && a !== "decline") return { ok: false, error: "bad action" };
   price = a === "accept" && price > 0 ? cents(price) / 100 : 0;
   const lock = LockService.getScriptLock();
@@ -274,7 +294,7 @@ function decideEnquiry(ref, a, price, gratuityPct, discount) {
     f.sheet.getRange(f.row, COL.STATUS).setValue(status);
     f.sheet.getRange(f.row, COL.DECIDED).setValue(new Date());
     f.q.status = status;
-    if (price) setQuote(f, price, gratuityPct, discount);
+    if (price) setQuote(f, price, gratuityPct, discount, extras);
   } finally {
     lock.releaseLock();
   }
@@ -299,7 +319,7 @@ function setGratuity(ref, pct) {
     if (!/^accepted$/i.test(f.q.status) || !(f.q.price > 0)) return { ok: false, error: "not payable" };
     if (GRATUITY_CHOICES.indexOf(pct) < 0) return { ok: false, error: "bad gratuity" };
     f.q.gratuity = cents(f.q.price * pct / 100) / 100;
-    const t = quoteTotals(f.q.price, f.q.gratuity);
+    const t = quoteTotals(f.q.price, f.q.gratuity, f.q.extrasTotal);
     f.q.fee = t.fee;
     f.q.total = t.total;
     f.q.gratuityChoice = pct + "%";
@@ -315,17 +335,21 @@ function setGratuity(ref, pct) {
 
 // The quote on a row. listPrice: the charter price before any discount; discount: dollars off (shown to the client).
 // Price = the charter after the discount; the gratuity is a % of that, then the service fee, and Florida sales tax on top.
-function setQuote(f, listPrice, gratuityPct, discount) {
+// extras: "DJ: 800; Decorations: 450" (their own lines on the client's payment)
+function setQuote(f, listPrice, gratuityPct, discount, extras) {
   listPrice = cents(listPrice) / 100;
   const off = Math.min(Math.max(cents(Number(discount) || 0) / 100, 0), listPrice);
   const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
   f.q.price = cents(listPrice - off) / 100;
   f.q.discount = off;
   f.q.gratuity = cents(f.q.price * pct / 100) / 100;
-  const t = quoteTotals(f.q.price, f.q.gratuity);
+  f.q.extraItems = parseExtras(extras);
+  f.q.extrasTotal = extrasSum(f.q.extraItems);
+  const t = quoteTotals(f.q.price, f.q.gratuity, f.q.extrasTotal);
   f.q.fee = t.fee;
   f.q.total = t.total;
   f.sheet.getRange(f.row, COL.FEE).setValue(t.fee || "");
+  f.sheet.getRange(f.row, COL.XTRA).setNumberFormat("@").setValue(extrasText(f.q.extraItems));
   f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[f.q.price, f.q.total]]);
   f.sheet.getRange(f.row, COL.GRATUITY).setValue(f.q.gratuity);
   f.sheet.getRange(f.row, COL.DISCOUNT).setValue(off || "");
@@ -334,7 +358,7 @@ function setQuote(f, listPrice, gratuityPct, discount) {
 
 // Edit price or discount: an accepted quote the client hasn't paid yet. The client gets the updated quote with the
 // same payment link (the payment page always reads the total from here).
-function repriceEnquiry(ref, listPrice, gratuityPct, discount) {
+function repriceEnquiry(ref, listPrice, gratuityPct, discount, extras) {
   if (!(listPrice > 0)) return { ok: false, error: "no price" };
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -344,7 +368,7 @@ function repriceEnquiry(ref, listPrice, gratuityPct, discount) {
     if (!f) return { ok: false, error: "not found" };
     addNewColumns(f.sheet);
     if (!/^accepted$/i.test(f.q.status)) return { ok: false, error: "status " + f.q.status };
-    setQuote(f, listPrice, gratuityPct, discount);
+    setQuote(f, listPrice, gratuityPct, discount, extras);
   } finally {
     lock.releaseLock();
   }
@@ -405,7 +429,7 @@ function markPaidManual(ref, method, price, gratuityPct) {
       if (!(price > 0)) return { ok: false, error: "no price" };
       const pct = Math.min(Math.max(Number(gratuityPct) || 0, 0), 30);
       const grat = cents(price * pct / 100) / 100;
-      const t = quoteTotals(price, grat);
+      const t = quoteTotals(price, grat, f.q.extrasTotal);
       f.q.total = t.total;
       f.q.fee = t.fee;
       f.sheet.getRange(f.row, COL.PRICE, 1, 2).setValues([[price, f.q.total]]);
@@ -849,6 +873,7 @@ function sendOwnerAlert(q, to, cc) {
     soon + rule() +
     factsBox(q) +
     ownerPriceBox(q) +
+    extrasBox(q) +
     messageBox("Their message", q.message) +
     decide +
     buttons(
@@ -967,6 +992,7 @@ function sendClientConfirmation(q) {
     heading(T.thanks + (first ? ", " + esc(first) : "") + ".") +
     para(T.gotP) + rule() + factsBox(q, L) + messageBox(T.note, q.message) +
     eyebrow(T.next) + steps(T.gotSteps) +
+    extrasClientNote(q, L) + (wantsFood(q) ? foodBox(L) : "") +
     para(T.sooner, "margin-bottom:18px;font-size:15px") +
     buttons(button("https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(T.waGot(d)), T.chat, true) + button(SITE + "/#fleet", T.fleet, false));
   MailApp.sendEmail({ to: q.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.gotSubject(d), htmlBody: layout(T.gotPre, inner, L),
@@ -1012,9 +1038,11 @@ function priceBox(q, lang) {
     : [[T.charter, usd(q.price), false]];
   const grat = q.gratuity || 0;
   if (cents(grat) > 0) rows.push([T.gratuity(Math.round(grat / q.price * 100)), usd(grat), false]);
+  (q.extraItems || []).forEach(function (x) { rows.push([extraName(x.name, lang), usd(x.amount), false]); });
+  const xt = Number(q.extrasTotal) || 0;
   const fee = Number(q.fee) || 0;
-  if (cents(fee) > 0) rows.push([T.fee(+(fee / (q.price + grat) * 100).toFixed(1).replace(/\.0$/, "")), usd(fee), false]);
-  if (cents(q.total) > cents(q.price + grat + fee)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat - fee), false]);
+  if (cents(fee) > 0) rows.push([T.fee(+(fee / (q.price + grat + xt) * 100).toFixed(1).replace(/\.0$/, "")), usd(fee), false]);
+  if (cents(q.total) > cents(q.price + grat + xt + fee)) rows.push([T.tax(+(TAX_RATE * 100).toFixed(2)), usd(q.total - q.price - grat - xt - fee), false]);
   rows.push([T.total, usd(q.total), true]);
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
     rows.map((r, i) => '<tr><td style="padding:' + (r[2] ? "16px" : "12px") + ' 20px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:' + (r[2] ? "12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:" + C.gold : "15px;color:" + C.text) + '">' + esc(r[0]) + "</td>" +
@@ -1469,3 +1497,101 @@ function testAutomations() {
     [["Pay YCN the balance.", "Through the broker page or with Laurent."]], TEST_TO, "");
   sendWeeklySummary(TEST_TO, "");
 }
+
+
+/* =================== Extras: DJ, decorations, security, transport... ===================
+   The client ticks them on the form ("Add to your day"). Food on board is Yacht Bites, ordered by the client on
+   Nektarios's partner link (the menu button is in their first email). Everything else Nektarios quotes:
+   the new-inquiry alert has a "Ask for a quote" button per extra, to the vendor in the Vendors tab, with the
+   date, time, guests and marina written. He types each vendor's price on the Accept page; it goes on the
+   client's payment as its own line (column Extras price: "DJ: 800; Decorations: 450") and Yachtique pays the vendor. */
+
+const VENDOR_HEADERS = ["Extra", "Company", "Contact name", "WhatsApp", "Email", "Notes"];
+const VENDOR_EXTRAS = ["DJ", "Decorations", "Security", "Transport", "Photographer", "Water toys"];
+const EXTRA_ES = { "Food on board": "Comida a bordo", "Transport": "Transporte", "Decorations": "Decoración", "DJ": "DJ",
+  "Water toys": "Juguetes acuáticos", "Photographer": "Fotógrafo", "Security": "Seguridad" };
+
+function extraName(name, lang) { return lang === "es" && EXTRA_ES[name] ? EXTRA_ES[name] : name; }
+function tickedExtras(q) { return String(q.extras || "").split(/\s*,\s*/).filter(Boolean); }
+function wantsFood(q) { return tickedExtras(q).some(function (x) { return /food|catering/i.test(x); }); }
+function quoteExtras(q) { return tickedExtras(q).filter(function (x) { return !/food|catering/i.test(x); }); }
+
+/** The Vendors tab (created with one empty row per extra the first time it's needed). */
+function vendorsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("Vendors");
+  if (sh) return sh;
+  sh = ss.insertSheet("Vendors");
+  sh.getRange(1, 1, 1, VENDOR_HEADERS.length).setValues([VENDOR_HEADERS]);
+  styleHeader(sh, VENDOR_HEADERS.length);
+  sh.getRange(2, 1, VENDOR_EXTRAS.length, 1).setValues(VENDOR_EXTRAS.map(function (x) { return [x]; }));
+  sh.setColumnWidths(1, VENDOR_HEADERS.length, 170);
+  sh.setColumnWidth(6, 320);
+  sh.getRange(2, 4, VENDOR_EXTRAS.length + 50, 1).setNumberFormat("@");
+  sh.setFrozenRows(1);
+  return sh;
+}
+
+/** { "dj": { company, contact, whatsapp, email } } from the Vendors tab (first row per extra wins). */
+function vendors() {
+  const out = {};
+  try {
+    const rows = vendorsSheet().getDataRange().getValues().slice(1);
+    rows.forEach(function (r) {
+      const key = String(r[0] || "").trim().toLowerCase();
+      if (!key || out[key] || !(r[1] || r[3] || r[4])) return;
+      out[key] = { company: String(r[1] || "").trim(), contact: String(r[2] || "").trim(), whatsapp: String(r[3] || "").replace(/\D/g, ""), email: String(r[4] || "").trim() };
+    });
+  } catch (err) { console.error("Vendors tab: " + err); }
+  return out;
+}
+
+// The quote request Nektarios sends a vendor: no client name or contact, only what the vendor needs
+function vendorRequest(q, extra, v) {
+  const hi = v && v.contact ? "Hi " + v.contact.split(/\s+/)[0] : "Hi";
+  return hi + ", this is Nektarios from Yachtique. Could you send me a quote for " + extra + " on a yacht charter?\n\n" +
+    "Date: " + (q.date ? prettyDate(q.date) : "to confirm") + (q.start ? " at " + niceTime(q.start, "en") : "") + "\n" +
+    "Guests: " + (q.guests || "to confirm") + "\n" +
+    "Duration: " + (q.duration || "to confirm") + "\n" +
+    "Marina: " + (q.departure || "to confirm") + "\n" +
+    "Ref: " + (q.ref || "") + "\n\nThank you!";
+}
+
+// In Nektarios's new-inquiry alert: one "Ask for a quote" button per extra, and the Yacht Bites note
+function extrasBox(q) {
+  const list = quoteExtras(q), food = wantsFood(q);
+  if (!list.length && !food) return "";
+  const vs = vendors();
+  let html = "";
+  list.forEach(function (x) {
+    const v = vs[x.toLowerCase()];
+    const text = vendorRequest(q, x, v);
+    const who = v ? esc(v.company || v.contact) : "";
+    const btn = v && v.whatsapp ? button("https://wa.me/" + v.whatsapp + "?text=" + encodeURIComponent(text), "Ask " + who + " for a quote", false)
+      : v && v.email ? button("mailto:" + v.email + "?subject=" + encodeURIComponent("Quote request · " + x + " · " + prettyDate(q.date)) + "&body=" + encodeURIComponent(text), "Email " + who + " for a quote", false)
+      : "";
+    html += '<tr><td style="padding:14px 18px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:14px;color:' + C.text + '"><b style="color:' + C.white + '">' + esc(x) + "</b>" +
+      '<div style="font-size:12px;color:' + C.muted + ';padding:2px 0 8px">' + (btn ? "Request with the date, guests and marina written, ready to send." : "No " + esc(x) + " vendor in the Vendors tab yet: add one and the next inquiry gets a one-tap request.") + "</div>" +
+      (btn || "") + "</td></tr>";
+  });
+  if (food) html += '<tr><td style="padding:14px 18px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:14px;color:' + C.text + '"><b style="color:' + C.white + '">Food on board</b>' +
+    '<div style="font-size:12px;color:' + C.muted + ';padding-top:2px">The client got the Yacht Bites menu with your partner link in their email. They order themselves, by 4pm the day before.</div></td></tr>';
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border:1px solid ' + C.gold + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
+    '<tr><td style="padding:14px 18px 6px;font-family:' + SANS + ';font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:' + C.gold + '">Extras to arrange</td></tr>' + html +
+    (list.length ? '<tr><td style="padding:12px 18px 16px;border-top:1px solid ' + C.line + ';font-family:' + SANS + ';font-size:12px;line-height:1.6;color:' + C.muted + '">Type each vendor\'s price on the Accept page (your markup included): it goes on the client\'s payment as its own line.</td></tr>' : "") +
+    "</table>";
+}
+
+// In the client's first email: we're getting quotes for their extras
+function extrasClientNote(q, L) {
+  const list = quoteExtras(q);
+  if (!list.length) return "";
+  const names = list.map(function (x) { return extraName(x, L); });
+  const joined = names.length > 1 ? names.slice(0, -1).join(", ") + (L === "es" ? " y " : " and ") + names[names.length - 1] : names[0];
+  return para(L === "es"
+    ? "También pedimos presupuesto para <b>" + esc(joined) + "</b>. Lo verá en su cotización, en un solo pago con el yate."
+    : "We're also getting quotes for <b>" + esc(joined) + "</b>. You'll see them on your quote, in one payment with the yacht.", "font-size:15px");
+}
+
+/** Run once from the editor to create the Vendors tab (it is also created the first time an alert needs it). */
+function setupVendors() { vendorsSheet(); }

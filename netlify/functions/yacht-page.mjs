@@ -48,6 +48,7 @@ function yachtBody(y, others) {
     y.guests ? ["f.guests", "Guests", `<span data-i18n="f.upto">Up to</span> ${y.guests}`] : null,
     y.cabins ? ["f.cabins", "Cabins", esc(y.cabins)] : null,
     y.sleeps ? ["f.sleeps", "Sleeps", esc(y.sleeps)] : null,
+    y.baths ? ["f.baths", "Bathrooms", esc(y.baths)] : null,
     y.crew && y.crew.length ? ["f.crew", "Crew", y.crew.length] : null,
     ["f.builder", "Builder", esc(y.builder)],
   ].filter(Boolean);
@@ -94,6 +95,7 @@ function yachtBody(y, others) {
           <dl class="ydlg__meta">
             <dt data-i18n="y.departs">Departs from</dt><dd>${list(y.locations)}</dd>
             <dt data-i18n="f.crew">Crew</dt><dd>${list(y.crew)}</dd>
+            ${y.included && y.included.length ? `<dt data-i18n="y.onboardinc">Included</dt><dd>${list(y.included)}</dd>` : ""}
             <dt data-i18n="y.toys">Toys</dt><dd>${list(y.toys)}</dd>
             <dt data-i18n="y.gratuity">Gratuity</dt>${y.gratuityIncluded ? `<dd data-i18n="y.included">Included</dd>` : `<dd data-i18n="y.notincluded">Not included</dd>`}
           </dl>

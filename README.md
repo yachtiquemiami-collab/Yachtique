@@ -179,3 +179,15 @@ Each "Choose" button opens WhatsApp with the yacht, length and price written. Op
 ## Photo credits
 
 The area photos on the Locations page (`assets/img/locations/`) are from Unsplash, under the Unsplash License (free for commercial use, no credit required): Miami Beach `photo-1589083130544`, Key Biscayne `photo-1648319573718`, Fort Lauderdale `photo-1766373165231`, Palm Beach County `photo-1712026258060`, Key West `photo-1617202830798`, the Bahamas `photo-1615839901889` (unsplash.com/photos/...). Replace them with your own photos any time; keep the file names.
+
+## Extras: DJ, decorations, security, transport (Nov 2026)
+
+- **Food on board** is Yacht Bites, ordered by the client on Nektarios's partner link (`FOOD_URL`). When the client ticks it, the menu button is in their first email.
+- **Everything else** gets quoted. Nektarios's new-inquiry alert has an "Extras to arrange" box. Each extra has a button that opens WhatsApp (or email) to the vendor in the Sheet's **Vendors** tab, with the date, time, guests and marina already written. The client's name and contact are not included.
+- The **Vendors** tab is created the first time it's needed, or by running `setupVendors`. It has one row per extra: Company, Contact name, WhatsApp, Email.
+- On the **Accept page** each ticked extra has its own price box ("Add another extra" covers ones asked for on WhatsApp). Type the vendor's price plus your markup. Each one becomes its own line on the client's quote, payment page and Stripe receipt, saved in column **Extras price** (`DJ: 800; Decorations: 450`). Yachtique pays the vendor.
+- The 4% service fee applies to extras. Sales tax applies too while `TAX_EXTRAS = true` in Code.gs (to confirm with the accountant).
+
+## What's on board, beyond YCN's website
+
+YCN's WhatsApp listings name amenities (cooler, towels, Starlink...) that its broker page doesn't. Put them in `netlify/fleet-config.mjs` under `onboard` (included, toys, baths). They show as "Included" on the yacht page and in the pop-up. Never copy YCN's prices from those messages: they're our costs.

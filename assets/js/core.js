@@ -29,7 +29,7 @@
     "f.length": "Eslora", "f.guests": "Invitados", "f.cabins": "Camarotes", "f.sleeps": "Pernoctan", "f.crew": "Tripulación", "f.builder": "Astillero",
     "f.upto": "Hasta",
     "y.rates": "Tarifas", "y.onboard": "A bordo", "y.availability": "Disponibilidad", "y.theyacht": "El yate",
-    "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida", "y.tipchoice": "15, 18 o 20 %, a su elección",
+    "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.onboardinc": "Incluido a bordo", "f.baths": "Baños", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida", "y.tipchoice": "15, 18 o 20 %, a su elección",
     "y.fromprop": "De mi propuesta: yachtique.co/p/{id}",
     "y.ratesnote": "Tarifas desde el punto de salida más económico. Se aplican un cargo por servicio del 4% y los impuestos; la propina no está incluida. Su cotización final se confirma con la solicitud.",
     "y.popnote": "Tarifas desde. Se aplican un cargo por servicio del 4% y los impuestos; la propina no está incluida. Su cotización final se confirma con la solicitud.",
