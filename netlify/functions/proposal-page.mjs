@@ -59,7 +59,7 @@ export default async (req, context) => {
   return respond(page({
     title: `Private charter proposal${dayEn ? ` · ${dayEn}` : ""} | Yachtique`,
     description: `Your private yacht charter proposal from Yachtique${p.guests ? ` for ${p.guests} guests` : ""}.`,
-    image: options[0] && options[0].y.images[0] ? sized(options[0].y.images[0], 1200) : undefined,
+    image: SITE + "/assets/img/og-image.png",
     canonical: `${SITE}/p/${id}`,
     robots: "noindex, nofollow",
     bodyAttrs: `data-yacht="proposal:${esc(id)}"${p.lang === "es" ? ' data-lang-default="es"' : ""}`,
