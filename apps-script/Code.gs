@@ -1653,6 +1653,17 @@ function partnersSheet() {
   return sh;
 }
 
+// Bookings, earned, paid out and owed for one partner row, live from the Enquiries tab
+// (Partner = AE, Commission = AF, Commission paid = AG). The Enquiries columns must exist first, or Sheets writes #REF!.
+function partnerFormulas(sh, row) {
+  addNewColumns(SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Enquiries"));
+  sh.getRange(row, 13, 1, 4).setFormulas([[
+    '=COUNTIFS(Enquiries!AE:AE,A' + row + ',Enquiries!AF:AF,">0")',
+    '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ')',
+    '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ',Enquiries!AG:AG,"<>")',
+    '=N' + row + '-O' + row]]);
+}
+
 function partnerToken(code) {
   const sig = Utilities.computeHmacSha256Signature("partner:" + String(code), SECRET);
   return sig.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("").slice(0, 20);
@@ -1693,13 +1704,7 @@ function savePartner(p) {
     code = newPartnerCode(p.name);
     sh.appendRow([code, "Pending", safe(p.name), safe(p.business), safe(p.type), safe(p.phone), safe(p.email), safe(p.zelle || p.email), safe(p.about),
       p.lang === "es" ? "Spanish" : "English", new Date(), ""]);
-    const row = sh.getLastRow();
-    // Bookings, earned, paid out and owed, live from the Enquiries tab (Partner = AE, Commission = AF, Commission paid = AG)
-    sh.getRange(row, 13, 1, 4).setFormulas([[
-      '=COUNTIFS(Enquiries!AE:AE,A' + row + ',Enquiries!AF:AF,">0")',
-      '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ')',
-      '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ',Enquiries!AG:AG,"<>")',
-      '=N' + row + '-O' + row]]);
+    partnerFormulas(sh, sh.getLastRow());
   } finally {
     lock.releaseLock();
   }
@@ -1711,6 +1716,7 @@ function approvePartner(code) {
   const p = findPartner(code);
   if (!p) return { ok: false, error: "not found" };
   const sh = partnersSheet();
+  partnerFormulas(sh, p.row);
   if (!/^active$/i.test(p.status)) {
     sh.getRange(p.row, 2).setValue("Active");
     sh.getRange(p.row, 12).setValue(new Date());
