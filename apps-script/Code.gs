@@ -12,11 +12,11 @@
 const SECRET = PropertiesService.getScriptProperties().getProperty("SHEETS_SECRET");
 
 const ENQUIRY_HEADERS = ["Received", "Status", "Name", "Phone / WhatsApp", "Email", "Charter date", "Guests", "Duration", "Yacht", "Also interested in", "Message", "Notes", "Source", "Language", "Ref", "Decided", "Price", "Total", "Paid", "Payment", "Gratuity", "Gratuity choice",
-  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount", "Service fee", "Extras price"];
+  "Departure", "Start time", "Emails sent", "Extension", "Extension payment", "Discount", "Service fee", "Extras price", "Partner", "Commission", "Commission paid"];
 // Inquiries columns (1-based), used by the Accept / Decline links and payments
 const COL = { RECEIVED: 1, STATUS: 2, NAME: 3, PHONE: 4, EMAIL: 5, DATE: 6, GUESTS: 7, DURATION: 8, YACHT: 9, EXTRAS: 10, MESSAGE: 11, NOTES: 12, SOURCE: 13, LANG: 14, REF: 15, DECIDED: 16,
   PRICE: 17, TOTAL: 18, PAID: 19, PAYMENT: 20, GRATUITY: 21, TIP_CHOICE: 22,
-  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28, FEE: 29, XTRA: 30 };
+  DEPARTURE: 23, START: 24, SENT: 25, EXT: 26, EXT_PAY: 27, DISCOUNT: 28, FEE: 29, XTRA: 30, PARTNER: 31, COMM: 32, COMM_PAID: 33 };
 const EVENT_HEADERS = ["Time", "Event", "Page", "Yacht", "Detail", "Language", "Source", "Device", "Site"];
 const FLEET_HEADERS = ["Show on site", "Name", "Model", "Guests", "Length", "Cabins", "Description", "Photo", "Rate"];
 const STATUSES = ["New", "Accepted", "Declined", "Paid", "Contacted", "Quoted", "Booked", "Lost"];
@@ -130,6 +130,9 @@ function doPost(e) {
     if (body.type === "gratuity") return json(setGratuity(String(body.ref || ""), Number(body.gratuity)));
     if (body.type === "manualpaid") return json(markPaidManual(String(body.ref || ""), String(body.method || ""), Number(body.price) || 0, Number(body.gratuity) || 0));
     if (body.type === "extension") return json(recordExtension(String(body.ref || ""), String(body.state || ""), Number(body.hours) || 0, Number(body.amount) || 0, String(body.payment || "")));
+    if (body.type === "partner") return json(savePartner(body.partner || {}));
+    if (body.type === "partnerlookup") { const pl = findPartner(String(body.code || "")); return json(pl ? { ok: true, partner: pl } : { ok: false, error: "not found" }); }
+    if (body.type === "partnerapprove") return json(approvePartner(String(body.code || "")));
     if (body.type === "paid") return json(markPaid(String(body.ref || ""), Number(body.amount) || 0, String(body.payment || "")));
     if (body.type !== "enquiry") return json({ ok: false, error: "unknown type" });
 
@@ -159,6 +162,13 @@ function doPost(e) {
       // The start time they picked ("2:30 pm"), as text; the day-before email reads it from here
       q.start = startTime(safe(q.start));
       if (q.start) sheet.getRange(row, COL.START).setNumberFormat("@").setValue(niceTime(q.start, "en"));
+      // Sent by a partner (yachtique.co/?p=CODE): credit them if the code is an Active partner
+      const pc = String(q.partner || "").trim().toLowerCase();
+      q.partner = "";
+      if (pc) {
+        const pp = findPartner(pc);
+        if (pp && /^active$/i.test(pp.status)) { q.partner = pp.code; q.partnerInfo = pp; sheet.getRange(row, COL.PARTNER).setValue(pp.code); }
+      }
     } finally {
       lock.releaseLock();
     }
@@ -241,7 +251,7 @@ function findEnquiry(ref) {
   for (let i = refs.length - 1; i >= 0; i--) {
     if (String(refs[i][0]).trim() === ref) {
       const row = i + 2;
-      const v = sheet.getRange(row, 1, 1, Math.min(COL.XTRA, sheet.getMaxColumns())).getValues()[0];
+      const v = sheet.getRange(row, 1, 1, Math.min(COL.COMM_PAID, sheet.getMaxColumns())).getValues()[0];
       const items = parseExtras(v[COL.XTRA - 1]);
       const ymd = (x) => x instanceof Date ? Utilities.formatDate(x, "America/New_York", "yyyy-MM-dd") : String(x || "");
       return { sheet: sheet, row: row, q: {
@@ -257,6 +267,7 @@ function findEnquiry(ref) {
         extension: String(v[COL.EXT - 1] || ""), extPayment: String(v[COL.EXT_PAY - 1] || ""),
         discount: Number(v[COL.DISCOUNT - 1]) || 0, fee: Number(v[COL.FEE - 1]) || 0,
         extraItems: items, extrasTotal: extrasSum(items),
+        partner: String(v[COL.PARTNER - 1] || "").trim().toLowerCase(), commission: Number(v[COL.COMM - 1]) || 0,
       } };
     }
   }
@@ -401,6 +412,11 @@ function markPaid(ref, amountCents, payment) {
     f.q.status = "Paid";
     f.q.payment = payment;
     f.q.amountPaid = amountCents ? amountCents / 100 : f.q.total;
+    // A partner sent this client: 10% of the charter (after discount), paid to them after the charter
+    if (f.q.partner && !f.q.commission && f.q.price > 0) {
+      f.q.commission = cents(f.q.price * PARTNER_COMMISSION) / 100;
+      f.sheet.getRange(f.row, COL.COMM).setNumberFormat("$#,##0.00").setValue(f.q.commission);
+    }
   } finally {
     lock.releaseLock();
   }
@@ -873,6 +889,8 @@ function sendOwnerAlert(q, to, cc) {
     soon + rule() +
     factsBox(q) +
     ownerPriceBox(q) +
+    (q.partnerInfo ? messageBox("Sent by a partner", q.partnerInfo.name + (q.partnerInfo.business ? " (" + q.partnerInfo.business + ")" : "") + " · code " + q.partnerInfo.code +
+      ". If this client books, " + Math.round(PARTNER_COMMISSION * 100) + "% of the charter price goes to them, paid by Zelle after the charter.") : "") +
     extrasBox(q) +
     messageBox("Their message", q.message) +
     decide +
@@ -1076,6 +1094,8 @@ function sendOwnerPaid(q, to, cc) {
     heading(esc(q.name || "Client") + " paid " + amount) +
     para((stripePaid ? "Paid by card through Stripe." : "Paid by " + esc(q.payment) + ", marked on the Accept page.") + " The Status in the sheet is now <b>Paid</b>.", "margin-bottom:22px") + rule() +
     factsBox(q) + priceBox(q, "en") +
+    (q.commission ? messageBox("Partner commission", usd(q.commission) + " to " + partnerLabel(q.partner) + " (" + Math.round(PARTNER_COMMISSION * 100) +
+      "% of the charter). Pay by Zelle after the charter, then put the date in the Commission paid column.") : "") +
     eyebrow("Next") +
     steps([["Reserve with YCN now.", "Message Laurent and pay the $500 broker deposit."], ["Confirm to the client.", "Only after YCN confirms the yacht. Then set the Status to Booked."],
       ["72 hours before.", "Pay YCN the balance. The day before, send the client the marina, time and rules."]]) +
@@ -1595,3 +1615,152 @@ function extrasClientNote(q, L) {
 
 /** Run once from the editor to create the Vendors tab (it is also created the first time an alert needs it). */
 function setupVendors() { vendorsSheet(); }
+
+
+/* =================== Partner program (referrals) ===================
+   Anyone can ask to join at yachtique.co/partners.html (netlify/functions/partner.mjs). The request lands in the
+   Partners tab as Pending and Nektarios gets an email with an Approve button. Approved partners get their link,
+   yachtique.co/?p=CODE. The website remembers the code for 60 days and sends it with the inquiry; the Enquiries
+   row gets it in the Partner column (Nektarios can also type a code there by hand). When the client pays,
+   Commission = 10% of the charter price (after discount; no tax, fee, gratuity or extras). Nektarios pays it by
+   Zelle after the charter and fills in Commission paid. The Partners tab adds up bookings, earned, paid out and owed. */
+
+const PARTNER_COMMISSION = 0.10;
+const PARTNER_HEADERS = ["Code", "Status", "Name", "Business", "Type", "WhatsApp", "Email", "Zelle", "About", "Language", "Joined", "Approved",
+  "Bookings", "Earned", "Paid out", "Owed", "Notes"];
+const PARTNER_STATUSES = ["Pending", "Active", "Paused", "Declined"];
+
+function partnersSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("Partners");
+  if (sh) return sh;
+  sh = ss.insertSheet("Partners");
+  sh.getRange(1, 1, 1, PARTNER_HEADERS.length).setValues([PARTNER_HEADERS]);
+  styleHeader(sh, PARTNER_HEADERS.length);
+  sh.setColumnWidths(1, PARTNER_HEADERS.length, 140);
+  sh.setColumnWidth(9, 280);
+  sh.setFrozenRows(1);
+  sh.getRange("B2:B").setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
+  sh.getRange("F2:H").setNumberFormat("@");
+  sh.getRange("K2:L").setNumberFormat("mmm d, yyyy");
+  sh.getRange("N2:P").setNumberFormat("$#,##0.00");
+  const range = sh.getRange("B2:B");
+  sh.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Pending").setBackground("#F6E7C8").setRanges([range]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Active").setBackground("#D6EBD9").setRanges([range]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("Declined").setFontColor("#999999").setRanges([range]).build(),
+  ]);
+  return sh;
+}
+
+function partnerToken(code) {
+  const sig = Utilities.computeHmacSha256Signature("partner:" + String(code), SECRET);
+  return sig.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("").slice(0, 20);
+}
+function partnerApproveUrl(code) { return SITE + "/api/partner?code=" + encodeURIComponent(code) + "&a=approve&t=" + partnerToken(code); }
+
+function findPartner(code) {
+  code = String(code || "").trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,24}$/.test(code)) return null;
+  const sh = partnersSheet();
+  const rows = sh.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (String(r[0]).trim().toLowerCase() !== code) continue;
+    return { row: i + 1, code: code, status: String(r[1] || "Pending"), name: String(r[2] || ""), business: String(r[3] || ""), type: String(r[4] || ""),
+      phone: String(r[5] || ""), email: String(r[6] || ""), zelle: String(r[7] || ""), about: String(r[8] || ""), lang: /^es/i.test(String(r[9])) ? "es" : "en" };
+  }
+  return null;
+}
+function partnerLabel(code) { const p = findPartner(code); return p ? p.name + " (" + p.code + ")" : code; }
+
+// A short, readable code from the first name: "maria", then "maria2", "maria3"...
+function newPartnerCode(name) {
+  const base = (String(name || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().match(/[a-z0-9]+/g) || ["partner"])[0].slice(0, 16) || "partner";
+  const used = {};
+  partnersSheet().getRange("A2:A").getValues().forEach(function (r) { used[String(r[0]).toLowerCase()] = true; });
+  let code = base.length < 2 ? base + "yq" : base, n = 2;
+  while (used[code]) code = base + n++;
+  return code;
+}
+
+function savePartner(p) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let code;
+  try {
+    const sh = partnersSheet();
+    code = newPartnerCode(p.name);
+    sh.appendRow([code, "Pending", safe(p.name), safe(p.business), safe(p.type), safe(p.phone), safe(p.email), safe(p.zelle || p.email), safe(p.about),
+      p.lang === "es" ? "Spanish" : "English", new Date(), ""]);
+    const row = sh.getLastRow();
+    // Bookings, earned, paid out and owed, live from the Enquiries tab (Partner = AE, Commission = AF, Commission paid = AG)
+    sh.getRange(row, 13, 1, 4).setFormulas([[
+      '=COUNTIFS(Enquiries!AE:AE,A' + row + ',Enquiries!AF:AF,">0")',
+      '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ')',
+      '=SUMIFS(Enquiries!AF:AF,Enquiries!AE:AE,A' + row + ',Enquiries!AG:AG,"<>")',
+      '=N' + row + '-O' + row]]);
+  } finally {
+    lock.releaseLock();
+  }
+  try { sendOwnerPartnerRequest(findPartner(code)); } catch (err) { console.error("Partner alert failed: " + err); }
+  return { ok: true, code: code };
+}
+
+function approvePartner(code) {
+  const p = findPartner(code);
+  if (!p) return { ok: false, error: "not found" };
+  const sh = partnersSheet();
+  if (!/^active$/i.test(p.status)) {
+    sh.getRange(p.row, 2).setValue("Active");
+    sh.getRange(p.row, 12).setValue(new Date());
+    p.status = "Active";
+  }
+  let emailed = false;
+  try { emailed = sendPartnerWelcome(p); } catch (err) { console.error("Partner welcome failed: " + err); }
+  return { ok: true, partner: p, emailed: emailed };
+}
+
+function sendOwnerPartnerRequest(p) {
+  if (!p) return;
+  const facts = [["Type", p.type], ["Business", p.business || "—"], ["WhatsApp", p.phone], ["Email", p.email], ["Zelle", p.zelle], ["Their link", "yachtique.co/?p=" + p.code]];
+  const inner = eyebrow("Partner request") + heading(esc(p.name)) +
+    para("Wants to send you clients for 10% of the charter. Approve and they get their link by email" + (p.lang === "es" ? " (in Spanish)" : "") + ".", "margin-bottom:22px") + rule() +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid ' + C.line + ';border-radius:16px;border-collapse:separate;background:' + C.inner + '">' +
+    facts.map(function (f, i) { return '<tr><td style="padding:11px 18px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:12px;color:' + C.gold + ';text-transform:uppercase;letter-spacing:1.5px">' + esc(f[0]) +
+      '</td><td align="right" style="padding:11px 18px;border-top:' + (i ? "1px solid " + C.line : "0") + ';font-family:' + SANS + ';font-size:14px;color:' + C.white + '">' + esc(f[1]) + "</td></tr>"; }).join("") + "</table>" +
+    messageBox("How they meet clients", p.about) +
+    buttons(button(partnerApproveUrl(p.code), "Approve " + firstName(p), true) + button(SpreadsheetApp.getActiveSpreadsheet().getUrl(), "Open the sheet", false)) +
+    para("Not a fit? Set their Status to Declined in the Partners tab. Nothing is sent.", "font-size:13px;color:" + C.muted);
+  sendAlert({ name: "Yachtique Partners", subject: "Partner request: " + p.name + (p.business ? " · " + p.business : "") + " · " + p.type,
+    htmlBody: layout(p.name + " wants to join the partner program", inner),
+    body: p.name + " wants to join the Yachtique partner program.\nType: " + p.type + "\nBusiness: " + p.business + "\nWhatsApp: " + p.phone + "\nEmail: " + p.email +
+      "\n\nApprove: " + partnerApproveUrl(p.code) }, OWNER_EMAIL, ALERT_CC);
+}
+
+function sendPartnerWelcome(p) {
+  if (!validEmail(p.email)) return false;
+  const es = p.lang === "es", link = SITE + "/?p=" + p.code, first = firstName(p);
+  const T = es ? {
+    sub: "Bienvenido al programa de socios de Yachtique", eye: "Programa de socios", head: "Bienvenido, " + esc(first) + ".",
+    p: "Este es su enlace personal. Cada cliente que reserve un yate desde él le da el <b>10% del precio del alquiler</b>, pagado por Zelle en los 7 días siguientes al alquiler.",
+    btn: "Abrir mi enlace", how: "Cómo usarlo",
+    steps: [["Compártalo tal cual.", "Por WhatsApp, en su guía de bienvenida, en su biografía o en una tarjeta con código QR."], ["Nosotros hacemos el resto.", "Yates, cotización, pago y el día en sí. Su cliente paga el precio normal del sitio web."], ["Cobre después del día.", "El 10% del alquiler, sin impuestos, cargo por servicio, propina ni extras."]],
+    terms: "Condiciones completas: " + SITE + "/partners.html", chat: "Escríbanos por WhatsApp" } : {
+    sub: "Welcome to the Yachtique partner program", eye: "Partner program", head: "Welcome, " + esc(first) + ".",
+    p: "This is your personal link. Every client who books a yacht from it earns you <b>10% of the charter price</b>, paid by Zelle within 7 days after the charter.",
+    btn: "Open my link", how: "How to use it",
+    steps: [["Share it as it is.", "On WhatsApp, in your welcome book, in your bio or on a QR card."], ["We do the rest.", "Yachts, the quote, the payment and the day itself. Your client pays our normal website price."], ["Get paid after the day.", "10% of the charter, not of tax, the service fee, gratuity or extras."]],
+    terms: "Full terms: " + SITE + "/partners.html", chat: "WhatsApp us" };
+  const inner = eyebrow(T.eye) + heading(T.head) + para(T.p) + rule() +
+    '<p style="margin:0 0 22px;text-align:center"><span style="display:inline-block;padding:14px 22px;border:1px solid ' + C.gold + ';border-radius:14px;font-family:' + SERIF + ';font-size:20px;color:' + C.white + '">yachtique.co/?p=' + esc(p.code) + "</span></p>" +
+    buttons(button(link, T.btn, true)) + eyebrow(T.how) + steps(T.steps) +
+    para(T.terms, "font-size:13px;color:" + C.muted) +
+    buttons(button("https://wa.me/" + WHATSAPP, T.chat, false));
+  MailApp.sendEmail({ to: p.email, replyTo: OWNER_EMAIL, name: "Yachtique", subject: T.sub, htmlBody: layout(T.sub, inner, p.lang),
+    body: T.head.replace(/<[^>]+>/g, "") + "\n\n" + T.p.replace(/<[^>]+>/g, "") + "\n\n" + link + "\n\n" + T.terms });
+  return true;
+}
+
+/** Run once from the editor to create the Partners tab (it is also created with the first sign-up). */
+function setupPartners() { partnersSheet(); }

@@ -8,7 +8,7 @@
 import type { FormSubmittedEvent } from "@netlify/functions"
 import { priceFor } from "../lib/site.mjs"
 
-const FIELDS = ["name", "phone", "email", "date", "start", "guests", "duration", "yacht", "departure", "extras", "gratuity", "message", "source", "lang"] as const
+const FIELDS = ["name", "phone", "email", "date", "start", "guests", "duration", "yacht", "departure", "extras", "gratuity", "message", "source", "lang", "partner"] as const
 
 const asText = (v: unknown): string => {
   if (v == null) return ""

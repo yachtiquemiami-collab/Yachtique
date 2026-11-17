@@ -297,7 +297,7 @@ ${footerHtml("/")}
 }
 
 // CSS/JS version: bump on every CSS or JS change (also in the .html files)
-export const V = "20261111a";
+export const V = "20261117a";
 
 // Header shared by every page (index.html carries a copy of the same markup)
 export function navHtml() {
@@ -367,7 +367,7 @@ export function footerHtml() {
     </div>
     <div class="footer__bottom">
       <p>&copy; ${new Date().getFullYear()} <span data-i18n="foot.rights">Yachtique. Miami, Florida.</span></p>
-      <p><a href="/terms.html" data-i18n="foot.terms">Booking terms</a> &middot; <a href="/privacy.html" data-i18n="foot.privacy">Privacy Policy</a></p>
+      <p><a href="/partners.html" data-i18n="foot.partners">Partner program</a> &middot; <a href="/terms.html" data-i18n="foot.terms">Booking terms</a> &middot; <a href="/privacy.html" data-i18n="foot.privacy">Privacy Policy</a></p>
     </div>
   </div>
 </footer>`;

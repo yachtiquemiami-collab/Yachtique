@@ -1022,3 +1022,13 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .dmore summary { cursor: pointer; font-size: 13px; color: var(--gold, #C9A564); padding: 4px 0; }
 .dmore[open] summary { margin-bottom: 8px; }
 .dmore label { display: block; margin-bottom: 10px; }
+
+/* Partner program page */
+.ptsteps, .ptterms { padding-left: 22px; margin: 0 0 8px; }
+.ptsteps li, .ptterms li { margin: 0 0 10px; line-height: 1.65; }
+.ptform { margin: 8px 0 28px; }
+.form label.ptagree { display: flex; align-items: flex-start; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 400; color: var(--text, #E8E4DA); }
+.form label.ptagree input { width: 18px; height: 18px; margin-top: 2px; flex: 0 0 auto; }
+.ptmsg { margin: 0; font-size: 14px; color: var(--gold-light); }
+.ptmsg.is-bad { color: #e8a39a; }
+@media (max-width: 640px) { .ptform .form__row { grid-template-columns: 1fr; } }

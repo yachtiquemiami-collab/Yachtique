@@ -17,7 +17,7 @@
     "nav.about": "Nosotros", "nav.enquire": "Reservar", "nav.menu": "Abrir menú",
     "foot.tag": "Alquiler privado de yates y concierge en Miami, organizado por un solo bróker desde el primer mensaje hasta el muelle.",
     "foot.explore": "Explorar", "foot.fleet": "La flota", "foot.available": "Disponibles esta semana", "foot.shortlist": "Mi selección",
-    "foot.concierge": "Concierge", "foot.faq": "Preguntas frecuentes", "foot.terms": "Condiciones de reserva", "foot.privacy": "Política de privacidad",
+    "foot.concierge": "Concierge", "foot.partners": "Programa de socios", "foot.faq": "Preguntas frecuentes", "foot.terms": "Condiciones de reserva", "foot.privacy": "Política de privacidad",
     "foot.where": "Dónde navegamos", "foot.occasions": "Ocasiones", "foot.contact": "Contacto",
     "foot.rights": "Yachtique. Miami, Florida.",
     "wa.chat": "Chatear por WhatsApp", "wa.ask": "Preguntar por WhatsApp", "wa.short": "WhatsApp",
@@ -160,6 +160,15 @@
     return s;
   })();
 
+  // Partner program: yachtique.co/?p=CODE is remembered for 60 days and sent with the inquiry
+  var partner = (function () {
+    var p = String(params.get("p") || "").toLowerCase();
+    if (/^[a-z0-9-]{2,24}$/.test(p)) { store("yq_partner", JSON.stringify({ c: p, t: Date.now() })); return p; }
+    var saved = null;
+    try { saved = JSON.parse(store("yq_partner") || "null"); } catch (e) {}
+    return saved && Date.now() - saved.t < 60 * 86400000 ? saved.c : "";
+  })();
+
   function track(event, data) {
     if (/^(localhost|127\.)/.test(location.hostname)) return;
     data = data || {};
@@ -251,7 +260,7 @@
   document.addEventListener("submit", function (e) {
     var f = e.target;
     if (!f || f.getAttribute("name") !== "enquiry") return;
-    [["source", source], ["lang", lang]].forEach(function (p) {
+    [["source", source], ["lang", lang], ["partner", partner]].forEach(function (p) {
       var inp = f.querySelector('input[name="' + p[0] + '"]');
       if (!inp) { inp = document.createElement("input"); inp.type = "hidden"; inp.name = p[0]; f.appendChild(inp); }
       inp.value = p[1];

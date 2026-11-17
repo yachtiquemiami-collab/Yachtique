@@ -3,7 +3,7 @@
 // Add any new static page to PAGES below.
 import { SITE, AREAS, OCCASIONS, loadFleet } from "../lib/site.mjs";
 
-const PAGES = ["/", "/available", "/locations", "/faq.html", "/terms.html", "/privacy.html"];
+const PAGES = ["/", "/available", "/locations", "/faq.html", "/terms.html", "/privacy.html", "/partners.html"];
 
 export default async (req) => {
   const fleet = (await loadFleet(req)) || [];

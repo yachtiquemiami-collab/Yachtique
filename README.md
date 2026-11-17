@@ -191,3 +191,12 @@ The area photos on the Locations page (`assets/img/locations/`) are from Unsplas
 ## What's on board, beyond YCN's website
 
 YCN's WhatsApp listings name amenities (cooler, towels, Starlink...) that its broker page doesn't. Put them in `netlify/fleet-config.mjs` under `onboard` (included, toys, baths). They show as "Included" on the yacht page and in the pop-up. Never copy YCN's prices from those messages: they're our costs.
+
+## Partner program (referrals, Nov 2026)
+
+- **yachtique.co/partners.html** (EN/ES): how it works, the sign-up form and the partner terms. The form posts to `/api/partner` (`netlify/functions/partner.mjs`). The request lands in the Sheet's **Partners** tab as *Pending*, and Nektarios gets an email with an **Approve** button.
+- **Approve:** the partner's Status becomes *Active*. They get their link (`yachtique.co/?p=CODE`) by email, and Nektarios gets a WhatsApp button with the welcome message. To decline someone, set their Status to *Declined*. *Paused* stops new credit.
+- **Tracking:** `core.js` remembers `?p=CODE` for 60 days in the browser and sends it with the inquiry. The Enquiries **Partner** column gets the code, but only for Active partners. Nektarios can also type a code there by hand ("Maria sent me").
+- **Commission:** when the client pays, **Commission** = 10% of the charter price after any discount (`PARTNER_COMMISSION` in Code.gs). Tax, the service fee, gratuity and extras don't count. Nektarios pays it by Zelle after the charter and puts the date in **Commission paid**. On a refund, clear the Commission cell. The Partners tab adds up Bookings, Earned, Paid out and Owed per partner.
+- The inquiry email says when a client came from a partner. The payment email shows the commission to pay.
+- **W-9 / 1099** for partners earning $600 or more a year: handled by hand with the accountant.
