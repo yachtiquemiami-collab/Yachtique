@@ -106,7 +106,8 @@ var REVIEWS = [];
         badge.textContent = st === "free" ? t("cal.free", "Available") : st === "partial" ? t("cal.partial", "Partly booked") : t("cal.full", "Booked");
       }
       el.classList.toggle("is-booked", st === "full");
-      el.style.order = collapsed ? rank : st === "full" ? 2 : st === "partial" ? 1 : 0;
+      // Always smallest to biggest (the fleet arrives sorted by length); a search moves booked yachts to the end
+      el.style.order = collapsed ? 0 : st === "full" ? 2 : st === "partial" ? 1 : 0;
       if (fits) { shown++; if (st !== "full") free++; }
     });
     if (moreWrap) {

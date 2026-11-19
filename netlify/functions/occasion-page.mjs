@@ -13,10 +13,11 @@ export default async (req, context) => {
     return html(page({ title: "Yachtique", body: unavailable(), canonical: `${SITE}/occasions/${slug}` }), 503, "no-store");
   }
 
-  // Featured yachts first, then the most affordable, six at most
+  // Six at most (featured yachts first, then the most affordable), shown smallest to biggest
   const yachts = fleet.filter((y) => y.images && y.images.length && occ.pick(y))
     .sort((a, b) => (a.featured < 0) - (b.featured < 0) || a.from - b.from)
-    .slice(0, 6);
+    .slice(0, 6)
+    .sort((a, b) => a.feet - b.feet || a.from - b.from);
   const from = yachts.length ? Math.min(...yachts.map((y) => y.from)) : 0;
   const en = occ.en, es = occ.es;
 

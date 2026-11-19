@@ -10,8 +10,9 @@
                     shown to Nektarios in the inquiry email and on the Accept page.
   - brokerListedOnly: true = only show yachts that are on YCN's broker page (the ones
                     YCN offers to brokers, with their live calendar).
-  - featured:       the yachts shown first on the home page (up to 6), in this order. The rest
-                    appear when a visitor clicks "View all" or searches by date.
+  - featured:       the yachts shown on the home page (up to 6). The rest appear when a visitor
+                    clicks "View all" or searches by date. Yachts always show smallest to biggest
+                    (by length), wherever they are listed; the order of this list doesn't matter.
   - hide:           yachts to leave off the site, by their handle (the last part of the
                     ycn.yachts/products/... link), e.g. "bimini-blue".
   - priceOverrides: a fixed price for one yacht and duration, used instead of the markup.
