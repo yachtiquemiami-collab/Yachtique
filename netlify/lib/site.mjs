@@ -188,11 +188,23 @@ export async function priceFor(origin, q) {
   if (!res.ok) return null;
   const y = ((await res.json()).yachts || []).find((x) => String(x.name).trim().toLowerCase() === name);
   if (!y) return null;
+  // Owner-direct yachts can be cheaper Monday to Thursday
+  const wk = isWeekday(q.date) && y.weekday;
+  const wkey = wk && Object.keys(wk).find((k) => k.toLowerCase() === dur);
+  if (wkey) return { price: wk[wkey], cost: (y.weekdayCosts || {})[wkey] || 0, at: "Mon–Thu" };
   const at = (y.departures || []).find((p) => p.name === q.departure);
   const key = at && Object.keys(at.prices).find((k) => k.toLowerCase() === dur);
   if (key) return { price: at.prices[key], cost: (at.costs || {})[key] || 0, at: at.name };
   const d = y.durations.find((x) => x.label.toLowerCase() === dur);
   return d ? { price: d.price, cost: d.cost || 0, at: "" } : null;
+}
+
+// Monday to Thursday (a "YYYY-MM-DD" charter date), for yachts with weekday prices
+export function isWeekday(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(date || ""));
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3])).getUTCDay();
+  return d >= 1 && d <= 4;
 }
 
 // The fleet can be slow on a cold start, so try twice before giving up

@@ -23,12 +23,16 @@ export default async (req) => {
       .filter((p) => !settings.brokerListedOnly || p.handle in cards)
       .map((p) => ({ ...toYacht(p), ...(cards[p.handle] || {}), ...onboard(p.handle) }))
       .filter((y) => y.durations.length);
+    // Yachts we get straight from their owner (fleet-config.mjs "direct")
+    yachts.push(...directYachts().filter((y) => !hidden.has(y.handle)));
 
     await Promise.all(
       yachts.map(async (y) => {
         const cal = y.calendar || (settings.calendars || {})[y.handle];
+        const match = y.calendarMatch;
         delete y.calendar;
-        const cal2 = cal ? await fetchBusy(cal) : null;
+        delete y.calendarMatch;
+        const cal2 = cal ? await fetchBusy(cal, match) : null;
         // A calendar with no bookings at all is most likely not kept up to date: treat it as no live calendar
         const kept = cal2 && Object.keys(cal2.busy).length;
         y.busy = kept ? cal2.busy : null;
@@ -41,6 +45,7 @@ export default async (req) => {
     yachts.forEach((y) => {
       y.durations.forEach((d) => { delete d.cost; });
       (y.departures || []).forEach((p) => { delete p.costs; });
+      delete y.weekdayCosts;
     });
     yachts.sort((a, b) => a.feet - b.feet || a.from - b.from);
     const featured = settings.featured || [];
@@ -65,6 +70,9 @@ async function costsOnly(req) {
     const yachts = (await fetchProducts())
       .filter((p) => !SKIP_TYPES.includes(String(p.product_type).toLowerCase()))
       .map((p) => { const y = toYacht(p); return { handle: y.handle, name: y.name, durations: y.durations, departures: y.departures }; });
+    for (const y of directYachts()) {
+      yachts.push({ handle: y.handle, name: y.name, durations: y.durations, departures: y.departures, weekday: y.weekday, weekdayCosts: y.weekdayCosts });
+    }
     return json({ yachts }, 200, { "Cache-Control": "no-store", "Netlify-CDN-Cache-Control": "no-store" });
   } catch (err) {
     console.error(err);
@@ -183,6 +191,52 @@ function markup(price) {
   return Math.ceil((price * (1 + (settings.markup || 0))) / step) * step;
 }
 
+// ---------- Yachts straight from their owner ----------
+
+// fleet-config.mjs "direct": NET prices (our cost), sold at the same margin as YCN yachts.
+// A YCN yacht costs us brokerShare × its public price and sells at public × (1 + markup),
+// so a net price sells at net ÷ brokerShare × (1 + markup), rounded up the same way.
+function directYachts() {
+  const share = settings.brokerShare || 0.85;
+  const sell = (net) => markup(net / share);
+  return Object.entries(settings.direct || {}).map(([handle, c]) => {
+    const net = c.net || {};
+    const durations = Object.keys(net).map((label) => ({ label, price: sell(net[label]), cost: net[label] }));
+    const weekNet = c.netWeekday || null;
+    const weekday = weekNet ? Object.fromEntries(Object.keys(weekNet).map((l) => [l, sell(weekNet[l])])) : null;
+    const prices = Object.fromEntries(durations.map((d) => [d.label, d.price]));
+    const costs = Object.fromEntries(durations.map((d) => [d.label, d.cost]));
+    return {
+      handle,
+      name: c.name,
+      builder: c.builder,
+      feet: c.feet || 0,
+      year: c.year || null,
+      type: c.type || "Motor Yacht",
+      guests: c.guests || null,
+      summary: c.summary || "",
+      about: c.about || [],
+      images: (c.images || []).slice(0, 14),
+      durations,
+      // Monday–Thursday prices, when the owner has them; the listed rates are Friday–Sunday
+      weekday,
+      weekdayCosts: weekNet ? { ...weekNet } : null,
+      from: durations.length ? Math.min(...durations.map((d) => d.price)) : 0,
+      locations: c.departure ? [c.departure] : [],
+      departures: c.departure ? [{ name: c.departure, prices, costs }] : [],
+      toys: c.toys || [],
+      crew: c.crew || [],
+      rules: c.rules || [],
+      gratuityIncluded: !!c.gratuityIncluded,
+      cabins: c.cabins || null,
+      sleeps: c.sleeps || null,
+      direct: true,
+      calendar: c.calendar || null,
+      calendarMatch: c.calendarMatch || null,
+    };
+  }).filter((y) => y.name && y.durations.length);
+}
+
 // ---------- Calendars ----------
 
 // YCN's broker page has one card per yacht (<article id="ycn-yacht-HANDLE">) with its
@@ -218,19 +272,21 @@ async function fetchBrokerCards() {
 }
 
 // Returns { "2026-10-30": "full" | "partial" } for the next DAYS_AHEAD days.
-// Only dates are read from the calendar; event titles and details are never used.
-async function fetchBusy(calendarId) {
+// Only dates are read from the calendar. Event titles are only checked against `match` (a calendar that
+// holds several boats: only events naming this yacht count) and are never stored or shown.
+async function fetchBusy(calendarId, match) {
   const url = `https://calendar.google.com/calendar/ical/${encodeURIComponent(calendarId)}/public/basic.ics`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
-    return parseIcs(await res.text());
+    return parseIcs(await res.text(), match);
   } catch {
     return null;
   }
 }
 
-function parseIcs(ics) {
+function parseIcs(ics, match) {
+  const words = Array.isArray(match) && match.length ? match.map((w) => String(w).toLowerCase()) : null;
   const lines = ics.replace(/\r?\n[ \t]/g, "").split(/\r?\n/);
   const today = nyDate(new Date());
   const limit = nyDate(new Date(Date.now() + DAYS_AHEAD * 864e5));
@@ -246,7 +302,8 @@ function parseIcs(ics) {
     if (line === "BEGIN:VEVENT") ev = {};
     else if (line === "END:VEVENT") {
       // Google marks all-day events as "free" by default, so TRANSP is ignored on purpose
-      if (ev && ev.start && ev.status !== "CANCELLED") {
+      const ours = !words || words.some((w) => String((ev && ev.summary) || "").toLowerCase().includes(w));
+      if (ev && ev.start && ev.status !== "CANCELLED" && ours) {
         // A repeating booking ("every Saturday") counts on every date it repeats, not just the first
         for (const occ of occurrences(ev, limit)) addEvent(occ, mark);
       }
@@ -258,6 +315,7 @@ function parseIcs(ics) {
       if (key.startsWith("DTSTART")) ev.start = parseDt(key, val);
       else if (key.startsWith("DTEND")) ev.end = parseDt(key, val);
       else if (key === "STATUS") ev.status = val;
+      else if (words && key.startsWith("SUMMARY")) ev.summary = val;
       else if (key === "RRULE") ev.rrule = val;
       else if (key.startsWith("EXDATE")) (ev.exdates = ev.exdates || []).push(...val.split(",").map((v) => v.slice(0, 8)));
     }

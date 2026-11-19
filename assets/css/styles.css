@@ -714,6 +714,7 @@ button.cal__d--free:hover, button.cal__d--partial:hover { border-color: var(--go
 .ydlg__prices li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 20px; background: var(--navy-2); font-size: 15px; color: var(--text); }
 .ydlg__prices b { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--white); white-space: nowrap; }
 .yrates li { padding: 16px 22px; font-size: 16px; }
+.yrates__head { margin: 18px 0 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold, #C9A564); }
 .yrates b { font-size: 23px; }
 .ydlg__meta { grid-template-columns: 130px minmax(0, 1fr); margin-top: 22px; font-size: 14px; }
 .ydlg__meta dt, .ydlg__meta dd { margin: 0; padding: 14px 18px; background: var(--navy-2); }

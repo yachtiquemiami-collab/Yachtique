@@ -31,6 +31,8 @@
     "y.rates": "Tarifas", "y.onboard": "A bordo", "y.availability": "Disponibilidad", "y.theyacht": "El yate",
     "y.departs": "Sale desde", "y.toys": "Juguetes acuáticos", "y.onboardinc": "Incluido a bordo", "f.baths": "Baños", "y.gratuity": "Propina", "y.included": "Incluida", "y.notincluded": "No incluida", "y.tipchoice": "15, 18 o 20 %, a su elección",
     "y.fromprop": "De mi propuesta: yachtique.co/p/{id}",
+    "y.weekend": "Viernes a domingo", "y.weekdays": "Lunes a jueves",
+    "y.ratesnotedirect": "La propina para la tripulación está incluida. Se aplican un cargo por servicio del 4% y los impuestos. Su cotización final se confirma con la solicitud.",
     "y.ratesnote": "Tarifas desde el punto de salida más económico. Se aplican un cargo por servicio del 4% y los impuestos; la propina no está incluida. Su cotización final se confirma con la solicitud.",
     "y.popnote": "Tarifas desde. Se aplican un cargo por servicio del 4% y los impuestos; la propina no está incluida. Su cotización final se confirma con la solicitud.",
     "y.apa": "En alquileres de 24 horas o más se cobra por adelantado un fondo de aprovisionamiento (APA) del 35% del precio del alquiler para combustible, amarres, comida y bebida. Lo que no se use se devuelve.",

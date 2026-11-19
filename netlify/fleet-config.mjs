@@ -21,13 +21,20 @@
                     Paste from YCN's WhatsApp listing; never put YCN's prices here (they're our costs).
   - calendars:      backup list of each yacht's Google Calendar. The site reads the current
                     list from YCN's broker page first and only falls back to this.
+  - direct:         yachts we get straight from their owner (not on YCN), by handle. Prices here
+                    are NET (what the owner charges us). The site sells them at the same margin as
+                    YCN yachts: net ÷ brokerShare × (1 + markup), rounded up like the rest.
+                    net:        Friday–Sunday net price per duration
+                    netWeekday: Monday–Thursday net price per duration (optional)
+                    calendar + calendarMatch: the owner's Google Calendar, and the words an event title
+                    must contain to count as this yacht's booking (the calendar can hold other boats).
 */
 export default {
   markup: 0.20,
   roundTo: 5,
   brokerShare: 0.85,
   brokerListedOnly: true,
-  featured: ["bimini-blue", "sea-suite", "dont-tell-mom", "orca", "makebighappen", "no-curfew"],
+  featured: ["aqua-life", "bimini-blue", "sea-suite", "dont-tell-mom", "orca", "makebighappen"],
   hide: [],
   priceOverrides: {},
   onboard: {
@@ -63,5 +70,55 @@ export default {
     "rmmjob": "c_29b0d0789a151a63ece847ab61fde2e7ab446d293ff3f4569dd99dc36ad0be78@group.calendar.google.com",
     "no-curfew": "c_c5e227864d8476d3981bbfaa5e785f8023eb6b559e50c08f4dfde5fa6d1171ad@group.calendar.google.com",
     "carpediem2": "f624bde7ca48e3205cf6f632cc3d2850a4eefd748e041893bef159ec8a6cabc2@group.calendar.google.com"
+  },
+  direct: {
+    // Owner's WhatsApp listing ("Horizon FD90 Aston Martin"), 19 Nov 2026. Net broker prices, gratuity included.
+    "aqua-life": {
+      name: "Aqua Life",
+      builder: "Horizon FD90 Sky Lounge",
+      feet: 92,
+      year: 2021,
+      type: "Motor Yacht",
+      guests: 13,
+      net: { "4 hours": 6000, "6 hours": 8000, "8 hours": 10000 },
+      netWeekday: { "4 hours": 5500, "6 hours": 7500, "8 hours": 9000 },
+      gratuityIncluded: true,
+      departure: "Aston Martin Residences, Downtown Miami",
+      crew: ["Captain", "Crew"],
+      toys: ["2 Seabobs", "Jet ski (1 hour included)"],
+      rules: ["No smoking", "No red wine", "No pets"],
+      calendar: "hypertoyz11@gmail.com",
+      calendarMatch: ["horizon", "aqua life", "aqualife"],
+      summary: "A 2021 Horizon FD90 Sky Lounge departing from the private superyacht marina at the Aston Martin Residences in Downtown Miami, where the Miami River meets Biscayne Bay.",
+      about: [
+        { p: "A 2021 Horizon FD90 Sky Lounge departing from the private superyacht marina at the Aston Martin Residences in Downtown Miami, where the Miami River meets Biscayne Bay. Up to 13 guests, with gratuity included in the price." },
+        { h: "Deck spaces" },
+        { p: "Panoramic skyline views from the bow lounge with its two tables, and a sky lounge flybridge with seating, a bar and a sun pad." },
+        { h: "Interior" },
+        { p: "A modern open-plan salon with wraparound lounge seating, a dining table and a marble bar." },
+        { h: "After dark" },
+        { p: "Underwater LED lighting around the hull for evening cruises on the bay." },
+        { h: "Water toys" },
+        { p: "Two Seabobs and a jet ski (one hour of jet ski use included; a second jet ski is available)." },
+        { h: "On board" },
+        { p: "No smoking, no red wine and no pets." },
+      ],
+      images: [
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-RHLMps2/0/LJcbJNb4JJg4Ctz36WNcLxMgmPbtc6K85nPqtwfmj/X2/DJI_20260814110017_0583_D-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-t225tjT/0/KP8v8RcNWwjWQCbzbmhfL6G4fZp3VzGP2JZZmhKPh/X2/DJI_20260814110112_0613_D-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-mZ5shXs/0/KVT775RHNGDbZBvrGtWGcvmpwNL6tz7WwfWxp5LQM/X2/DJI_20260814113258_0830_D-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-kJdcVNZ/0/NWjdDDccZKHVSrHNzDbgFq5gFGBjsbtvnczW6tJpj/X2/DJI_20260814110210_0631_D-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-J5jHkJH/0/LzM626bHCGrRqdmXN66TrhrH43nNFpVZk9R6Bpnq8/X2/20261016_153126-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-dKCPjmm/0/KDL5qTQRTcMZ3xFKc3FCZFDHTKzmT4Dx5tsrqQtfc/X2/DSC04836-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-cbkDFRf/0/MLTjMNxSMTXK79PpcwstSJQVZXhnKt55dsm4QKZfP/X2/DSC04884-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-ck5QPkM/0/L8FTsTHhHFvRJGpDZmPCs6S7cV33Nb8NMHH3C2DNn/X2/DSC04891-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-3P8PsMM/0/Kp5bkbztbMHtd2XmmCBf4CfF3zgwLwD7B6KBTRBRj/X2/DSC04851-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-R6wh6HP/0/LFMsjxdtrzxvWZDLDzMqq6965fWHGGFFgphjmPLSz/X2/DSC04937-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-rvqDgmX/0/MHfgzNmzH3NSzkNwjF3nD73GNdfjDvVFNWZ7qGghM/X2/20261028_163959-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-GsdsGLR/0/MsqnJtvMdsZfs595457Vkqs74xnrc7RR2HXDp66Gw/X2/DSC05090-HDR-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-5DVtLR6/0/KSHxQQnHLCzNCfmcTbwFH4FKqsVfcSmPwXQpJzDhB/X2/DSC05015-HDR-X2.jpg",
+        "https://photos.smugmug.com/AQUA-LIFE-2021-92-Horizon-FD90-Sky-Lounge/i-jDFxCSB/0/NCvgP2qKcrJPmGMsx7tpZxWxGcxS8jMj9f62Zv2JL/X2/20261028_070122-X2.jpg"
+      ]
+    }
   }
 };

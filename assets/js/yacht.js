@@ -154,11 +154,18 @@
   var fromB = document.querySelector(".ybook__from b");
   function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
   function chosenDur() { var c = form && form.querySelector('[name="duration"]:checked'); return c ? c.value : ""; }
+  // Yachts with their own Monday-to-Thursday prices: a Mon–Thu date uses them
+  function weekdayPrices() {
+    if (!y.weekday || !dateInput || !dateInput.value) return null;
+    var p = dateInput.value.split("-"), d = new Date(+p[0], p[1] - 1, +p[2]).getDay();
+    return d >= 1 && d <= 4 ? y.weekday : null;
+  }
   function showPrices() {
     if (!depSel) return;
     var dur = chosenDur();
+    var wk = weekdayPrices();
     // Each duration card shows its price from the chosen marina
-    var here = (y.departures[depSel.selectedIndex] || {}).prices || {};
+    var here = wk || (y.departures[depSel.selectedIndex] || {}).prices || {};
     [].forEach.call(form.querySelectorAll("[data-dur-price]"), function (b) {
       var p = here[b.getAttribute("data-dur-price")];
       if (p) b.textContent = money(p);
@@ -167,7 +174,7 @@
       var p = (y.departures[i] || {}).prices || {};
       o.textContent = o.value + (p[dur] ? " \u00b7 " + money(p[dur]) : "");
     });
-    var pick = (y.departures[depSel.selectedIndex] || {}).prices || {};
+    var pick = wk || (y.departures[depSel.selectedIndex] || {}).prices || {};
     var fromDur = document.querySelector("[data-from-dur]");
     if (fromB && pick[dur]) {
       fromB.textContent = money(pick[dur]);
@@ -177,6 +184,7 @@
   if (depSel && form) {
     depSel.addEventListener("change", showPrices);
     form.addEventListener("change", function (e) { if (e.target.name === "duration") { showPrices(); markStartTimes(); } });
+    if (dateInput) dateInput.addEventListener("change", showPrices);
     showPrices();
   }
 

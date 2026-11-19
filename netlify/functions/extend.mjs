@@ -9,7 +9,7 @@
 // The Sheet then emails Nektarios Confirm / Not possible (/api/decide?a=extok|extno), which charges or releases the hold.
 // The price per hour comes from the yacht's own rates on the site (the step to the next longer charter), from the
 // client's marina when it has its own prices. The link carries a code made from "ext:" + the ref and SHEETS_SECRET.
-import { WA, esc, loadFleet, payBadges } from "../lib/site.mjs";
+import { WA, esc, loadFleet, payBadges, isWeekday } from "../lib/site.mjs";
 import { RX_REF, tokenOk, sheet, first, usd, cardPage, stripe } from "../lib/card.mjs";
 
 const HOURS = [1, 2];
@@ -216,7 +216,7 @@ async function extOffer(req, q, rate, taxGratuity) {
   const y = (fleet || []).find((x) => String(x.name).trim().toLowerCase() === name);
   if (!y) return null;
   const at = (y.departures || []).find((p) => p.name === q.departure);
-  const prices = at ? at.prices : Object.fromEntries(y.durations.map((d) => [d.label, d.price]));
+  const prices = isWeekday(q.date) && y.weekday ? y.weekday : at ? at.prices : Object.fromEntries(y.durations.map((d) => [d.label, d.price]));
   const points = Object.entries(prices)
     .map(([label, price]) => [parseInt((/^(\d+)\s*hours?$/i.exec(label.trim()) || [])[1], 10), price])
     .filter(([h]) => h > 0 && h <= 12)
