@@ -91,7 +91,7 @@ function yachtBody(y, others) {
           <ul class="ydlg__prices yrates">${Object.entries(y.weekday).map(([l, p]) => `<li><span data-dur>${esc(l)}</span><b>${money(p)}</b></li>`).join("")}</ul>` : ""}
           ${y.direct
             ? `<p class="muted ydlg__small" data-i18n="y.ratesnotedirect">Gratuity for the crew is included. A 4% service fee and sales tax apply. Your final quote is confirmed on inquiry.</p>`
-            : `<p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. A 4% service fee and sales tax apply; gratuity is not included. Your final quote is confirmed on inquiry.</p>`}
+            : `<p class="muted ydlg__small" data-i18n="y.ratesnote">Starting rates from the lowest-priced pickup point. A 4% service fee and sales tax apply. Gratuity is not included: 15–18% is customary, given directly to the captain on the day, not through Yachtique. Your final quote is confirmed on inquiry.</p>`}
           ${y.durations.some((d) => /(^|\D)(2[4-9]|[3-9]\d|\d{3,}) hours|week/i.test(d.label)) ? `<p class="muted ydlg__small" data-i18n="y.apa">For charters of 24 hours or more, an Advance Provisioning Allowance (APA) of 35% of the charter price is collected in advance for fuel, docking, food and drinks. Anything unused is returned.</p>` : ""}
         </section>
 
